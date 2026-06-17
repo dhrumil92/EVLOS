@@ -6,3 +6,4 @@ today i am learning
 git status = shows the status of the changed files
 ________________________
 updating the readme file
+hello world
