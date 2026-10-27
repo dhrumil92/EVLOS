@@ -8,7 +8,10 @@
 |------|------------|------------------|------------------|
 | **Student** | A resident of the hostel who is expected to punch for Pooja. Has one Student ID. | user, boarder, member | `Student` (TBD) |
 | **Rector** | The hostel officer who records Leaves and Returns, reviews the day, and Finalizes it. The only role that can Finalize. | admin, warden, sir, manager | `Role.RECTOR` (TBD) |
-| **Roster** | The list of Students (ID, name, room, email, phone, Biometric ID) supplied by the Rector as an Excel file and imported. | master list, student table, student sheet | `importRoster` (TBD) |
+| **Roster** | The list of Students (ID, name, room, email, phone, Biometric ID) supplied by the Rector as an Excel file. Used once for the first load of existing Students; later Students are added by form, and a sample-file upload comes last. | master list, student table, student sheet | `importRoster` (TBD) |
+| **Active** | A Student who currently lives in the hostel. Only Active Students are listed and given a Pooja Status. A Student is Active from the Day he is added until he is Deactivated, and again after he is Activated. | current, enrolled | `isActiveOn` (TBD) |
+| **Deactivate** | The Rector's act of recording that a Student has left the hostel, using the Danger zone button in his settings. Takes effect today: he is no longer listed or evaluated. Finalized Days never change; his Punches, Leaves and Reports stay. | delete, remove, archive | `deactivateStudent` (TBD) |
+| **Activate** | The Rector's act of reversing a Deactivate, from today. The Days in between are not evaluated. | restore, undelete | `activateStudent` (TBD) |
 | **Device** | The fingerprint terminal that reads fingerprints and uploads Punches. | machine, terminal, biometric | `Device` (TBD) |
 | **Student ID** | The identifier the hostel uses for a Student in the Roster. Used everywhere inside the core. | roll number, user ID | `studentId` (TBD) |
 | **Biometric ID** | The number a Device stores for a Student. Maps to exactly one Student. Exists only at the Device boundary. | user ID, PIN, enroll number | `biometricId` (TBD) |
@@ -54,3 +57,4 @@
 10. **"Log", "scan" and "swipe" meant one Device upload.** **Winner:** **Punch**.
 11. **"Machine", "device", "terminal" and "biometric" meant the same thing.** **Winner:** **Device**.
 12. **A Day on the Device has no timezone, but servers run in UTC.** **Winner:** a **Day** is an IST calendar date, and every timestamp is converted at the Device boundary.
+13. **"Delete" and "remove" a Student meant erasing him and also meant he has left.** **Winner:** **Deactivate**. It hides him from the Day he left and keeps his history, so past Reports stay correct. Permanent erasure is not a feature of the product.
