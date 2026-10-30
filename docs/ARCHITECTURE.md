@@ -62,7 +62,7 @@ Facts are stored; statuses are computed. Only the Rector's decisions are stored 
 |-------|-------------|-------|
 | `students` | `student_id` PK, name, room, email, phone | The Student ID is the number registered on the Device and is never reused. The exact type is decided from real Device data. Students are never deleted. No fingerprint data. |
 | `student_active_periods` | `student_id`, `active_from`, `active_until` null | One open period while a Student is Active. Deactivate closes it with today's date; Activate opens a new one. A Student is Active on a Day if some period covers it, so deactivating and reactivating never rewrites history. |
-| `devices` | `serial_number` PK, label | Registered Devices only; today one row, the Pooja Device. A purpose column is added when a second Device arrives (section 7). |
+| `devices` | `device_serial` PK, label | Registered Devices only; today one row, the Pooja Device. A purpose column is added when a second Device arrives (section 7). |
 | `punches` | device serial, `student_id`, `punched_at` (timestamptz), `received_at`; unique on serial, `student_id`, `punched_at` | Never edited. The unique key makes re-uploads harmless. No foreign key on `student_id` on purpose: Punches from unknown or Deactivated Student IDs are kept but not counted. Uploads from an unregistered Device Serial are refused and not stored. |
 | `leaves` | `student_id`, `out_at`, `expected_return_at`, `returned_at` null, `cancelled_at` null | Open while `returned_at` and `cancelled_at` are null. Away and Due Back are derived. |
 | `day_finalizations` | `day` PK, finalized by, finalized at | Locks a Day. |

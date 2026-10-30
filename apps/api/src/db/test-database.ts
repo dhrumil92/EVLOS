@@ -1,7 +1,7 @@
 const TEST_DATABASE = 'evlos_test';
 
 // Tests wipe their database, so they may only ever run against evlos_test (AGENTS.md rule 7).
-export function assertTestDatabase(url: string | undefined): void {
+export function assertTestDatabase(url: string | undefined): asserts url is string {
   const name = databaseName(url);
   if (name !== TEST_DATABASE) {
     throw new Error(
