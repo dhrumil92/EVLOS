@@ -5,5 +5,8 @@
   "type": "module",
   "dependencies": {
     "@evlos/core": "0.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5"
   }
 }
