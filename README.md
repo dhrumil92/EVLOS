@@ -1,6 +1,6 @@
 # EVLOS
 
-Hostel pooja attendance, built from biometric punches. Students punch a fingerprint device while the temple is open (05:30 to 17:30 IST). The system shows punches live, works out who was in the hostel from the Rector's leave records, and lets the Rector review and finalize the day. Students who were in the hostel but did not punch are emailed only after the Rector confirms. The Rector gets reminders and daily and monthly reports by email, and can download reports as CSV or Excel at any time.
+A hostel Pooja attendance system built on fingerprint Punches. Students punch a Device while the temple is open (05:30 to 17:30 IST). The system shows Punches live, works out who was in the hostel from the Rector's Leave records, and lets the Rector review and Finalize each Day. A Student who was in the hostel but did not punch is emailed only after the Rector confirms. The Rector receives reminders and daily and monthly Reports by email and can download Reports as CSV or Excel at any time.
 
 IT643 Software Design and Testing term project, DAU.
 
@@ -10,28 +10,35 @@ In development. Requirements and domain language are settled; the code is not ye
 
 ## Live URL
 
-TBD (will be added here before the `project-final` tag).
+TBD (added here before the `project-final` tag).
 
 ## Run locally
 
-TBD. This section will be filled in with working commands (five or fewer) when the repo skeleton lands.
+Prerequisites: Node 22 and PostgreSQL 16 running on your machine.
 
-## How it works
+TBD. Phase 1 fills in the exact commands. The plan is five commands: `git clone`, `npm install`, `cp .env.example .env`, `npm run db:setup`, `npm run dev`.
 
-Five rules the product enforces (full text in `DESIGN.md` once written):
+## The five rules the product enforces
 
-1. A punch counts only between 05:30 and 17:30 IST.
-2. The same punch uploaded twice is stored once.
-3. A student away for any part of the window with no punch gets "-", never Absent.
-4. A student in the hostel for the whole window with no punch is only Needs Review. He becomes Absent when the Rector finalizes.
-5. An email goes to a student only after finalize, at most once per student per day.
+1. A Punch counts only between 05:30 and 17:30 IST (the Pooja Window).
+2. The same Punch uploaded twice is stored once.
+3. A Student who was Away for any part of the Pooja Window and has no Punch gets Not Applicable ("-"), never Absent.
+4. A Student who was in the hostel for the whole Pooja Window and has no Punch is only Needs Review. He becomes Absent when the Rector Finalizes.
+5. A Notification goes to a Student only after Finalize, and at most once per Student per Day.
 
-## Planned stack
+## Stack
 
-TypeScript, Node.js and Fastify, React and Vite, PostgreSQL, deployed on Google Cloud. The fingerprint device pushes to the server over plain HTTP; the Rector UI is served over HTTPS.
+TypeScript, Node.js with Fastify, React with Vite, PostgreSQL. Details in `docs/ARCHITECTURE.md`.
 
 ## Documents
 
-- `UBIQUITOUS_LANGUAGE.md`: the domain vocabulary and flagged ambiguities.
-- `DESIGN.md`: rules, design decisions, the boundary, and AI use (to come).
-- `TESTING.md`: which rules are tested and how (to come).
+| File | What it is |
+|------|------------|
+| `UBIQUITOUS_LANGUAGE.md` | The domain vocabulary and flagged ambiguities. |
+| `DESIGN.md` | The five rules, design decisions, the boundary, limitations, AI use. |
+| `TESTING.md` | Which rules are tested and how. |
+| `AGENTS.md` | Instructions for AI coding agents working in this repo. |
+| `docs/PRD.md` | Requirements with acceptance criteria. |
+| `docs/ARCHITECTURE.md` | Tech stack, structure, data model, flows, deployment. |
+| `docs/PHASES.md` | Schedule to the end-sem, exit checks, cut order. |
+| `docs/AI_LOG.md` | AI suggestions that were rejected or changed, and why. |
