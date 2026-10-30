@@ -1,0 +1,30 @@
+# dependencies and build output
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# environment and secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+
+# operating system and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# real data must never be committed
+*.xlsx
+*.xls
+*.csv
+!sample-roster.csv
+!sample-roster.xlsx
+device-dumps/
