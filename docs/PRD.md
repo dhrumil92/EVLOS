@@ -5,7 +5,7 @@ Technology choices are not listed here. This document says what the product must
 Status: draft, 2026-10-28. Vocabulary follows `UBIQUITOUS_LANGUAGE.md`. Requirement IDs (FR-n, NFR-n) are stable so tests and `TESTING.md` can cite them. This document also serves as the project's requirements specification; no separate SRS is kept.
 
 ## 1. Problem
-Students must attend Pooja while the temple is open (05:30 to 17:30 IST). Today the Rector walks every room at 22:00, writes the result on paper, then retypes it into a local Excel file. Leaves are recorded on paper (a Leave Note plus two reception books) and copied by hand. The existing biometric software is paid and run by a vendor, and its records do not always match the Device. The Rector's work is slow and error-prone, and Students are not told when they miss Pooja. The hostel has 360 Students.
+Students must attend Pooja during the Pooja Window (05:30 to 18:00 IST). Today the Rector walks every room at 22:00, writes the result on paper, then retypes it into a local Excel file. Leaves are recorded on paper (a Leave Note plus two reception books) and copied by hand. The existing biometric software is paid and run by a vendor, and its records do not always match the Device. The Rector's work is slow and error-prone, and Students are not told when they miss Pooja. The hostel has 360 Students.
 
 ## 2. Users
 | User | Needs |
@@ -16,7 +16,7 @@ Students must attend Pooja while the temple is open (05:30 to 17:30 IST). Today 
 
 ## 3. Goals and non-goals
 **Goals**
-- G1. The Rector's nightly work shrinks to: record Leaves and Returns as they happen, review the short Needs Review list, click Finalize.
+- G1. The Rector's nightly work shrinks to: record Leaves and Returns as they happen, review the short Needs Review list, click Finalize, Exclude any Student who explained, click Send Notifications.
 - G2. Pooja Status is computed from evidence (Punches and Leaves), never guessed.
 - G3. No Student is emailed unless the Rector has confirmed.
 - G4. Reports are available on demand and arrive by email on a schedule.
@@ -31,7 +31,7 @@ Students must attend Pooja while the temple is open (05:30 to 17:30 IST). Today 
 ## 4. Scope
 | In the MVP | Later |
 |------------|-------|
-| Student form with settings panel (add, Leave, Return, Deactivate, Activate), Leave and Return for many Students, one-time first load, Punch ingestion, live view, Pooja Status, Needs Review, Override, Finalize, Notification, Review Reminder, Reports, Rector login | Roster upload with sample file (built last, optional), Parent emails, other Devices and activities, Student view, Leave requests by Students |
+| Student form with settings panel (add, Leave, Return, Deactivate, Activate), Leave and Return for many Students, one-time first load, Punch ingestion, live view, Pooja Status, Needs Review, Finalize, Exclude, Send Notifications, Notification, Review Reminder, Reports, Rector login | Roster upload with sample file (built last, optional), Parent emails, other Devices and activities, Student view, Leave requests by Students |
 
 ## 5. Functional requirements
 Each has acceptance criteria in Given / When / Then form.
@@ -54,12 +54,14 @@ Acceptance criteria:
 
 **First load of existing Students.** The Rector's Excel has names and rooms but no Student IDs. The IDs come from the Device's user list (exported by USB) and are matched to the Excel by name, with every mismatch reviewed by hand. The developer then loads the 360 Students with a one-time script, validated the same way as the form and run on the developer's machine or server, not part of the Rector's screens. The files are deleted afterwards, since they hold personal data.
 
-**FR-2 Receive Punches.** The system accepts uploads from a known Device and stores each Punch once.
-- Given a Punch for a known Student ID from a known Device, when it arrives, then it is stored with its time converted to IST.
+**FR-2 Receive Punches.** The system accepts uploads only from a registered Device and stores each Punch once. Today exactly one Device, the Pooja Device, is registered. A Device added later for another place (pathshala, mess, gym, library) is registered with its own purpose, and its Punches never count toward Pooja Status.
+- Given a Punch for a known Student ID from a registered Device, when it arrives, then it is stored with its time converted to IST.
 - Given the same Punch uploaded again, when it arrives, then no second copy is stored.
-- Given an unknown Device serial, or a Student ID that is unknown or Deactivated, when it arrives, then it is kept for inspection and not counted toward any Pooja Status.
+- Given an upload from a Device Serial that is not registered, when it arrives, then it is refused, nothing is stored, and the refusal is logged.
+- Given a Punch from a registered Device for a Student ID that is unknown or Deactivated, when it arrives, then it is stored and not counted toward any Pooja Status.
+- Given a Punch for a Day that is already Finalized, when it arrives, then it is stored, the Day stays locked, and the Rector sees a warning for that Student before Send Notifications.
 
-**FR-3 Live view.** The Rector's page shows a new Punch within 5 seconds, without reloading.
+**FR-3 Live view.** The Rector's page shows a new Punch within 5 seconds, without reloading, and a count of Students Present so far for the Day.
 
 **FR-4 Record Leave.** The Rector records a Leave for one Student (gear icon, Leave status tab) or for many at once (FR-4b): Out date and time, Expected Return date and time. The Out Time may be in the past, because the Rector often enters Leaves after the Students have left.
 - Given a Student with no open Leave, when a Leave is recorded, then the Student is Away.
@@ -73,21 +75,23 @@ Acceptance criteria:
 
 **FR-6 Away and Due Back.** The Student list shows Away in red and Due Back in yellow, each with a text label. A Student stays Due Back after Expected Return passes until the Return Time is recorded.
 
-**FR-7 Pooja Status.** For any Day the system computes a Pooja Status for each Active Student:
+**FR-7 Pooja Status.** The Pooja Window is 05:30:00 to 18:00:00 IST, both ends included. For any Day the system computes a Pooja Status for each Active Student:
 - Present: at least one Punch inside the Pooja Window (even if the Student then leaves).
-- Not Applicable ("-"): no Punch, and the Student was Away for any part of the Pooja Window.
-- Pending: no Punch yet and the Pooja Window has not closed.
+- Not Applicable ("-"): no Punch, and the Student was Away for any part of the Pooja Window. Shown as soon as he is Away, even before the window closes.
+- Pending: no Punch yet, the Pooja Window has not closed, and the Student has not been Away during it.
 - Needs Review: the Pooja Window closed, the Student was in the hostel the whole window, no Punch, Day not Finalized.
 - Absent: only after Finalize (see FR-8).
 
-**FR-8 Review, Override, Finalize.** The Rector sees the Needs Review list, may Override a Student (reason required), and Finalizes the Day.
-- Given a Day with Needs Review Students, when the Rector Finalizes, then each becomes Absent unless Overridden, and the Day is locked.
-- Given a Finalized Day, when someone tries to change it, then it is refused unless reopened with an audit entry.
-- The list offers one bulk action ("Confirm all 7 as Absent") that shows a summary first.
+**FR-8 Review and Finalize.** Each night, usually around 23:00 IST, the Rector checks the Leave Notes and both books, records any missing Leaves and Returns, reviews the Needs Review list, and Finalizes the Day. No Pooja Status can be changed by hand.
+- Given the Pooja Window has not closed, then Finalize is not available. The Rector can still see how many Students are Present so far.
+- Given a Day with Needs Review Students, when the Rector Finalizes, then each becomes Absent and the Day is locked.
+- Given a Finalized Day, when someone tries to change it, then it is refused.
+- Finalize shows a summary first ("7 Students will be Absent").
 
-**FR-9 Notification.** After Finalize, each Absent Student gets one email.
-- Given a Finalized Day, when emails are sent, then each Absent Student receives exactly one, and a retry never sends a second.
-- Given a Day not Finalized, then no Notification is sent.
+**FR-9 Exclude and Send Notifications.** After Finalize, the Report shows an email list of the Absent Students, each with a cross. The Rector may Exclude any of them (for example a Student who explained why he missed Pooja) and then clicks Send Notifications.
+- Given a Finalized Day, when the Rector clicks Send Notifications, then each Absent Student who is not Excluded receives exactly one email, and a retry or a second click never sends a second.
+- Given an Excluded Student, then he receives no Notification and stays Absent in Reports.
+- Given a Day not Finalized, or a Finalized Day where Send Notifications was not clicked, then no Notification is sent.
 
 **FR-10 Review Reminder.** At 23:00 IST, if the Day is not Finalized and Needs Review Students exist, the Rector gets one email listing them. If the Day is Finalized, nothing is sent.
 
@@ -97,13 +101,13 @@ Acceptance criteria:
 
 **FR-13 Rector login.** Every page and API except the Device endpoints requires a login. Sessions expire.
 
-**FR-14 Audit.** Leave, Return, Override, Finalize, Deactivate and Activate record who did it and when.
+**FR-14 Audit.** Leave (record, edit, cancel), Return, Finalize, Exclude, Send Notifications, Deactivate and Activate record who did it and when.
 
 ## 6. Non-functional requirements
 - **NFR-1 Time correctness.** All rules use IST. The server's timezone must not change results. Schedules run in Asia/Kolkata.
 - **NFR-2 Idempotency.** Re-uploaded Punches, retried emails and re-run schedules never create duplicates.
 - **NFR-3 Resilience.** If the server is down, the Device keeps its Punches and re-uploads; nothing is lost.
-- **NFR-4 Security.** The Rector site is HTTPS. The Device endpoint is plain HTTP (a Device limitation) and accepts only known serial numbers. Secrets live in environment variables.
+- **NFR-4 Security.** The Rector site is HTTPS. The Device endpoint is plain HTTP (a Device limitation) and accepts only registered Device Serials. Secrets live in environment variables.
 - **NFR-5 Privacy.** Store only what is needed (Student ID, name, room, email, phone, Punches, Leaves). No fingerprints. Real emails go to Students only after the hostel agrees in writing.
 - **NFR-6 Accessibility.** Colours always come with text.
 - **NFR-7 Testability.** Rules are pure functions with an injected clock. Rules, not screens, carry most tests.
@@ -137,3 +141,6 @@ Acceptance criteria:
 1. Does the Device's user list show Student names, so the first load can be matched to the Excel? (Check on the Device and export by USB.)
 2. Which email provider and sender address will be used? Deferred to Phase 5; a Gmail app password is enough for testing.
 3. Has the Rector agreed in writing to emails going to Students?
+4. Should the Rector be able to unlock (reopen) a Finalized Day to correct a mistake? Set aside on 2026-10-30; until decided, a Finalized Day cannot be changed.
+5. When the Device uploads a Punch late, does it send the original punch time or only the upload time? Check against captured payloads in Phase 3. If only the upload time is available, the Punch is accepted and shown in a different colour (purple); its name is not decided yet.
+6. Should the Rector be reminded when a Day is Finalized but Send Notifications was not clicked? Not for now (decided 2026-10-30); revisit after the pilot if needed.

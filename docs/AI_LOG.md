@@ -29,6 +29,10 @@ The raw ChatGPT export is not committed: it contains device addresses, serial nu
 | 13 | 28 Oct | Claude | Decide the email provider and check the VM now. | **Rejected** | Build and run locally first; deploy after Phase 4; choose the email provider in Phase 5. |
 | 14 | 28 Oct | Claude | Keep Student ID and Biometric ID as separate terms. | **Rejected** | Only one ID exists, the number on the Device. The two terms were merged into Student ID. |
 | 15 | 28 Oct | Claude | Run PostgreSQL in Docker for local development. | **Rejected** | PostgreSQL is already installed on the author's PC. Docker is used only on the VM. |
+| 16 | 30 Oct | Claude | Let the Rector Override a computed Pooja Status (for example Needs Review to Present when the fingerprint fails). | **Rejected** | No Pooja Status is changed by hand. A Student who explains a missed Pooja stays Absent and the Rector Excludes him from the email. |
+| 17 | 30 Oct | Claude | Finalize both locks the Day and releases Notifications. | **Changed** | The author wants two clicks: Finalize, then Send Notifications from the Report's email list, so the Rector can Exclude Students first. |
+| 18 | 30 Oct | Claude | Keep uploads from an unknown Device Serial for inspection. | **Changed** | Only one Device is registered; uploads from any other Device Serial are refused. A future Device for another place is registered with its own purpose and kept apart from Pooja. |
+| 19 | 30 Oct | Claude | Keep the Pooja Window equal to the temple hours (05:30 to 17:30 IST). | **Changed** | The author added 30 minutes for late Punches: the window is 05:30 to 18:00 IST, both ends included. |
 
 ## Accepted after discussion (for context)
 | Date | Tool | Suggestion | Note |

@@ -45,7 +45,7 @@ packages/core      pure rules and types: Pooja Status, Pooja Window, Away, Due B
 apps/api
   use cases        RecordPunch, AddStudent, DeactivateStudent, ActivateStudent,
                    RecordLeave, RecordLeaveForMany, RecordReturn, GetDay,
-                   OverrideStatus, FinalizeDay, BuildReport
+                   FinalizeDay, ExcludeStudent, SendNotifications, BuildReport
   ports            Clock, PunchRepository, StudentRepository, LeaveRepository,
                    DayRepository, Notifier
   adapters         device (Device protocol parser), postgres (Drizzle), email
@@ -62,25 +62,27 @@ Facts are stored; statuses are computed. Only the Rector's decisions are stored 
 |-------|-------------|-------|
 | `students` | `student_id` PK, name, room, email, phone | The Student ID is the number registered on the Device and is never reused. The exact type is decided from real Device data. Students are never deleted. No fingerprint data. |
 | `student_active_periods` | `student_id`, `active_from`, `active_until` null | One open period while a Student is Active. Deactivate closes it with today's date; Activate opens a new one. A Student is Active on a Day if some period covers it, so deactivating and reactivating never rewrites history. |
-| `devices` | `serial_number` PK, label | Known Devices only. |
-| `punches` | device serial, `student_id`, `punched_at` (timestamptz), `received_at`; unique on serial, `student_id`, `punched_at` | Never edited. The unique key makes re-uploads harmless. No foreign key on purpose: Punches from unknown or Deactivated IDs are kept but not counted. |
+| `devices` | `serial_number` PK, label | Registered Devices only; today one row, the Pooja Device. A purpose column is added when a second Device arrives (section 7). |
+| `punches` | device serial, `student_id`, `punched_at` (timestamptz), `received_at`; unique on serial, `student_id`, `punched_at` | Never edited. The unique key makes re-uploads harmless. No foreign key on `student_id` on purpose: Punches from unknown or Deactivated Student IDs are kept but not counted. Uploads from an unregistered Device Serial are refused and not stored. |
 | `leaves` | `student_id`, `out_at`, `expected_return_at`, `returned_at` null, `cancelled_at` null | Open while `returned_at` and `cancelled_at` are null. Away and Due Back are derived. |
 | `day_finalizations` | `day` PK, finalized by, finalized at | Locks a Day. |
-| `pooja_results` | `day`, `student_id` PK; status, first punch time, override reason | Written at Finalize only. Before Finalize the status is computed on read. |
+| `pooja_results` | `day`, `student_id` PK; status, first punch time, `excluded_at` null | Written at Finalize only. Before Finalize the status is computed on read. `excluded_at` is set when the Rector Excludes an Absent Student. |
 | `outbox_emails` | kind, recipient, subject, body, `dedupe_key` unique, status, attempts, `send_after`, `sent_at` | Kinds: Notification, Review Reminder, Daily Report, Monthly Report. |
 | `users`, `sessions` | email, password hash, role | One Rector account at first. |
-| `audit_log` | who, what, when, subject | Leave, Return, Override, Finalize, Deactivate, Activate. |
+| `audit_log` | who, what, when, subject | Leave (record, edit, cancel), Return, Finalize, Exclude, Send Notifications, Deactivate, Activate. |
 
 Dates are stored as timestamptz in UTC and converted with an explicit Asia/Kolkata zone for all rules. A Day is an IST calendar date.
 
 ## 4. Key flows
-**Punch.** Device pushes to its endpoints -> the Device adapter parses the upload, checks the serial, converts the timestamp to IST -> `RecordPunch` stores it once -> the live view is notified.
+**Punch.** Device pushes to its endpoints -> the Device adapter parses the upload, refuses an unregistered Device Serial, converts the timestamp to IST -> `RecordPunch` stores it once -> the live view is notified. A Punch for a Finalized Day is stored, the Day stays locked, and the Rector sees a warning for that Student.
 
 **Day view.** The Rector's page asks for a Day -> the use case loads Active Students, Punches and Leaves -> the core computes each Pooja Status with the injected Clock -> the UI shows Present, Not Applicable, Pending and Needs Review, with Away in red and Due Back in yellow (always with text).
 
 **Settings panel.** The gear icon on a row opens two tabs: Leave status (record Leave or Return) and Danger zone (Deactivate or Activate). The common gear icon opens search-and-select for Leave or Return for many Students; the use case reports which Students were skipped because a Leave was already open.
 
-**Finalize.** The Rector reviews Needs Review, applies Overrides, clicks Finalize -> in one transaction: write `pooja_results`, write `day_finalizations`, insert one Notification per Absent Student into `outbox_emails` with a `dedupe_key` of kind, Day and Student.
+**Finalize.** Available only after the Pooja Window closes (18:00 IST). The Rector reviews Needs Review and clicks Finalize -> in one transaction: write `pooja_results` (each Needs Review becomes Absent), write `day_finalizations`. No email is queued.
+
+**Exclude and Send Notifications.** The Report shows the Absent Students with a cross each. The Rector Excludes some and clicks Send Notifications -> in one transaction: set `excluded_at` for the Excluded Students, insert one Notification per remaining Absent Student into `outbox_emails` with a `dedupe_key` of kind, Day and Student. A second click finds the keys already present and queues nothing.
 
 **Scheduler.** An in-process loop in Asia/Kolkata:
 - every minute: send due rows from `outbox_emails`, mark sent or failed, retry failures a few times;
@@ -102,7 +104,7 @@ Each job writes a row with a `dedupe_key`, so running twice does not send twice.
 
 ## 6. Security and privacy
 - The Rector site requires login, uses HTTPS and session cookies, and hashes passwords with Argon2.
-- The Device endpoint cannot carry a password. It accepts only known serial numbers, ignores unknown Student IDs, and is rate limited.
+- The Device endpoint cannot carry a password. It accepts only registered Device Serials and refuses all others, stores Punches for unknown Student IDs without counting them, and is rate limited.
 - Minimal personal data. No fingerprint templates. Real Student emails only after the Rector agrees in writing.
 
 ## 7. Extension seam

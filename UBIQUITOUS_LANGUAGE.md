@@ -13,18 +13,19 @@
 | **Deactivate** | The Rector's act of recording that a Student has left the hostel, using the Danger zone button in his settings. Takes effect today: he is no longer listed or evaluated. Finalized Days never change; his Punches, Leaves and Reports stay. | delete, remove, archive | `deactivateStudent` (TBD) |
 | **Activate** | The Rector's act of reversing a Deactivate, from today. The Days in between are not evaluated. | restore, undelete | `activateStudent` (TBD) |
 | **Device** | The fingerprint terminal that reads fingerprints and uploads Punches. The Rector registers each Student's fingerprint on it by hand. | machine, terminal, biometric | `Device` (TBD) |
+| **Device Serial** | The serial number a Device sends with every upload. Only a registered Device Serial is accepted; an upload from any other is refused. Not a Student identifier. | device ID, machine number | `deviceSerial` (TBD) |
 | **Student ID** | The number the Rector registers on the Device together with a Student's fingerprint. The only identifier of a Student, used in the form, Punches, Leaves and Reports. Never reused. | roll number, biometric ID, user ID, PIN, enroll number, serial number | `studentId` (TBD) |
 | **Punch** | One fingerprint scan uploaded by a Device: a Student ID plus a timestamp. A fact that never changes. | log, scan, swipe, entry, attendance record | `Punch` (TBD) |
 | **Pooja** | The daily worship Students are expected to attend. Evidenced only by a Punch inside the Pooja Window. | prayer, session, event | n/a (domain word) |
-| **Pooja Window** | 05:30 to 17:30 IST on a Day: the hours the temple is open. A Punch counts only inside it. | shift, slot, temple timing | `POOJA_WINDOW` (TBD) |
+| **Pooja Window** | 05:30 to 18:00 IST on a Day, both ends included. A Punch counts only inside it. | shift, slot, temple timing | `POOJA_WINDOW` (TBD) |
 | **Day** | One calendar date in IST. All rules are evaluated per Student per Day. | date, session day | `Day` (TBD) |
 | **Pooja Status** | The outcome for one Student on one Day: **Present**, **Absent**, **Not Applicable**, **Pending**, or **Needs Review**. | attendance, mark, result | `PoojaStatus` (TBD) |
 | **Present** | Pooja Status: the Student has at least one Punch inside the Pooja Window. A Punch always wins, even if the Student then leaves on a Leave. | attended, done, marked | `PoojaStatus.PRESENT` (TBD) |
-| **Not Applicable** | Pooja Status, shown as "-": no Punch, and the Student was Away for any part of the Pooja Window. No Notification is sent. *Known limitation: a short Leave late in the window also gives "-" (see DESIGN.md).* | excused, skipped, leave | `PoojaStatus.NOT_APPLICABLE` (TBD) |
-| **Pending** | Pooja Status: no Punch yet and the Pooja Window has not closed. Not an absence. | unknown, blank, N/A | `PoojaStatus.PENDING` (TBD) |
-| **Needs Review** | Pooja Status before Finalize: the Pooja Window closed, the Student was in the hostel the whole window, and has no Punch. The Rector must decide. | exception, flagged, suspect | `PoojaStatus.NEEDS_REVIEW` (TBD) |
-| **Absent** | Pooja Status after Finalize: the Rector confirmed a Student who was in the hostel and did not punch. The only status that triggers a Notification. | missing, no-show | `PoojaStatus.ABSENT` (TBD) |
-| **Override** | The Rector changing a computed Pooja Status at Finalize (for example Needs Review to Present because the fingerprint failed). Needs a reason. | edit, fix, correction | `Override` (TBD) |
+| **Not Applicable** | Pooja Status, shown as "-": no Punch, and the Student was Away for any part of the Pooja Window. Shown as soon as he is Away, even before the window closes. No Notification is sent. *Known limitation: a short Leave late in the window also gives "-" (see DESIGN.md).* | excused, skipped, leave | `PoojaStatus.NOT_APPLICABLE` (TBD) |
+| **Pending** | Pooja Status: no Punch yet, the Pooja Window has not closed, and the Student has not been Away during it. Not an absence. | unknown, blank, N/A | `PoojaStatus.PENDING` (TBD) |
+| **Needs Review** | Pooja Status before Finalize: the Pooja Window closed, the Student was in the hostel the whole window, and has no Punch. The Rector reviews it; Finalize makes it Absent. | exception, flagged, suspect | `PoojaStatus.NEEDS_REVIEW` (TBD) |
+| **Absent** | Pooja Status after Finalize: the Rector confirmed a Student who was in the hostel and did not punch. The only status that can get a Notification, and only if the Student is not Excluded. | missing, no-show | `PoojaStatus.ABSENT` (TBD) |
+| **Exclude** | The Rector's act, after Finalize and before Send Notifications, of removing an Absent Student from the email list (the cross next to his name), for example because he explained why he missed Pooja. He stays Absent in Reports. No reason is needed; it is audited. | override, excuse, skip | `excludeStudent` (TBD) |
 | **Leave** | A system record of a Student being away from the hostel: Out Time, Expected Return, and (once recorded) Return Time. | holiday, going home | `Leave` (TBD) |
 | **Leave Note** | The paper A4 form a Student fills before leaving. A paper source for a Leave, not the Leave itself. | leave form, slip | n/a (paper) |
 | **Going-to-Home Book** | The reception book where a Student writes room, name, date, time and signature when leaving. Source of Out Time. | exit register, out book | n/a (paper) |
@@ -35,9 +36,10 @@
 | **Away** | The Student has an open Leave (no Return Time yet). Shown in red with a text label. | absent, outside | `isAway` (TBD) |
 | **Due Back** | The Student is Away and Expected Return is tomorrow or earlier. Shown in yellow with a text label, and stays yellow after the date passes until the Return Time is recorded. The Student is still Away. | overdue, late, pending return | `isDueBack` (TBD) |
 | **Returned** | The Rector recorded the Return Time. The Leave is closed. | marked present, arrived | `returnLeave` (TBD) |
-| **Finalize** | The Rector's act of confirming a Day's Pooja Statuses. Locks the Day and releases Notifications. | send, submit, approve, close | `finalizeDay` (TBD) |
-| **Notification** | The email to a Student about an Absent. Sent only after Finalize, at most once per Student per Day. | alert, message | `Notification` (TBD) |
-| **Review Reminder** | The 23:00 IST email to the Rector listing Students on Needs Review, sent only if the Day is not Finalized. | alert, nag | `ReviewReminder` (TBD) |
+| **Finalize** | The Rector's act of confirming a Day's Pooja Statuses, available only after the Pooja Window closes: every Needs Review becomes Absent and the Day is locked. It sends no email (see Send Notifications). | send, submit, approve, close | `finalizeDay` (TBD) |
+| **Send Notifications** | The Rector's click, after Finalize, that emails every Absent Student who is not Excluded. Done from the Report's email list, usually around 23:00 IST. | finalize, mail all, submit | `sendNotifications` (TBD) |
+| **Notification** | The email to a Student about an Absent. Sent only after Finalize and Send Notifications, never to an Excluded Student, at most once per Student per Day. | alert, message | `Notification` (TBD) |
+| **Review Reminder** | The 23:00 IST email to the Rector listing Students on Needs Review, sent only if the Day is not Finalized and such Students exist. | alert, nag | `ReviewReminder` (TBD) |
 | **Report** | A table of Pooja Statuses for a Day, a month, or a date range, downloadable as CSV or Excel. A Day that is not Finalized is marked Not Finalized and shows Needs Review, never Absent. | export, sheet, register | `Report` (TBD) |
 | **Daily Report** | The Report for one Day, emailed to the Rector at 23:30 IST whether or not the Day is Finalized. | night mail | `DailyReport` (TBD) |
 | **Monthly Report** | The Report for the previous month, emailed to the Rector at 09:00 IST on the 1st. | month-end mail | `MonthlyReport` (TBD) |
@@ -50,10 +52,12 @@
 4. **"ID" meant a Device number, a Device user ID or PIN, a roll number, and the "serial number" in the Rector's Excel.** **Winner:** **Student ID** is the only identifier, and it is the number registered on the Device. The Excel's "serial number" is a row number, not an identifier.
 5. **"-" meant Not Applicable and an empty cell.** **Winner:** "-" is only how Not Applicable is displayed. A Day with no result yet is **Pending**.
 6. **"Leave" meant the paper note, the book entry and the period.** **Winner:** **Leave** is the system record. **Leave Note**, **Going-to-Home Book** and **Back-from-Home Book** are the paper sources.
-7. **"Send" meant clicking the button that confirms the Day** ("the Rector clicks send"). **Winner:** **Finalize** is the Rector's click. Sending emails is what the system does afterwards.
+7. **"Send" meant clicking the button that confirms the Day** ("the Rector clicks send"). **Winner:** **Finalize** is the Rector's click that locks the Day. **Send Notifications** is his separate, later click that emails the Absent Students who are not Excluded.
 8. **"Reminder", "alert" and "notification" meant any email.** **Winner:** **Notification** goes to a Student, **Review Reminder** goes to the Rector, and Reports are **Daily Report** and **Monthly Report**.
-9. **"Window" meant the temple hours and the punch time.** **Winner:** **Pooja Window** (05:30 to 17:30 IST) for both, since they are the same.
+9. **"Window" meant the temple hours and the punch time.** **Winner:** **Pooja Window** (05:30 to 18:00 IST, both ends included) for both.
 10. **"Log", "scan" and "swipe" meant one Device upload.** **Winner:** **Punch**.
 11. **"Machine", "device", "terminal" and "biometric" meant the same thing.** **Winner:** **Device**.
 12. **A time on the Device has no timezone, but servers run in UTC.** **Winner:** a **Day** is an IST calendar date, and every timestamp is converted at the Device boundary.
 13. **"Delete" and "remove" a Student meant erasing him and also meant he has left.** **Winner:** **Deactivate**. It hides him from today and keeps his history, so past Reports stay correct. Permanent erasure is not a feature of the product.
+14. **"Override" meant changing a Pooja Status by hand and also excusing a Student who explained a missed Pooja.** **Winner:** no Pooja Status is changed by hand. A Student who explains stays Absent and the Rector **Excludes** him from the email.
+15. **"Serial number" meant a row in the Rector's Excel and the number a Device sends.** **Winner:** the Device's number is the **Device Serial**. The Excel's serial number is a row number (see 4).

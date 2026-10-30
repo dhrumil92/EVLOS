@@ -3,7 +3,7 @@
 > **DRAFT.** The rules are settled. The decisions and the boundary are the plan; each `file:line` and each "before / after" is filled in only from real code and real refactors. Do not invent them. Terms come from `UBIQUITOUS_LANGUAGE.md`.
 
 ## Five rules the product enforces
-1. A Punch counts only between 05:30 and 17:30 IST (the Pooja Window).
+1. A Punch counts only between 05:30 and 18:00 IST, both included (the Pooja Window).
 2. The same Punch uploaded twice is stored once.
 3. A Student who was Away for any part of the Pooja Window and has no Punch gets Not Applicable ("-"), never Absent.
 4. A Student who was in the hostel for the whole Pooja Window and has no Punch is only Needs Review. He becomes Absent when the Rector Finalizes.
@@ -22,7 +22,8 @@ Replace a row if the real refactors turn out different. A decision counts only w
 The Device adapter. It is where the fingerprint terminal's push protocol, serial numbers and timezone-less timestamps stop. Inside the boundary, the core sees only a Punch with a Student ID and an IST time. This protects the core from the Device vendor: changing the Device, its firmware or its protocol touches the adapter only. A second, smaller boundary is the email provider behind `Notifier`.
 
 ## Known limitations
-- A Student with a short Leave late in the Pooja Window (for example leaving at 17:00) gets Not Applicable even if he was in the hostel most of the window. The Rector accepts this and can Override.
+- A Student with a short Leave late in the Pooja Window (for example leaving at 17:00 IST) gets Not Applicable even if he was in the hostel most of the window. The Rector accepts this. No Pooja Status can be changed by hand.
+- A Notification cannot be recalled once Send Notifications is clicked.
 - A forgotten Return keeps a Student Away. The Rector is responsible for recording Returns.
 - The Device sends plain HTTP, so Punch uploads are not encrypted in transit. Access is limited to known Device serial numbers.
 

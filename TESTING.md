@@ -5,11 +5,11 @@
 ## Rules and their tests
 | Rule | Test `file:line` | If untested, what stops you |
 |------|------------------|-----------------------------|
-| 1. A Punch counts only between 05:30 and 17:30 IST | not written yet | |
+| 1. A Punch counts only between 05:30 and 18:00 IST, both included | not written yet | |
 | 2. The same Punch uploaded twice is stored once | not written yet | |
 | 3. Away for any part of the Pooja Window with no Punch gives Not Applicable, never Absent | not written yet | |
 | 4. In the hostel for the whole Pooja Window with no Punch is only Needs Review until Finalize | not written yet | |
-| 5. A Notification goes only after Finalize, at most once per Student per Day | not written yet | |
+| 5. A Notification goes only after Finalize, at most once per Student per Day (never to an Excluded Student) | not written yet | |
 
 Rules tested: 0 of 5
 
