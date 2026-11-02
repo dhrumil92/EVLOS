@@ -112,6 +112,52 @@ describe('live view', () => {
   });
 });
 
+describe('live view lists', () => {
+  const punches = [{ studentId: '9001', punchedAt: AT_0700_IST, isCounted: true }];
+  const pressed = (name: string) =>
+    screen.getByRole('button', { name }).getAttribute('aria-pressed');
+
+  it('opens on Latest Punches', async () => {
+    render(<App source={fakeSource(view({ punches })).source} />);
+
+    expect(await screen.findByText('Student ID 9001')).toBeTruthy();
+    expect(pressed('Latest Punches')).toBe('true');
+    expect(pressed('Every Student')).toBe('false');
+  });
+
+  it('switches to Every Student with sort and filter, marked as example data', async () => {
+    render(<App source={fakeSource(view({ punches })).source} />);
+    await screen.findByText('Student ID 9001');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Every Student' }));
+
+    expect(await screen.findByText('Showing 360 of 360 Students')).toBeTruthy();
+    expect(screen.getByLabelText('Sort by')).toBeTruthy();
+    expect(screen.getByText(/Example data/)).toBeTruthy();
+    expect(screen.queryByText('Student ID 9001')).toBeNull();
+  });
+
+  it('goes back to Latest Punches', async () => {
+    render(<App source={fakeSource(view({ punches })).source} />);
+    await screen.findByText('Student ID 9001');
+    fireEvent.click(screen.getByRole('button', { name: 'Every Student' }));
+    await screen.findByText('Showing 360 of 360 Students');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Latest Punches' }));
+
+    expect(await screen.findByText('Student ID 9001')).toBeTruthy();
+  });
+
+  it('keeps the live list on the live view page only', async () => {
+    render(<App source={fakeSource(view()).source} />);
+    await screen.findByText(/No Punches yet/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Students' }));
+
+    expect(screen.queryByRole('button', { name: 'Latest Punches' })).toBeNull();
+  });
+});
+
 describe('menu', () => {
   it('lists the five pages with Live view current', async () => {
     render(<App source={fakeSource(view()).source} />);

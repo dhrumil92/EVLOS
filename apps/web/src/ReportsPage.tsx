@@ -20,7 +20,7 @@ const PILL: Record<PoojaStatusName, string> = {
   'Needs Review': 'status-review',
 };
 
-function Segments<T extends string>(props: {
+export function Segments<T extends string>(props: {
   label: string;
   options: readonly T[];
   value: T;
@@ -71,7 +71,8 @@ function StudentRow({ row, isDay }: { row: ReportRow; isDay: boolean }) {
   );
 }
 
-function StudentCard({ report, isDay }: { report: Report; isDay: boolean }) {
+function StudentCard(props: { report: Report; isDay: boolean; insideCard?: boolean }) {
+  const { report, isDay, insideCard = false } = props;
   const [sortBy, setSortBy] = useState<SortBy>('Room');
   const [chosen, setChosen] = useState<StatusFilter>('All');
   const options = filterOptions(report);
@@ -82,10 +83,10 @@ function StudentCard({ report, isDay }: { report: Report; isDay: boolean }) {
   );
 
   return (
-    <section className="report-card" aria-label="Students">
+    <section className={insideCard ? 'px-3 pb-2' : 'report-card'} aria-label="Students">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
         <div>
-          <h2 className="font-display text-2xl font-semibold">Students</h2>
+          {!insideCard && <h2 className="font-display text-2xl font-semibold">Students</h2>}
           <p className="text-mist">
             Showing {rows.length} of {report.rows.length} Students
           </p>
@@ -227,6 +228,21 @@ function ReportNotices({ report, isDay }: { report: Report; isDay: boolean }) {
         </p>
       )}
     </>
+  );
+}
+
+// Every Student's Pooja Status for a Day, for the live view page.
+export function EveryStudent({ source, today }: { source: ReportSource; today: string }) {
+  const { report, failed } = useReport(source, JSON.stringify({ view: 'Day', day: today }));
+  if (failed) return <p className="px-3 pb-4 text-mist">The Student list could not load.</p>;
+  if (!report) return <p className="px-3 pb-4 text-mist">Loading the Student list.</p>;
+  return (
+    <div className="grid gap-3">
+      <div className="grid gap-2 px-3">
+        <ReportNotices report={report} isDay />
+      </div>
+      <StudentCard report={report} isDay insideCard />
+    </div>
   );
 }
 

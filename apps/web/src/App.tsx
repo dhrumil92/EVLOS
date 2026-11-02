@@ -3,7 +3,8 @@ import { Altar } from './Altar.js';
 import { exampleReportSource } from './example-report-source.js';
 import type { LiveViewPunch, LiveViewSource } from './live-view-source.js';
 import { PoojaRing } from './PoojaRing.js';
-import { ReportsPage } from './ReportsPage.js';
+import type { ReportSource } from './report-source.js';
+import { EveryStudent, ReportsPage, Segments } from './ReportsPage.js';
 import { punchKey, useLiveView } from './use-live-view.js';
 import type { LiveViewState } from './use-live-view.js';
 
@@ -85,6 +86,28 @@ function Punches({ live }: { live: LiveViewState }) {
   );
 }
 
+const LATEST_PUNCHES = 'Latest Punches';
+const LIVE_LISTS = [LATEST_PUNCHES, 'Every Student'] as const;
+
+function LiveLists(props: { live: LiveViewState; reports: ReportSource; today: string }) {
+  const [list, setList] = useState<(typeof LIVE_LISTS)[number]>(LATEST_PUNCHES);
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2">
+        <h2 className="font-display text-2xl font-semibold">{list}</h2>
+        <Segments label="List" options={LIVE_LISTS} value={list} onChange={setList} />
+      </div>
+      {list === LATEST_PUNCHES ? (
+        <div aria-live="polite">
+          <Punches live={props.live} />
+        </div>
+      ) : (
+        <EveryStudent source={props.reports} today={props.today} />
+      )}
+    </>
+  );
+}
+
 export function App({ source }: { source: LiveViewSource }) {
   const [page, setPage] = useState(LIVE_VIEW);
   const live = useLiveView(source);
@@ -135,17 +158,14 @@ export function App({ source }: { source: LiveViewSource }) {
               <PoojaRing present={live.view?.studentsPresent ?? null} />
             </section>
 
-            <section
-              aria-live="polite"
-              className="min-w-0 rounded-2xl border border-line bg-night/60 p-2"
-            >
-              <h2 className="font-display px-3 py-2 text-2xl font-semibold">
-                {soon ? page : "Today's Punches"}
-              </h2>
+            <section className="min-w-0 rounded-2xl border border-line bg-night/60 p-2">
               {soon ? (
-                <p className="max-w-prose px-3 pb-4 text-mist">{soon}</p>
+                <>
+                  <h2 className="font-display px-3 py-2 text-2xl font-semibold">{page}</h2>
+                  <p className="max-w-prose px-3 pb-4 text-mist">{soon}</p>
+                </>
               ) : (
-                <Punches live={live} />
+                <LiveLists live={live} reports={reports} today={today} />
               )}
             </section>
           </main>
