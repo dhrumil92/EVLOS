@@ -129,6 +129,17 @@ describe('menu', () => {
     expect(items[0]?.getAttribute('aria-current')).toBe('page');
   });
 
+  it('opens the Reports page with its two cards', async () => {
+    render(<App source={fakeSource(view()).source} />);
+    await screen.findByText(/No Punches yet/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reports' }));
+
+    expect(await screen.findByRole('heading', { name: 'Reports' })).toBeTruthy();
+    expect(await screen.findByText('Students by hour')).toBeTruthy();
+    expect(screen.getByText('Showing 360 of 360 Students')).toBeTruthy();
+  });
+
   it('says when a page that is not built yet will arrive', async () => {
     render(<App source={fakeSource(view()).source} />);
     await screen.findByText(/No Punches yet/);

@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Altar } from './Altar.js';
+import { exampleReportSource } from './example-report-source.js';
 import type { LiveViewPunch, LiveViewSource } from './live-view-source.js';
 import { PoojaRing } from './PoojaRing.js';
+import { ReportsPage } from './ReportsPage.js';
 import { punchKey, useLiveView } from './use-live-view.js';
 import type { LiveViewState } from './use-live-view.js';
 
 const NOTE = 'Outside Pooja Window (05:30–18:00)';
 const LIVE_VIEW = 'Live view';
+const REPORTS = 'Reports';
 const PAGES: Record<string, string | null> = {
   [LIVE_VIEW]: null,
   Students:
@@ -15,8 +18,11 @@ const PAGES: Record<string, string | null> = {
     'Record a Leave or a Return for one Student or for many at once. This page comes in Phase 4.',
   'Review and Finalize':
     'Check the Needs Review list, then Finalize the Day and Send Notifications. This page comes in Phase 4.',
-  Reports: 'Download a Report for a Day, a month or a date range. This page comes in Phase 5.',
+  [REPORTS]: null,
 };
+
+const istToday = () =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(Date.now());
 
 const istTime = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Kolkata',
@@ -83,6 +89,8 @@ export function App({ source }: { source: LiveViewSource }) {
   const [page, setPage] = useState(LIVE_VIEW);
   const live = useLiveView(source);
   const soon = PAGES[page];
+  const [today] = useState(istToday);
+  const [reports] = useState(() => exampleReportSource(today));
 
   return (
     <div className="screen">
@@ -111,31 +119,37 @@ export function App({ source }: { source: LiveViewSource }) {
       </header>
 
       <div className="gutter relative z-10">
-        <main className="mx-auto grid max-w-[70rem] gap-7 pt-8 pb-2 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] md:gap-10">
-          <section aria-label="Today's count">
-            <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
-              Today's Pooja
-            </h1>
-            <p className="mt-1 mb-5 text-mist">
-              {live.view ? `${dayInWords(live.view.day)}. Pooja Window 05:30 to 18:00.` : ' '}
-            </p>
-            <PoojaRing present={live.view?.studentsPresent ?? null} />
-          </section>
+        {page === REPORTS ? (
+          <main className="mx-auto max-w-[70rem] pt-8 pb-2">
+            <ReportsPage source={reports} today={today} />
+          </main>
+        ) : (
+          <main className="mx-auto grid max-w-[70rem] gap-7 pt-8 pb-2 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] md:gap-10">
+            <section aria-label="Today's count">
+              <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
+                Today's Pooja
+              </h1>
+              <p className="mt-1 mb-5 text-mist">
+                {live.view ? `${dayInWords(live.view.day)}. Pooja Window 05:30 to 18:00.` : ' '}
+              </p>
+              <PoojaRing present={live.view?.studentsPresent ?? null} />
+            </section>
 
-          <section
-            aria-live="polite"
-            className="min-w-0 rounded-2xl border border-line bg-night/60 p-2"
-          >
-            <h2 className="font-display px-3 py-2 text-2xl font-semibold">
-              {soon ? page : "Today's Punches"}
-            </h2>
-            {soon ? (
-              <p className="max-w-prose px-3 pb-4 text-mist">{soon}</p>
-            ) : (
-              <Punches live={live} />
-            )}
-          </section>
-        </main>
+            <section
+              aria-live="polite"
+              className="min-w-0 rounded-2xl border border-line bg-night/60 p-2"
+            >
+              <h2 className="font-display px-3 py-2 text-2xl font-semibold">
+                {soon ? page : "Today's Punches"}
+              </h2>
+              {soon ? (
+                <p className="max-w-prose px-3 pb-4 text-mist">{soon}</p>
+              ) : (
+                <Punches live={live} />
+              )}
+            </section>
+          </main>
+        )}
       </div>
 
       <Altar flareKey={live.newestKey} />

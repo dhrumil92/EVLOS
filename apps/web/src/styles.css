@@ -106,6 +106,170 @@ body {
   animation: arrive 2.6s ease-out;
 }
 
+/* Reports */
+.report-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: rgb(27 17 64 / 66%);
+  --bar-present: #b88c24;
+  --bar-absent: #e0526a;
+  --bar-not-applicable: #5f8cf0;
+}
+
+.notice {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgb(232 194 106 / 14%);
+}
+
+.field {
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 8%);
+  color: var(--color-ivory);
+}
+
+.field option {
+  color: var(--color-night);
+}
+
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+}
+
+.seg button {
+  padding: 6px 14px;
+  color: var(--color-mist);
+  cursor: pointer;
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--color-gold);
+  color: var(--color-night);
+  font-weight: 600;
+}
+
+.student-scroll {
+  overflow: auto;
+  max-height: 30rem;
+  border-top: 1px solid var(--color-line);
+  scrollbar-color: var(--color-gold) transparent;
+  scrollbar-width: thin;
+}
+
+.student-table {
+  width: 100%;
+  min-width: 34rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.student-table th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--color-gold);
+  background: #241446;
+  color: var(--color-mist);
+  font-weight: 500;
+  text-align: left;
+}
+
+.student-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.status {
+  padding: 2px 11px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-present {
+  background: rgb(232 194 106 / 18%);
+  color: var(--color-gold);
+}
+
+.status-absent {
+  background: rgb(255 110 110 / 18%);
+  color: #ff9c9c;
+}
+
+.status-review {
+  background: rgb(255 214 90 / 18%);
+  color: #ffe08a;
+}
+
+.status-not-applicable {
+  background: rgb(207 195 223 / 16%);
+  color: var(--color-mist);
+}
+
+.plot {
+  overflow-x: auto;
+}
+
+.plot svg {
+  display: block;
+  width: 100%;
+  min-width: 40rem;
+  height: auto;
+}
+
+.plot-wide svg {
+  min-width: 56rem;
+}
+
+.plot-line {
+  stroke: rgb(207 195 223 / 16%);
+}
+
+.plot-base {
+  stroke: var(--color-mist);
+}
+
+.plot-tick {
+  font: 400 12px var(--font-sans);
+  fill: var(--color-mist);
+}
+
+.plot-peak {
+  font: 600 13px var(--font-sans);
+  fill: var(--color-ivory);
+  text-anchor: middle;
+}
+
+.plot-band {
+  fill: transparent;
+}
+
+.plot-band:hover {
+  fill: rgb(255 255 255 / 8%);
+}
+
+.plot-tip {
+  position: fixed;
+  z-index: 30;
+  max-width: 18rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--color-ivory);
+  color: var(--color-night);
+  font-size: 0.92rem;
+  pointer-events: none;
+}
+
 /* The ledge, diya and dhoop */
 .ledge {
   position: absolute;
