@@ -8,6 +8,13 @@
       "when": 1793383938356,
       "tag": "0000_create_devices",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793635992536,
+      "tag": "0001_create_punches",
+      "breakpoints": true
     }
   ]
 }

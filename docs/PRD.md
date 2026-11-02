@@ -149,6 +149,6 @@ Acceptance criteria:
 2. Which email provider and sender address will be used? Deferred to Phase 5; a Gmail app password is enough for testing.
 3. Has the Rector agreed in writing to emails going to Students?
 4. Should the Rector be able to unlock (reopen) a Finalized Day to correct a mistake? Set aside on 2026-10-30; until decided, a Finalized Day cannot be changed.
-5. When the Device uploads a Punch late, does it send the original punch time or only the upload time? Check against captured payloads in Phase 3. If only the upload time is available, the Punch is accepted and shown in a different colour (purple); its name is not decided yet.
+5. Decided 2026-11-02 from captured payloads: when the Device uploads late, it sends the original punch time (Punches made while the server was down arrived later with their own times, in one batch). The upload-time case does not occur, so no purple Punch is needed.
 6. Should the Rector be reminded when a Day is Finalized but Send Notifications was not clicked? Not for now (decided 2026-10-30); revisit after the pilot if needed.
 7. Decided 2026-11-02: the many-Students Leave panel (FR-4b) uses one default Out date and Expected Return date with a per-row date override, and a future Out Time is refused (FR-4).

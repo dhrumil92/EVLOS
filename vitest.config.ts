@@ -10,6 +10,8 @@ const WORKSPACES = ['packages/core', 'apps/api', 'apps/web'];
 
 export default defineConfig({
   test: {
+    // Database tests empty evlos_test, so test files must not run at the same time.
+    fileParallelism: false,
     projects: WORKSPACES.map((root) => ({
       extends: true,
       test: { name: root, root, include: ['src/**/*.test.ts'] },

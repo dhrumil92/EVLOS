@@ -31,3 +31,6 @@ graphify-out/
 !sample-roster.csv
 !sample-roster.xlsx
 device-dumps/
+
+#biometric-experiment folder
+biometric-test/
