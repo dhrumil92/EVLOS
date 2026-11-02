@@ -14,9 +14,19 @@ TBD (added here before the `project-final` tag).
 
 ## Run locally
 
-Prerequisites: Node 22 and PostgreSQL 16 running on your machine.
+Prerequisites:
+- Node 22 (exact version in `.nvmrc`) and PostgreSQL 17 running on your machine.
+- Once, as a PostgreSQL admin (for example in pgAdmin): a login role `evlos` with a password and no superuser rights, and two databases owned by it: `evlos` (development) and `evlos_test` (tests; wiped by every test run).
 
-TBD. Phase 1 fills in the exact commands. The plan is five commands: `git clone`, `npm install`, `cp .env.example .env`, `npm run db:setup`, `npm run dev`.
+```bash
+git clone https://github.com/dhrumil92/EVLOS.git && cd EVLOS
+npm install
+cp .env.example .env        # then put the evlos password into both URLs
+npm run db:setup            # creates the tables in evlos and evlos_test
+npm test
+```
+
+There is no app to start yet. From Phase 3, `npm run dev` replaces `npm test` as the last command.
 
 ## The five rules the product enforces
 

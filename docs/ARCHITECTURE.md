@@ -11,7 +11,7 @@ Status: proposed choices for the 30-day build. A choice is confirmed once it is 
 | Runtime | Node.js 22 LTS | Already used for the Device test server. |
 | API | Fastify | Small, fast, easy to test with `inject`; serves the Device endpoints too. |
 | Web | React with Vite and Tailwind, shadcn/ui components | Quick to build a clear table-and-panel UI without designing from scratch. |
-| Database | PostgreSQL 16 with Drizzle ORM and SQL migrations | Constraints for uniqueness and idempotency; light on a 1 GB VM. |
+| Database | PostgreSQL 17 with Drizzle ORM and SQL migrations | Constraints for uniqueness and idempotency; light on a 1 GB VM. |
 | Live updates | Server-Sent Events | One-way push of new Punches; simpler than WebSockets. |
 | Scheduler | In-process loop in Asia/Kolkata plus the `outbox_emails` table | Enough at this scale and easy to explain. |
 | Email | Nodemailer through an SMTP provider on port 587 (local mail catcher in development; Gmail app password for early testing; a provider such as Brevo chosen in Phase 5) | GCP blocks outbound port 25, and mail sent straight from a VM IP usually lands in spam. |

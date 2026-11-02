@@ -28,7 +28,19 @@ A hostel Pooja attendance system: a fingerprint Device pushes Punches to a serve
 TypeScript (strict), Node 22, Fastify, React with Vite and Tailwind, PostgreSQL with Drizzle, Vitest, Playwright for a few end-to-end flows, ESLint, Prettier. npm workspaces: `packages/core`, `apps/api`, `apps/web`. Docker Compose and Caddy are for deployment on the VM only, not for local development.
 
 ## Commands
-TBD. Filled in when the repo skeleton lands (install, test, lint, typecheck, dev, build, db:setup, migrate).
+Run from the repo root.
+
+| Command | What it does |
+|---------|--------------|
+| `npm install` | Install all workspaces (`packages/core`, `apps/api`, `apps/web`). Versions are pinned exactly (`.npmrc`). |
+| `npm run db:setup` | Build, then apply all migrations to `evlos` and `evlos_test` (reads `.env`). Safe to run again. |
+| `npm test` | Run every test once. Database tests use `evlos_test` only and empty it first. |
+| `npm run lint` | ESLint, including the complexity limit (10) and the pure-core rules. |
+| `npm run typecheck` | Strict TypeScript for all workspaces. |
+| `npm run format` / `npm run format:check` | Apply / check Prettier formatting. |
+| `cd apps/api && npx drizzle-kit generate --name <what_changed>` | Write a new SQL migration after editing `apps/api/src/db/schema.ts`. Never edit or regenerate a migration that has already been applied; add a new one. |
+
+`dev` and `build` arrive with the API server in Phase 3. CI (`.github/workflows/ci.yml`) runs lint, typecheck, format check, `db:setup` and test on every push to `main` and every pull request.
 
 ## Definition of done
 - A failing test existed first and now passes; the whole suite, lint and typecheck pass.
