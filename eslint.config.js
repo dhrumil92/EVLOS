@@ -7,7 +7,7 @@ const PURE_CORE = 'Core is pure: take the time from the injected Clock.';
 const NO_IO_IN_CORE = 'Core is pure: put I/O behind a port in apps/api.';
 
 export default defineConfig(
-  { ignores: ['**/dist/', '**/node_modules/', '**/coverage/'] },
+  { ignores: ['**/dist/', '**/node_modules/', '**/coverage/', 'biometric-test/'] },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {
