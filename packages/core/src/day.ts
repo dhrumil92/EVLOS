@@ -18,6 +18,26 @@ export function dayOf(instant: Instant): Day {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
 }
 
+// The instant of 00:00:00 IST on a Day.
+export function startOfDay(day: Day): Instant {
+  const year = Number(day.slice(0, 4));
+  const month = Number(day.slice(5, 7));
+  const date = Number(day.slice(8, 10));
+  return daysSince1970Of(year, month, date) * MS_PER_DAY - IST_OFFSET_MS;
+}
+
+// Calendar date to days since 1970-01-01 (Howard Hinnant's days_from_civil).
+function daysSince1970Of(year: number, month: number, date: number): number {
+  const marchBasedYear = month <= 2 ? year - 1 : year;
+  const era = Math.floor(marchBasedYear / 400);
+  const yearOfEra = marchBasedYear - era * 400;
+  const monthFromMarch = month > 2 ? month - 3 : month + 9;
+  const dayOfYear = Math.floor((153 * monthFromMarch + 2) / 5) + date - 1;
+  const dayOfEra =
+    yearOfEra * 365 + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100) + dayOfYear;
+  return era * 146097 + dayOfEra - 719468;
+}
+
 // Days since 1970-01-01 to a calendar date (Howard Hinnant's civil_from_days).
 // Plain arithmetic, so the core never needs Date.
 function civilDate(daysSince1970: number): { year: number; month: number; date: number } {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isInPoojaWindow } from './pooja-window.js';
+import { isInPoojaWindow, poojaWindowOf } from './pooja-window.js';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
@@ -38,5 +38,13 @@ describe('Pooja Window', () => {
     const midnightUtc = Date.UTC(2026, 10, 1, 0, 0, 0);
 
     expect(isInPoojaWindow(midnightUtc)).toBe(true);
+  });
+
+  it('opens at 05:30:00 IST on the given Day', () => {
+    expect(poojaWindowOf('2026-11-01').opensAt).toBe(ist(5, 30, 0));
+  });
+
+  it('closes at 18:00:00 IST on the given Day', () => {
+    expect(poojaWindowOf('2026-11-01').closesAt).toBe(ist(18, 0, 0));
   });
 });

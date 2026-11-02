@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayOf } from './day.js';
+import { dayOf, startOfDay } from './day.js';
 
 const utc = (
   year: number,
@@ -41,5 +41,29 @@ describe('Day', () => {
     const day = dayOf(noonInIst);
 
     expect(day).toBe('2028-02-29');
+  });
+
+  it('starts a Day at 00:00:00 IST, which is 18:30:00 UTC the evening before', () => {
+    const start = startOfDay('2026-11-02');
+
+    expect(start).toBe(utc(2026, 11, 1, 18, 30, 0));
+  });
+
+  it('starts 1 January at 00:00:00 IST', () => {
+    const start = startOfDay('2027-01-01');
+
+    expect(start).toBe(utc(2026, 12, 31, 18, 30, 0));
+  });
+
+  it('starts 29 February in a leap year', () => {
+    const start = startOfDay('2028-02-29');
+
+    expect(start).toBe(utc(2028, 2, 28, 18, 30, 0));
+  });
+
+  it('starts 1 March the day after 29 February', () => {
+    const start = startOfDay('2028-03-01');
+
+    expect(start).toBe(utc(2028, 2, 29, 18, 30, 0));
   });
 });

@@ -1,17 +1,17 @@
 # TESTING: EVLOS
 
-> **SKELETON.** Nothing is tested yet. Fill each row only from real tests that exist in the repo. Check the format against the course project page before submission.
+> **DRAFT.** The five rules are tested as pure functions in `packages/core`. Fill each row only from real tests that exist in the repo. Check the format against the course project page before submission.
 
 ## Rules and their tests
 | Rule | Test `file:line` | If untested — what stops you |
 |------|------------------|-----------------------------|
-| 1. A Punch counts only between 05:30 and 18:00 IST, both included | not written yet | |
-| 2. The same Punch uploaded twice is stored once | not written yet | |
-| 3. Away for any part of the Pooja Window with no Punch gives Not Applicable, never Absent | not written yet | |
-| 4. In the hostel for the whole Pooja Window with no Punch is only Needs Review until Finalize | not written yet | |
-| 5. A Notification goes only after Finalize, at most once per Student per Day (never to an Excluded Student) | not written yet | |
+| 1. A Punch counts only between 05:30 and 18:00 IST, both included | `packages/core/src/pooja-window.test.ts:11`, `:15`, `:23`, `:27` | |
+| 2. The same Punch uploaded twice is stored once | `packages/core/src/punch.test.ts:11` | The core rule is tested. The unique key on `punches` arrives in Phase 3 and needs its own test. |
+| 3. Away for any part of the Pooja Window with no Punch gives Not Applicable, never Absent | `packages/core/src/pooja-status.test.ts:114`, `:118`, `:128` | |
+| 4. In the hostel for the whole Pooja Window with no Punch is only Needs Review until Finalize | `packages/core/src/pooja-status.test.ts:172`, `:182` | |
+| 5. A Notification goes only after Finalize, at most once per Student per Day (never to an Excluded Student) | `packages/core/src/notification.test.ts:26`, `:43`, `:51` | The core rule is tested. The outbox `dedupe_key` arrives in Phase 5 and needs its own test. |
 
-Rules tested: 0 of 5
+Rules tested: 5 of 5 as pure functions; the database keys behind rules 2 and 5 are not tested yet.
 
 ## Weak test
 None yet. When found: the test, why it would still pass if the rule were broken, and what fixes it.
