@@ -21,6 +21,9 @@ Thumbs.db
 .idea/
 .vscode/
 
+# graphify skill
+graphify-out/
+
 # real data must never be committed
 *.xlsx
 *.xls
