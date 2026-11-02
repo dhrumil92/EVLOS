@@ -18,6 +18,7 @@
 | **Punch** | One fingerprint scan uploaded by a Device: a Student ID plus a timestamp. A fact that never changes. | log, scan, swipe, entry, attendance record | `packages/core/src/punch.ts:3` |
 | **Pooja** | The daily worship Students are expected to attend. Evidenced only by a Punch inside the Pooja Window. | prayer, session, event | n/a (domain word) |
 | **Pooja Window** | 05:30 to 18:00 IST on a Day, both ends included. A Punch counts only inside it. | shift, slot, temple timing | `packages/core/src/pooja-window.ts:6` |
+| **Outside Pooja Window** | The note shown on a Punch made outside the Pooja Window, written on the page as "Outside Pooja Window (05:30–18:00)". The Punch is stored but does not count toward any Pooja Status. | late punch, invalid punch, ignored punch | `packages/core/src/pooja-window.ts:10` |
 | **Day** | One calendar date in IST. All rules are evaluated per Student per Day. | date, session day | `packages/core/src/day.ts:4` |
 | **Pooja Status** | The outcome for one Student on one Day: **Present**, **Absent**, **Not Applicable**, **Pending**, or **Needs Review**. | attendance, mark, result | `packages/core/src/pooja-status.ts:8` |
 | **Present** | Pooja Status: the Student has at least one Punch inside the Pooja Window. A Punch always wins, even if the Student then leaves on a Leave. | attended, done, marked | `packages/core/src/pooja-status.ts:9` |

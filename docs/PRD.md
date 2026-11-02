@@ -61,7 +61,7 @@ Acceptance criteria:
 - Given a Punch from a registered Device for a Student ID that is unknown or Deactivated, when it arrives, then it is stored and not counted toward any Pooja Status.
 - Given a Punch for a Day that is already Finalized, when it arrives, then it is stored, the Day stays locked, and the Rector sees a warning for that Student before Send Notifications.
 
-**FR-3 Live view.** The Rector's page shows a new Punch within 5 seconds, without reloading, and a count of Students Present so far for the Day.
+**FR-3 Live view.** The Rector's page shows a new Punch within 5 seconds, without reloading, and a count of Students Present so far for the Day. A Punch made outside the Pooja Window is listed with the note "Outside Pooja Window (05:30–18:00)" and is not counted.
 
 **FR-4 Record Leave.** The Rector records a Leave for one Student (gear icon, Leave status tab) or for many at once (FR-4b): Out date and time, Expected Return date and time. The Out Time may be in the past, because the Rector often enters Leaves after the Students have left.
 - Given a Student with no open Leave, when a Leave is recorded, then the Student is Away.

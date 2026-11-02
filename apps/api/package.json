@@ -6,6 +6,7 @@
   "dependencies": {
     "@evlos/core": "0.0.0",
     "drizzle-orm": "0.45.4",
+    "fastify": "5.12.8",
     "pg": "8.23.1"
   },
   "devDependencies": {
