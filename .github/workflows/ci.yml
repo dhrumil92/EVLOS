@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    # A throwaway PostgreSQL that exists only for this run. The password is not a secret.
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: evlos
+          POSTGRES_PASSWORD: evlos-ci
+          POSTGRES_DB: evlos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U evlos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://evlos:evlos-ci@localhost:5432/evlos
+      TEST_DATABASE_URL: postgres://evlos:evlos-ci@localhost:5432/evlos_test
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Create the test database
+        run: psql "$DATABASE_URL" -c 'create database evlos_test'
+
+      - name: Database setup
+        run: npm run db:setup
+
+      - name: Test
+        run: npm test

@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "db:setup": "tsc -b && node --env-file=.env apps/api/dist/db/setup.js"
+    "db:setup": "tsc -b && node --env-file-if-exists=.env apps/api/dist/db/setup.js"
   },
   "engines": {
     "node": ">=22 <23"
