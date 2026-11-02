@@ -1,0 +1,35 @@
+import type { Instant } from './clock.js';
+
+// One calendar date in IST, written YYYY-MM-DD.
+export type Day = string;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // India has no daylight saving time.
+
+export function dayOf(instant: Instant): Day {
+  const daysSince1970InIst = Math.floor((instant + IST_OFFSET_MS) / MS_PER_DAY);
+  const { year, month, date } = civilDate(daysSince1970InIst);
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+}
+
+// Days since 1970-01-01 to a calendar date (Howard Hinnant's civil_from_days).
+// Plain arithmetic, so the core never needs Date.
+function civilDate(daysSince1970: number): { year: number; month: number; date: number } {
+  const z = daysSince1970 + 719468;
+  const era = Math.floor(z / 146097);
+  const dayOfEra = z - era * 146097;
+  const yearOfEra = Math.floor(
+    (dayOfEra -
+      Math.floor(dayOfEra / 1460) +
+      Math.floor(dayOfEra / 36524) -
+      Math.floor(dayOfEra / 146096)) /
+      365,
+  );
+  const dayOfYear =
+    dayOfEra - (365 * yearOfEra + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100));
+  const monthFromMarch = Math.floor((5 * dayOfYear + 2) / 153);
+  const date = dayOfYear - Math.floor((153 * monthFromMarch + 2) / 5) + 1;
+  const month = monthFromMarch < 10 ? monthFromMarch + 3 : monthFromMarch - 9;
+  const year = yearOfEra + era * 400 + (month <= 2 ? 1 : 0);
+  return { year, month, date };
+}
