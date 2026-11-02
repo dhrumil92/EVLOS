@@ -141,7 +141,7 @@ describe('Device routes', () => {
     expect(reply.statusCode).toBe(200);
   });
 
-  it('answers the Device when it asks for options', async () => {
+  it('asks the Device to upload Punches only, with no fingerprints', async () => {
     const app = await buildApp();
 
     const reply = await app.inject({
@@ -150,6 +150,8 @@ describe('Device routes', () => {
     });
 
     expect(reply.statusCode).toBe(200);
+    expect(reply.body).toContain(`GET OPTION FROM: ${SERIAL}`);
+    expect(reply.body).toContain('TransFlag=1000000000');
   });
 
   it('answers OK when the Device polls for commands', async () => {

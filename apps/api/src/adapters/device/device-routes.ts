@@ -19,6 +19,21 @@ const UPLOAD_LIMIT_BYTES = 16 * 1024 * 1024;
 
 const lineCount = (body: string) => body.split('\n').filter((line) => line.trim() !== '').length;
 
+// TransFlag lists what the Device uploads, and only the first place (Punches) is on, so that
+// fingerprint templates stay on the Device. Stamp=9999 and Realtime=1 keep what it does today.
+const deviceOptions = (deviceSerial: string) =>
+  [
+    `GET OPTION FROM: ${deviceSerial}`,
+    'Stamp=9999',
+    'OpStamp=9999',
+    'ErrorDelay=60',
+    'Delay=30',
+    'TransInterval=1',
+    'TransFlag=1000000000',
+    'Realtime=1',
+    'Encrypt=0',
+  ].join('\n');
+
 export function registerDeviceRoutes(app: FastifyInstance, deps: DeviceRoutesDeps): void {
   // The Device sends no Content-Type header, so every upload arrives through this parser.
   app.addContentTypeParser(
@@ -37,9 +52,10 @@ export function registerDeviceRoutes(app: FastifyInstance, deps: DeviceRoutesDep
     }
   };
 
-  app.get('/iclock/cdata', { preHandler: refuseUnregistered }, (_request, reply) =>
-    reply.type('text/plain').send('OK'),
-  );
+  app.get('/iclock/cdata', { preHandler: refuseUnregistered }, (request, reply) => {
+    const { SN = '' } = request.query as DeviceQuery;
+    return reply.type('text/plain').send(deviceOptions(SN));
+  });
 
   app.get('/iclock/getrequest', { preHandler: refuseUnregistered }, (_request, reply) =>
     reply.type('text/plain').send('OK'),
