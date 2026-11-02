@@ -63,6 +63,11 @@ Acceptance criteria:
 
 **FR-3 Live view.** The Rector's page shows a new Punch within 5 seconds, without reloading, and a count of Students Present so far for the Day. A Punch made outside the Pooja Window is listed with the note "Outside Pooja Window (05:30–18:00)" and is not counted.
 
+**FR-3b Day history.** The live view page also shows every Active Student's Pooja Status for the Day, and the Rector can pick any past Day to see the same list.
+- Given today, when the page is open, then new Punches and statuses appear live.
+- Given a past Day, when the Rector picks it, then the page shows that Day's Pooja Statuses and Punches and says whether it is Finalized. A Finalized Day shows its stored results; a Day not Finalized shows Needs Review, never Absent.
+- A Day in the future cannot be picked.
+
 **FR-4 Record Leave.** The Rector records a Leave for one Student (gear icon, Leave status tab) or for many at once (FR-4b): Out date and time, Expected Return date and time. The Out Time may be in the past, because the Rector often enters Leaves after the Students have left.
 - Given a Student with no open Leave, when a Leave is recorded, then the Student is Away.
 - Given a Student who already has an open Leave, when another is recorded, then it is refused for that Student with a reason.

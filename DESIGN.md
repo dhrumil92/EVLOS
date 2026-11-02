@@ -26,7 +26,7 @@ The Device adapter. It is where the fingerprint terminal's push protocol, serial
 - A Notification cannot be recalled once Send Notifications is clicked.
 - A forgotten Return keeps a Student Away. The Rector is responsible for recording Returns.
 - The Device sends plain HTTP, so Punch uploads are not encrypted in transit. Access is limited to known Device serial numbers.
-- The Device also uploads fingerprint templates over plain HTTP when a Student is enrolled. EVLOS discards them unread and never stores them.
+- The Device is told to upload Punches only, which keeps fingerprint templates on the Device. This relies on the Device obeying that setting, so EVLOS also discards any fingerprint upload that still arrives, unread, and never stores it.
 
 ## AI use
 - **Tools:** ChatGPT for early exploration (hostel workflow, Device setup, first diagnostic server); Claude for requirements analysis and drafting documents; Google Antigravity for implementation under `AGENTS.md`.
