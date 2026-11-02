@@ -26,7 +26,7 @@ npm run db:setup            # creates the tables in evlos and evlos_test
 npm test
 ```
 
-There is no app to start yet. From Phase 3, `npm run dev` replaces `npm test` as the last command.
+To start the app, use two terminals. Run `npm run dev` in one (the server for the Device and the page) and `npm run dev:web` in the other, then open http://localhost:5173. The Device's Cloud server setting must point at this machine's address and `DEVICE_PORT`, and its Device Serial must be in the `devices` table.
 
 ## The five rules the product enforces
 

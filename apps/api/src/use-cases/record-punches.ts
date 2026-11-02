@@ -1,4 +1,5 @@
 import type { Clock, Instant } from '@evlos/core';
+import type { LiveFeed } from '../ports/live-feed.js';
 import type { PunchRepository } from '../ports/punch-repository.js';
 
 export interface UploadedPunch {
@@ -9,6 +10,7 @@ export interface UploadedPunch {
 export interface RecordPunchesDeps {
   punches: PunchRepository;
   clock: Clock;
+  liveFeed: LiveFeed;
 }
 
 // Stores each uploaded Punch once and returns how many were new.
@@ -23,6 +25,9 @@ export async function recordPunches(
     if (await deps.punches.record({ ...punch, deviceSerial, receivedAt })) {
       newPunches += 1;
     }
+  }
+  if (newPunches > 0) {
+    deps.liveFeed.punchesChanged();
   }
   return newPunches;
 }

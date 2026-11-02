@@ -24,7 +24,7 @@ Status: proposed choices for the 30-day build. A choice is confirmed once it is 
 | Hosting | Google Cloud free-tier VM (e2-micro, 1 GB RAM), after Phase 4 | The Device speaks plain HTTP on its own port; the scheduler needs a long-running process. |
 
 ## Environments
-- **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit). The Device pushes to the PC over the same Wi-Fi.
+- **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit). The Device pushes to the PC over the same Wi-Fi. The page's API listens on `127.0.0.1` only, so Punches cannot be read from the network before login exists.
 - **CI (GitHub Actions):** a Postgres service container; no Docker on the author's PC is involved.
 - **Production (GCP VM, from Phase 6):** Docker Compose with `api` and `caddy`; PostgreSQL on the VM or a free managed tier, with its own database and user for EVLOS.
 

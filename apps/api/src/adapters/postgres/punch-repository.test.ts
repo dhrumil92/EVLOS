@@ -86,6 +86,27 @@ describe('PostgresPunchRepository', () => {
     expect(rows[0]?.student_id).toBe('0042');
   });
 
+  it('finds the Punches of a Day from 00:00:00 IST to 23:59:59 IST, newest first', async () => {
+    const firstSecondOfDay = Date.UTC(2026, 10, 9, 18, 30, 0);
+    const lastSecondOfDay = Date.UTC(2026, 10, 10, 18, 29, 59);
+    await repository.record(punch({ punchedAt: firstSecondOfDay }));
+    await repository.record(punch({ punchedAt: lastSecondOfDay }));
+
+    const punches = await repository.punchesOn('2026-11-10');
+
+    expect(punches).toEqual([
+      { studentId: '9001', punchedAt: lastSecondOfDay },
+      { studentId: '9001', punchedAt: firstSecondOfDay },
+    ]);
+  });
+
+  it('leaves out the Punches of the Days either side', async () => {
+    await repository.record(punch({ punchedAt: Date.UTC(2026, 10, 9, 18, 29, 59) }));
+    await repository.record(punch({ punchedAt: Date.UTC(2026, 10, 10, 18, 30, 0) }));
+
+    expect(await repository.punchesOn('2026-11-10')).toEqual([]);
+  });
+
   it('refuses a Punch from a Device Serial that is not registered', async () => {
     const recording = repository.record(punch({ deviceSerial: 'UNREGISTERED' }));
 

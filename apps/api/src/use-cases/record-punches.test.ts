@@ -1,3 +1,4 @@
+import type { Punch } from '@evlos/core';
 import { describe, expect, it } from 'vitest';
 import type { PunchRepository, ReceivedPunch } from '../ports/punch-repository.js';
 import { recordPunches } from './record-punches.js';
@@ -17,19 +18,35 @@ class FakePunchRepository implements PunchRepository {
     }
     return Promise.resolve(isNew);
   }
+
+  punchesOn(): Promise<Punch[]> {
+    return Promise.resolve(this.stored);
+  }
 }
 
-const deps = (punches: PunchRepository) => ({ punches, clock: { now: () => RECEIVED_AT } });
+const buildDeps = (punches: PunchRepository) => {
+  const feed = { changes: 0 };
+  return {
+    feed,
+    deps: {
+      punches,
+      clock: { now: () => RECEIVED_AT },
+      liveFeed: {
+        punchesChanged: () => {
+          feed.changes += 1;
+        },
+      },
+    },
+  };
+};
+
+const uploaded = [{ studentId: '9001', punchedAt: PUNCHED_AT }];
 
 describe('recordPunches', () => {
   it('stores a Punch with its Device Serial and the time it was received', async () => {
     const punches = new FakePunchRepository();
 
-    await recordPunches(
-      'TEST-DEVICE',
-      [{ studentId: '9001', punchedAt: PUNCHED_AT }],
-      deps(punches),
-    );
+    await recordPunches('TEST-DEVICE', uploaded, buildDeps(punches).deps);
 
     expect(punches.stored).toEqual([
       {
@@ -42,12 +59,29 @@ describe('recordPunches', () => {
   });
 
   it('counts only the Punches that were new', async () => {
-    const punches = new FakePunchRepository();
-    const uploaded = [{ studentId: '9001', punchedAt: PUNCHED_AT }];
-    await recordPunches('TEST-DEVICE', uploaded, deps(punches));
+    const { deps } = buildDeps(new FakePunchRepository());
+    await recordPunches('TEST-DEVICE', uploaded, deps);
 
-    const newPunches = await recordPunches('TEST-DEVICE', uploaded, deps(punches));
+    const newPunches = await recordPunches('TEST-DEVICE', uploaded, deps);
 
     expect(newPunches).toBe(0);
+  });
+
+  it('tells the live view once per upload, however many Punches it held', async () => {
+    const { deps, feed } = buildDeps(new FakePunchRepository());
+    const two = [...uploaded, { studentId: '9002', punchedAt: PUNCHED_AT }];
+
+    await recordPunches('TEST-DEVICE', two, deps);
+
+    expect(feed.changes).toBe(1);
+  });
+
+  it('does not tell the live view about a re-upload', async () => {
+    const { deps, feed } = buildDeps(new FakePunchRepository());
+    await recordPunches('TEST-DEVICE', uploaded, deps);
+
+    await recordPunches('TEST-DEVICE', uploaded, deps);
+
+    expect(feed.changes).toBe(1);
   });
 });

@@ -14,7 +14,11 @@ export default defineConfig(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['vitest.config.ts', 'apps/api/drizzle.config.ts'],
+          allowDefaultProject: [
+            'vitest.config.ts',
+            'apps/api/drizzle.config.ts',
+            'apps/web/vite.config.ts',
+          ],
           defaultProject: 'tsconfig.base.json',
         },
         tsconfigRootDir: import.meta.dirname,

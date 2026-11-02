@@ -1,6 +1,11 @@
+import { startOfDay } from '@evlos/core';
+import type { Day, Punch } from '@evlos/core';
+import { and, desc, gte, lt } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { punches } from '../../db/schema.js';
 import type { PunchRepository, ReceivedPunch } from '../../ports/punch-repository.js';
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export class PostgresPunchRepository implements PunchRepository {
   constructor(private readonly db: NodePgDatabase) {}
@@ -17,5 +22,20 @@ export class PostgresPunchRepository implements PunchRepository {
       .onConflictDoNothing()
       .returning({ studentId: punches.studentId });
     return inserted.length > 0;
+  }
+
+  async punchesOn(day: Day): Promise<Punch[]> {
+    const start = startOfDay(day);
+    const rows = await this.db
+      .select({ studentId: punches.studentId, punchedAt: punches.punchedAt })
+      .from(punches)
+      .where(
+        and(
+          gte(punches.punchedAt, new Date(start)),
+          lt(punches.punchedAt, new Date(start + MS_PER_DAY)),
+        ),
+      )
+      .orderBy(desc(punches.punchedAt));
+    return rows.map((row) => ({ studentId: row.studentId, punchedAt: row.punchedAt.getTime() }));
   }
 }
