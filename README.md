@@ -6,7 +6,7 @@ IT643 Software Design and Testing term project, DAU.
 
 ## Status
 
-In development. Requirements and domain language are settled; the code is not yet written.
+In development. Requirements and domain language are settled. The project skeleton, CI and database setup are in place; the rules are not yet written.
 
 ## Live URL
 
