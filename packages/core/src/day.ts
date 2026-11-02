@@ -6,6 +6,12 @@ export type Day = string;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // India has no daylight saving time.
 
+// Milliseconds since 00:00:00 IST on the Day the instant falls on.
+export function msIntoDay(instant: Instant): number {
+  const msSinceIstEpoch = instant + IST_OFFSET_MS;
+  return ((msSinceIstEpoch % MS_PER_DAY) + MS_PER_DAY) % MS_PER_DAY;
+}
+
 export function dayOf(instant: Instant): Day {
   const daysSince1970InIst = Math.floor((instant + IST_OFFSET_MS) / MS_PER_DAY);
   const { year, month, date } = civilDate(daysSince1970InIst);

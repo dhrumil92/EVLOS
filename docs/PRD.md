@@ -67,18 +67,24 @@ Acceptance criteria:
 - Given a Student with no open Leave, when a Leave is recorded, then the Student is Away.
 - Given a Student who already has an open Leave, when another is recorded, then it is refused for that Student with a reason.
 - Given an Out Time later than now, when a Leave is recorded, then it is refused with a reason. A Student fills the Leave Note only at the moment of leaving, so an Out Time is never in the future; it may be days in the past, because the Rector sometimes enters the Leave Notes the next day.
-- A Leave entered by mistake can be cancelled or edited, and the change is audited.
+- Given an Expected Return earlier than the Out Time, when a Leave is recorded or edited, then it is refused with a reason. In the many-Students panel only that row is blocked.
+- The calendar disables future dates for the Out date. The Expected Return date may be in the future.
+- A Leave entered by mistake can be cancelled or edited, and the change is audited. The Rector may edit the Expected Return, for example when a Student stays longer; a Finalized Day never changes because of such an edit.
 
 **FR-4b Leave for many Students at once.** The Student list has a common gear icon that opens a Leave entry for several Students. The Rector finds Students by typing a name (also Student ID or room), adds each to the selection, and enters the Out Time and Expected Return of each Student as written on that Student's own Leave Note (the times differ: one Student leaves in the morning, another in the evening). The panel has one Out date and one Expected Return date at the top, both defaulting to today; each Student row asks only for the Out time and the Expected Return time. A Student whose date differs gets a small date field on his own row, so the Rector never picks a date for every Student. The Out date may be in the past, because the Rector sometimes enters the Leave Notes the next day. The Rector sees a summary ("35 Students will be Away") and confirms. Students who already have an open Leave are listed and skipped. This is for vacations and holidays, when 30 to 40 Students leave on the same day.
 
 **FR-5 Record Return.** The Rector records a Return Time for one Student (Leave status tab) or for many at once, using the same search-and-select panel as FR-4b. In the panel the Rector sets one Return date at the top (default today) and enters only a Return time on each Student's row, as written in the Back-from-Home Book; a Student whose date differs gets a small date field on his own row. Students with no open Leave are listed and skipped.
 - Given a Student with an open Leave, when the Return Time is recorded, then the Leave is closed and the Student is no longer Away.
+- Expected Return and Return Time are stored separately, each with date and time. Recording the Return Time never overwrites the Expected Return, and it may differ from it (traffic, a longer vacation).
+- Given a Return Time later than now, when it is recorded, then it is refused with a reason. The calendar disables future dates, and the server refuses them as well.
+- Given a Return Time earlier than the Out Time, when it is recorded, then it is refused with a reason.
+- Correcting a Return Time after it is recorded is not offered for now.
 
 **FR-6 Away and Due Back.** The Student list shows Away in red and Due Back in yellow, each with a text label. A Student stays Due Back after Expected Return passes until the Return Time is recorded.
 
 **FR-7 Pooja Status.** The Pooja Window is 05:30:00 to 18:00:00 IST, both ends included. For any Day the system computes a Pooja Status for each Active Student:
 - Present: at least one Punch inside the Pooja Window (even if the Student then leaves).
-- Not Applicable ("-"): no Punch, and the Student was Away for any part of the Pooja Window. Shown as soon as he is Away, even before the window closes. Any overlap counts: a Leave that starts or ends inside the window, a Leave that touches an edge (Out Time exactly 18:00:00, Return Time exactly 05:30:00), or a Student who returns during the window (for example at 08:00) without having punched. A Punch always wins: a Student who punched at 07:00 and left at 08:00 is Present.
+- Not Applicable ("-"): no Punch, and the Student was Away for any part of the Pooja Window. Shown as soon as he is Away, even before the window closes. Any overlap counts: a Leave that starts or ends inside the window, a Leave that touches an edge (Out Time exactly 18:00:00, Return Time exactly 05:30:00), or a Student who returns during the window (for example at 08:00) without having punched. A Punch always wins: a Student who punched at 07:00 and left at 08:00 is Present, and so is a Student who returned at 16:00 and punched at 17:00.
 - Pending: no Punch yet, the Pooja Window has not closed, and the Student has not been Away during it.
 - Needs Review: the Pooja Window closed, the Student was in the hostel the whole window, no Punch, Day not Finalized.
 - Absent: only after Finalize (see FR-8).
