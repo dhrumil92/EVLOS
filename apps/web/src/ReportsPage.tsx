@@ -217,11 +217,6 @@ function useReport(source: ReportSource, requestKey: string) {
 function ReportNotices({ report, isDay }: { report: Report; isDay: boolean }) {
   return (
     <>
-      {report.isExample && (
-        <p className="notice">
-          Example data. Real Reports appear after the Students are added in Phase 4.
-        </p>
-      )}
       {isDay && !report.isFinalized && (
         <p className="notice">
           Not Finalized. A Student with no Punch shows Needs Review until the Rector Finalizes.

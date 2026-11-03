@@ -26,6 +26,30 @@ export function startOfDay(day: Day): Instant {
   return daysSince1970Of(year, month, date) * MS_PER_DAY - IST_OFFSET_MS;
 }
 
+// Every Day from first to last, both included. Empty when first is after last.
+export function daysBetween(first: Day, last: Day): Day[] {
+  const days: Day[] = [];
+  // Noon IST, so adding whole days never lands on a Day boundary.
+  for (let noon = startOfDay(first) + MS_PER_DAY / 2; dayOf(noon) <= last; noon += MS_PER_DAY) {
+    days.push(dayOf(noon));
+  }
+  return days;
+}
+
+const DAY_TEXT = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_TEXT = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+// A Day and an IST time written HH:MM, as in the books, turned into the exact instant.
+// Null when either is not a real date or time.
+export function istInstant(day: Day, time: string): Instant | null {
+  const clock = TIME_TEXT.exec(time);
+  if (!DAY_TEXT.test(day) || clock === null) return null;
+  const start = startOfDay(day);
+  // 2026-02-30 would roll over into March, so it comes back as a different Day.
+  if (dayOf(start) !== day) return null;
+  return start + (Number(clock[1]) * 60 + Number(clock[2])) * 60 * 1000;
+}
+
 // Calendar date to days since 1970-01-01 (Howard Hinnant's days_from_civil).
 function daysSince1970Of(year: number, month: number, date: number): number {
   const marchBasedYear = month <= 2 ? year - 1 : year;

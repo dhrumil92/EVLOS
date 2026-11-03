@@ -113,4 +113,16 @@ describe('PostgresPunchRepository', () => {
     await expect(recording).rejects.toThrow();
     expect(await storedPunches()).toHaveLength(0);
   });
+
+  it('gives every Punch from the first Day to the last, in IST Days, oldest first', async () => {
+    const ist = (date: number, hour: number) =>
+      Date.UTC(2026, 10, date, hour) - 5.5 * 60 * 60 * 1000;
+    for (const punchedAt of [ist(9, 23), ist(10, 0), ist(11, 12), ist(12, 0)]) {
+      await repository.record(punch({ punchedAt }));
+    }
+
+    const between = await repository.punchesBetween('2026-11-10', '2026-11-11');
+
+    expect(between.map((one) => one.punchedAt)).toEqual([ist(10, 0), ist(11, 12)]);
+  });
 });

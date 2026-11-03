@@ -106,6 +106,21 @@ body {
   animation: arrive 2.6s ease-out;
 }
 
+/* Login: one card above the altar, so the diya and dhoop greet the Rector. */
+.login-card {
+  padding: 24px;
+  border: 1px solid var(--color-line);
+  border-top: 2px solid var(--color-gold);
+  border-radius: 16px;
+  background: rgb(27 17 64 / 78%);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 35%);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 /* Reports */
 .report-card {
   min-width: 0;
@@ -130,6 +145,20 @@ body {
   border-radius: 8px;
   background: rgb(255 255 255 / 8%);
   color: var(--color-ivory);
+}
+
+.field-error {
+  color: #ff9c9c;
+  font-size: 0.92rem;
+}
+
+.btn {
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: var(--color-gold);
+  color: var(--color-night);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .field option {
@@ -188,6 +217,217 @@ body {
   border-bottom: 1px solid var(--color-line);
 }
 
+/* Students: the gear opens his settings right under his row, joined by a gold edge. */
+.gear {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  color: var(--color-mist);
+  cursor: pointer;
+}
+
+.gear:hover,
+.gear[aria-expanded='true'] {
+  background: rgb(232 194 106 / 14%);
+  color: var(--color-gold);
+}
+
+.gear svg {
+  transition: rotate 0.3s ease;
+}
+
+.gear[aria-expanded='true'] svg {
+  rotate: 60deg;
+}
+
+.student-table tr.row-open > td {
+  border-bottom-color: transparent;
+  background: rgb(232 194 106 / 7%);
+}
+
+.student-table tr.row-open > td:first-child,
+.settings-row > td {
+  box-shadow: inset 3px 0 var(--color-gold);
+}
+
+.student-table .settings-row > td {
+  padding: 4px 14px 18px 20px;
+  border-bottom: 1px solid var(--color-gold);
+  background: rgb(232 194 106 / 7%);
+}
+
+.row-deactivated > td {
+  color: var(--color-mist);
+}
+
+.settings {
+  max-width: 62rem;
+  animation: unfold 0.22s ease-out;
+}
+
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.settings-tab {
+  padding: 8px 14px;
+  border-bottom: 2px solid transparent;
+  color: var(--color-mist);
+  cursor: pointer;
+}
+
+.settings-tab:hover {
+  color: var(--color-ivory);
+}
+
+.settings-tab[aria-selected='true'] {
+  border-bottom-color: var(--color-gold);
+  color: var(--color-gold);
+  font-weight: 600;
+}
+
+.settings-tab-danger[aria-selected='true'] {
+  border-bottom-color: #e0526a;
+  color: #ff9fb0;
+}
+
+.danger-zone {
+  max-width: 44rem;
+  padding: 14px 16px;
+  border: 1px dashed #e0526a;
+  border-radius: 12px;
+  background: rgb(224 82 106 / 8%);
+}
+
+.btn-danger {
+  background: #e0526a;
+  color: var(--color-night);
+}
+
+.btn-outline-danger {
+  padding: 6px 15px;
+  border: 1px solid #e0526a;
+  border-radius: 999px;
+  color: #ff9fb0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-outline-danger:hover {
+  background: rgb(224 82 106 / 16%);
+}
+
+.btn-quiet {
+  padding: 7px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-ivory);
+  cursor: pointer;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  color: var(--color-mist);
+  cursor: pointer;
+}
+
+.switch input {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+  appearance: none;
+  cursor: pointer;
+}
+
+.switch input::before {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-mist);
+  content: '';
+  transition: translate 0.2s ease;
+}
+
+.switch input:checked {
+  border-color: var(--color-gold);
+  background: rgb(232 194 106 / 30%);
+}
+
+.switch input:checked::before {
+  background: var(--color-gold);
+  translate: 16px 0;
+}
+
+/* The funnel beside the search opens a small panel for floor and sort. */
+.filter {
+  position: relative;
+}
+
+.filter-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 8%);
+  color: var(--color-mist);
+  cursor: pointer;
+}
+
+.filter-button:hover,
+.filter-button[aria-expanded='true'] {
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+
+.filter-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-gold);
+  box-shadow: 0 0 0 2px var(--color-night);
+}
+
+.filter-panel {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 8px;
+  width: max-content;
+  max-width: min(22rem, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--color-gold);
+  border-radius: 12px;
+  background: #241446;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 45%);
+  animation: unfold 0.18s ease-out;
+}
+
+.filter-heading {
+  color: var(--color-mist);
+  font: 600 1.1rem var(--font-display);
+}
+
 .status {
   padding: 2px 11px;
   border-radius: 999px;
@@ -209,6 +449,86 @@ body {
 .status-review {
   background: rgb(255 214 90 / 18%);
   color: #ffe08a;
+}
+
+/* Leave state (FR-6): Away in red, Due Back in yellow, always with the words. */
+.status-in-hostel {
+  background: rgb(207 195 223 / 16%);
+  color: var(--color-ivory);
+}
+
+.status-away {
+  background: rgb(255 110 110 / 20%);
+  color: #ff9c9c;
+}
+
+.status-due-back {
+  background: rgb(255 214 90 / 20%);
+  color: #ffe08a;
+}
+
+input[type='date'],
+input[type='time'] {
+  color-scheme: dark;
+}
+
+/* Many Students: the common gear, the search results and one row per chosen Student. */
+.gear-common {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-line);
+}
+
+.picker-results {
+  display: grid;
+  max-height: 16rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+
+.picker-results li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.picker-results li > button {
+  margin-left: auto;
+  padding: 3px 12px;
+}
+
+.many-row {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-gold);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 4%);
+}
+
+.link-button {
+  color: var(--color-gold);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.away-row {
+  display: grid;
+  grid-template-columns: 4rem minmax(8rem, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.away-row > :last-child {
+  grid-column: 2 / -1;
 }
 
 .status-not-applicable {
@@ -353,6 +673,17 @@ body {
   }
 }
 
+@keyframes unfold {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
 @keyframes sway {
   0%,
   100% {
@@ -444,11 +775,15 @@ body {
   .halo,
   .flare .halo,
   .flare .flame,
-  .just-arrived {
+  .just-arrived,
+  .settings,
+  .filter-panel {
     animation: none;
   }
 
-  .ring-done {
+  .ring-done,
+  .gear svg,
+  .switch input::before {
     transition: none;
   }
 }

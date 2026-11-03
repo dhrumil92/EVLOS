@@ -15,7 +15,8 @@
     "test": "vitest run",
     "dev": "tsc -b && node --env-file-if-exists=.env apps/api/dist/index.js",
     "dev:web": "vite apps/web",
-    "db:setup": "tsc -b && node --env-file-if-exists=.env apps/api/dist/db/setup.js"
+    "db:setup": "tsc -b && node --env-file-if-exists=.env apps/api/dist/db/setup.js",
+    "rector:create": "tsc -b && node --env-file-if-exists=.env apps/api/dist/create-rector.js"
   },
   "engines": {
     "node": ">=22 <23"

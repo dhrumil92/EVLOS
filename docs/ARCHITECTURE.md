@@ -24,7 +24,7 @@ Status: proposed choices for the 30-day build. A choice is confirmed once it is 
 | Hosting | Google Cloud free-tier VM (e2-micro, 1 GB RAM), after Phase 4 | The Device speaks plain HTTP on its own port; the scheduler needs a long-running process. |
 
 ## Environments
-- **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit). The Device pushes to the PC over the same Wi-Fi. The page's API listens on `127.0.0.1` only, so Punches cannot be read from the network before login exists.
+- **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit). The Device pushes to the PC over the same Wi-Fi. The page's API listens on `127.0.0.1` only and needs a Rector login; on the VM it is reached only through Caddy over HTTPS.
 - **CI (GitHub Actions):** a Postgres service container; no Docker on the author's PC is involved.
 - **Production (GCP VM, from Phase 6):** Docker Compose with `api` and `caddy`; PostgreSQL on the VM or a free managed tier, with its own database and user for EVLOS.
 
@@ -68,7 +68,7 @@ Facts are stored; statuses are computed. Only the Rector's decisions are stored 
 | `day_finalizations` | `day` PK, finalized by, finalized at | Locks a Day. |
 | `pooja_results` | `day`, `student_id` PK; status, first punch time, `excluded_at` null | Written at Finalize only. Before Finalize the status is computed on read. `excluded_at` is set when the Rector Excludes an Absent Student. |
 | `outbox_emails` | kind, recipient, subject, body, `dedupe_key` unique, status, attempts, `send_after`, `sent_at` | Kinds: Notification, Review Reminder, Daily Report, Monthly Report. |
-| `users`, `sessions` | email, password hash, role | One Rector account at first. |
+| `rectors`, `rector_sessions` | email, Argon2 password hash; SHA-256 hash of the session token, expiry | One Rector account at first, made with `npm run rector:create`. Named after the glossary, not "users". |
 | `audit_log` | who, what, when, subject | Leave (record, edit, cancel), Return, Finalize, Exclude, Send Notifications, Deactivate, Activate. |
 
 Dates are stored as timestamptz in UTC and converted with an explicit Asia/Kolkata zone for all rules. A Day is an IST calendar date.

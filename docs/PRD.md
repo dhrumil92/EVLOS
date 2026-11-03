@@ -36,13 +36,15 @@ Students must attend Pooja during the Pooja Window (05:30 to 18:00 IST). Today t
 ## 5. Functional requirements
 Each has acceptance criteria in Given / When / Then form.
 
-**FR-1 Manage Students (form and settings).** The Rector adds each new Student with a form: Student ID (the number registered on the Device), name, room, email, phone. There is no joining or leaving date on the form. A Student is Active from the Day he is added. In the Student list, every row has a settings (gear) icon that opens a small panel with two tabs:
+**FR-1 Manage Students (form and settings).** The Rector adds each new Student with a form: Student ID (the number registered on the Device), name, room, email, phone. A room is three digits, such as 605: the first digit is the floor and the other two number the room on that floor. The Student list can show one floor at a time and can be sorted by room or by name, A to Z. There is no joining or leaving date on the form. A Student is Active from the Day he is added. In the Student list, every row has a settings (gear) icon that opens a small panel with three tabs:
+- **Details:** edits the Student's name, room, email and phone. The Student ID cannot be changed.
 - **Leave status:** shows whether the Student is In hostel, Away, or Due Back; records a Leave (Out date and time, Expected Return date and time); and records a Return (FR-4, FR-5).
 - **Danger zone:** a button to Deactivate or Activate the Student.
 
 Acceptance criteria:
 - Given a filled form with a Student ID not used by any other Student, when saved, then the Student is Active from today.
 - Given a Student ID already used (by an Active or Deactivated Student), when saved, then it is refused with a reason. Student IDs are never reused.
+- Given a Student, when the Rector edits his name, room, email or phone and saves, then the new details are used from then on, with the same checks as the add form. His Student ID stays the same.
 - Given an Active Student, when the Rector confirms Deactivate, then from today he is not listed and gets no Pooja Status. Finalized Days never change, and his Punches, Leaves and Reports stay.
 - Given a Deactivated Student, when the Rector confirms Activate, then he is listed and evaluated again from today; the Days he was Deactivated are not evaluated.
 - Deactivate and Activate need a confirmation and are recorded in the audit log.
@@ -152,7 +154,7 @@ Acceptance criteria:
 - A live URL works; `README.md` runs locally in five commands or fewer.
 
 ## 10. Open questions
-1. Does the Device's user list show Student names, so the first load can be matched to the Excel? (Check on the Device and export by USB.)
+1. Answered 2026-11-03: the Device holds only Student IDs and fingerprints, no names. The first load therefore cannot match the Device's list to the Excel by name, as the First load paragraph in FR-1 assumes. Instead, the Rector holds a list of Student IDs with names and will provide it. Until then, development uses test Students enrolled by the author and friends, who have agreed to this.
 2. Which email provider and sender address will be used? Deferred to Phase 5; a Gmail app password is enough for testing.
 3. Has the Rector agreed in writing to emails going to Students?
 4. Should the Rector be able to unlock (reopen) a Finalized Day to correct a mistake? Set aside on 2026-10-30; until decided, a Finalized Day cannot be changed.

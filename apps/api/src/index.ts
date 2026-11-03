@@ -2,10 +2,26 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import Fastify from 'fastify';
 import pg from 'pg';
 import { registerDeviceRoutes } from './adapters/device/device-routes.js';
+import { registerAuth } from './adapters/http/auth-routes.js';
+import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
+import { registerReportRoutes } from './adapters/http/report-routes.js';
+import { registerStudentRoutes } from './adapters/http/student-routes.js';
+import { argon2Passwords, randomSessionTokens } from './adapters/login/passwords.js';
 import { PostgresDeviceRegistry } from './adapters/postgres/device-registry.js';
+import { PostgresLeaveRepository } from './adapters/postgres/leave-repository.js';
 import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js';
+import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
+import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
+import { addStudent } from './use-cases/add-student.js';
+import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-activate.js';
+import { editStudent } from './use-cases/edit-student.js';
 import { getLiveView } from './use-cases/get-live-view.js';
+import { getReport } from './use-cases/get-report.js';
+import { cancelLeave, editLeave, recordLeave, returnLeave } from './use-cases/leaves.js';
+import { recordLeaves, returnLeaves } from './use-cases/leaves-for-many.js';
+import { listStudents } from './use-cases/list-students.js';
+import { logIn, logOut, rectorOfSession } from './use-cases/rector-login.js';
 import { recordPunches } from './use-cases/record-punches.js';
 import type { UploadedPunch } from './use-cases/record-punches.js';
 
@@ -15,11 +31,20 @@ if (databaseUrl === undefined) {
 }
 const devicePort = Number(process.env.DEVICE_PORT ?? '8081');
 const pagePort = Number(process.env.PAGE_PORT ?? '3000');
+const secureCookie = process.env.COOKIE_SECURE === 'true';
 
 const db = drizzle(new pg.Pool({ connectionString: databaseUrl }));
 const punches = new PostgresPunchRepository(db);
+const students = new PostgresStudentRepository(db);
+const leaves = new PostgresLeaveRepository(db);
 const clock = { now: () => Date.now() };
 const viewers = new LiveViewers();
+const login = {
+  rectors: new PostgresRectorRepository(db),
+  passwords: argon2Passwords,
+  tokens: randomSessionTokens,
+  clock,
+};
 
 const deviceApp = Fastify({ logger: true });
 registerDeviceRoutes(deviceApp, {
@@ -29,9 +54,40 @@ registerDeviceRoutes(deviceApp, {
 });
 
 const pageApp = Fastify({ logger: true });
-registerLiveRoutes(pageApp, { viewers, getLiveView: () => getLiveView({ punches, clock }) });
+// First, so every page route after it needs a login (FR-13).
+await registerAuth(pageApp, {
+  logIn: (email, password) => logIn(email, password, login),
+  logOut: (token) => logOut(token, login),
+  rectorOfSession: (token) => rectorOfSession(token, login),
+  secureCookie,
+});
+registerLiveRoutes(pageApp, {
+  viewers,
+  getLiveView: () => getLiveView({ punches, students, clock }),
+});
+registerReportRoutes(pageApp, {
+  getReport: (request) => getReport(request, { students, leaves, punches, clock }),
+});
+registerStudentRoutes(pageApp, {
+  addStudent: (form) => addStudent(form, { students, clock }),
+  listStudents: () => listStudents({ students, leaves, clock }),
+  editStudent: (studentId, details) => editStudent(studentId, details, { students }),
+  deactivateStudent: (studentId, doneBy) =>
+    deactivateStudent(studentId, doneBy, { students, clock }),
+  activateStudent: (studentId, doneBy) => activateStudent(studentId, doneBy, { students, clock }),
+});
+
+const leaveDeps = { students, leaves, clock };
+registerLeaveRoutes(pageApp, {
+  recordLeave: (studentId, form, doneBy) => recordLeave(studentId, form, doneBy, leaveDeps),
+  editLeave: (studentId, form, doneBy) => editLeave(studentId, form, doneBy, leaveDeps),
+  cancelLeave: (studentId, doneBy) => cancelLeave(studentId, doneBy, leaveDeps),
+  returnLeave: (studentId, form, doneBy) => returnLeave(studentId, form, doneBy, leaveDeps),
+  recordLeaves: (rows, doneBy) => recordLeaves(rows, doneBy, leaveDeps),
+  returnLeaves: (rows, doneBy) => returnLeaves(rows, doneBy, leaveDeps),
+});
 
 // 0.0.0.0 so the Device on the same network can reach this machine.
 await deviceApp.listen({ port: devicePort, host: '0.0.0.0' });
-// 127.0.0.1 only: there is no login yet, so nobody else on the network may read Punches.
+// 127.0.0.1 only until deployment, where Caddy adds HTTPS in front of it.
 await pageApp.listen({ port: pagePort, host: '127.0.0.1' });

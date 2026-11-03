@@ -14,7 +14,6 @@ const rows: ReportRow[] = [
 
 const report = (facts: Partial<Report> = {}): Report => ({
   title: 'Monday 2 November 2026',
-  isExample: false,
   isFinalized: true,
   rows,
   hours: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -157,19 +156,17 @@ describe('Reports page', () => {
     expect(screen.getByText(/Not Finalized/)).toBeTruthy();
   });
 
-  it('marks example data clearly', async () => {
-    const { source } = fakeSource(() => report({ isExample: true }));
+  it('leaves the cell empty on a Day the Student was not Active', async () => {
+    const { source } = fakeSource(() =>
+      report({
+        rows: [{ studentId: '9001', name: 'Asha Rao', room: '101', statuses: [null] }],
+      }),
+    );
 
     render(<ReportsPage source={source} today={TODAY} />);
 
-    expect(await screen.findByText(/Example data/)).toBeTruthy();
-  });
-
-  it('does not mark real data as an example', async () => {
-    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
-
-    expect(screen.queryByText(/Example data/)).toBeNull();
+    const row = (await screen.findByText('Asha Rao')).closest('tr');
+    expect(row && within(row).queryByText(/Present|Absent|Needs Review/)).toBeNull();
   });
 
   it('says what to do when no Students match', async () => {

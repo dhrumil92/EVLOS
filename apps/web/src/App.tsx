@@ -1,22 +1,33 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Altar } from './Altar.js';
-import { exampleReportSource } from './example-report-source.js';
-import type { LiveViewPunch, LiveViewSource } from './live-view-source.js';
+import { httpReportSource } from './http-report-source.js';
+import { LeavesPage } from './LeavesPage.js';
+import type { LiveViewPunch, LiveViewSource, NotCountedBecause } from './live-view-source.js';
 import { PoojaRing } from './PoojaRing.js';
 import type { ReportSource } from './report-source.js';
 import { EveryStudent, ReportsPage, Segments } from './ReportsPage.js';
+import { httpStudentSource } from './student-source.js';
+import type { StudentSource } from './student-source.js';
+import { StudentsPage } from './StudentsPage.js';
 import { punchKey, useLiveView } from './use-live-view.js';
 import type { LiveViewState } from './use-live-view.js';
 
 const NOTE = 'Outside Pooja Window (05:30–18:00)';
+// Why a Punch is shown but not counted (FR-2).
+const NOT_COUNTED: Record<NotCountedBecause, string> = {
+  'outside-pooja-window': NOTE,
+  'unknown-student': 'Not a Student',
+  'not-active': 'Not Active',
+};
 const LIVE_VIEW = 'Live view';
 const REPORTS = 'Reports';
+const STUDENTS = 'Students';
+const LEAVES = 'Leaves';
 const PAGES: Record<string, string | null> = {
   [LIVE_VIEW]: null,
-  Students:
-    'Add a Student, change details, and Deactivate or Activate. This page comes in Phase 4.',
-  Leaves:
-    'Record a Leave or a Return for one Student or for many at once. This page comes in Phase 4.',
+  [STUDENTS]: null,
+  [LEAVES]: null,
   'Review and Finalize':
     'Check the Needs Review list, then Finalize the Day and Send Notifications. This page comes in Phase 4.',
   [REPORTS]: null,
@@ -47,12 +58,17 @@ function PunchRow({ punch, isNew }: { punch: LiveViewPunch; isNew: boolean }) {
     <li
       className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-t border-line px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] ${isNew ? 'just-arrived' : ''}`}
     >
-      <span className="text-lg font-semibold">Student ID {punch.studentId}</span>
+      <span className="grid">
+        <span className="text-lg font-semibold">
+          {punch.name ?? `Student ID ${punch.studentId}`}
+        </span>
+        {punch.name && <span className="text-sm text-mist">Student ID {punch.studentId}</span>}
+      </span>
       <span className="font-semibold">{istTime.format(punch.punchedAt)}</span>
       <span
         className={`col-span-2 justify-self-start rounded-full px-3 py-0.5 text-sm font-semibold sm:col-span-1 ${punch.isCounted ? 'bg-gold/20 text-gold' : 'bg-note text-note-ink'}`}
       >
-        {punch.isCounted ? 'Present' : NOTE}
+        {punch.notCountedBecause ? NOT_COUNTED[punch.notCountedBecause] : 'Present'}
       </span>
     </li>
   );
@@ -86,6 +102,23 @@ function Punches({ live }: { live: LiveViewState }) {
   );
 }
 
+function TodaysCount({ live }: { live: LiveViewState }) {
+  return (
+    <section aria-label="Today's count">
+      <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
+        Today's Pooja
+      </h1>
+      <p className="mt-1 mb-5 text-mist">
+        {live.view ? `${dayInWords(live.view.day)}. Pooja Window 05:30 to 18:00.` : ' '}
+      </p>
+      <PoojaRing
+        present={live.view?.studentsPresent ?? null}
+        active={live.view?.activeStudents ?? null}
+      />
+    </section>
+  );
+}
+
 const LATEST_PUNCHES = 'Latest Punches';
 const LIVE_LISTS = [LATEST_PUNCHES, 'Every Student'] as const;
 
@@ -108,12 +141,22 @@ function LiveLists(props: { live: LiveViewState; reports: ReportSource; today: s
   );
 }
 
-export function App({ source }: { source: LiveViewSource }) {
+export function App(props: {
+  source: LiveViewSource;
+  students?: StudentSource;
+  reports?: ReportSource;
+  onLogOut?: () => void;
+}) {
+  const { source, students = httpStudentSource, reports = httpReportSource, onLogOut } = props;
   const [page, setPage] = useState(LIVE_VIEW);
   const live = useLiveView(source);
   const soon = PAGES[page];
   const [today] = useState(istToday);
-  const [reports] = useState(() => exampleReportSource(today));
+  const widePages: Record<string, ReactNode> = {
+    [REPORTS]: <ReportsPage source={reports} today={today} />,
+    [STUDENTS]: <StudentsPage source={students} today={today} />,
+    [LEAVES]: <LeavesPage source={students} today={today} />,
+  };
 
   return (
     <div className="screen">
@@ -138,25 +181,20 @@ export function App({ source }: { source: LiveViewSource }) {
               </button>
             ))}
           </nav>
+          {onLogOut && (
+            <button type="button" className="menu-item ml-auto" onClick={onLogOut}>
+              Log out
+            </button>
+          )}
         </div>
       </header>
 
       <div className="gutter relative z-10">
-        {page === REPORTS ? (
-          <main className="mx-auto max-w-[70rem] pt-8 pb-2">
-            <ReportsPage source={reports} today={today} />
-          </main>
+        {widePages[page] ? (
+          <main className="mx-auto max-w-[70rem] pt-8 pb-2">{widePages[page]}</main>
         ) : (
           <main className="mx-auto grid max-w-[70rem] gap-7 pt-8 pb-2 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] md:gap-10">
-            <section aria-label="Today's count">
-              <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
-                Today's Pooja
-              </h1>
-              <p className="mt-1 mb-5 text-mist">
-                {live.view ? `${dayInWords(live.view.day)}. Pooja Window 05:30 to 18:00.` : ' '}
-              </p>
-              <PoojaRing present={live.view?.studentsPresent ?? null} />
-            </section>
+            <TodaysCount live={live} />
 
             <section className="min-w-0 rounded-2xl border border-line bg-night/60 p-2">
               {soon ? (

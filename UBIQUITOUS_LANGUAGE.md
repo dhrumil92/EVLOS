@@ -7,6 +7,8 @@
 | Term | Definition | Aliases to avoid | Named in code at |
 |------|------------|------------------|------------------|
 | **Student** | A resident of the hostel who is expected to punch for Pooja. Identified by one Student ID. | user, boarder, member, inmate | `Student` (TBD) |
+| **Room** | The three-digit number of the room a Student lives in, such as 605. The first digit is the Floor; the other two number the room on that Floor. | block, flat, cell | `packages/core/src/student.ts:34` |
+| **Floor** | The storey a room is on: the first digit of its Room, so Room 605 is on Floor 6. The Rector can list the Students on one Floor. | level, storey, wing | `packages/core/src/student.ts:48` |
 | **Rector** | The hostel officer who records Leaves and Returns, reviews the Day, and Finalizes it. The only role that can Finalize. | admin, warden, sir, manager | `Role.RECTOR` (TBD) |
 | **Roster** | The list of Students the Rector supplies as an Excel file (names and rooms). Used once for the first load of existing Students. Later Students are added by form; an upload with a sample file comes last. | master list, student table, student sheet | `importRoster` (TBD) |
 | **Active** | A Student who currently lives in the hostel. Only Active Students are listed and given a Pooja Status. A Student is Active from the Day he is added until he is Deactivated, and again after he is Activated. | current, enrolled | `isActiveOn` (TBD) |
@@ -36,7 +38,7 @@
 | **Return Time** | When the Student came back, recorded by the Rector from the Back-from-Home Book. Closes a Leave. | in time, arrival | `packages/core/src/leave.ts:9` |
 | **Away** | The Student has an open Leave (no Return Time yet). Shown in red with a text label. | absent, outside | `packages/core/src/leave.ts:17` |
 | **Due Back** | The Student is Away and Expected Return is tomorrow or earlier. Shown in yellow with a text label, and stays yellow after the date passes until the Return Time is recorded. The Student is still Away. | overdue, late, pending return | `packages/core/src/leave.ts:22` |
-| **Returned** | The Rector recorded the Return Time. The Leave is closed. | marked present, arrived | `returnLeave` (TBD) |
+| **Returned** | The Rector recorded the Return Time. The Leave is closed. | marked present, arrived | `apps/api/src/use-cases/leaves.ts:98` |
 | **Finalize** | The Rector's act of confirming a Day's Pooja Statuses, available only after the Pooja Window closes: every Needs Review becomes Absent and the Day is locked. It sends no email (see Send Notifications). | send, submit, approve, close | `finalizeDay` (TBD) |
 | **Send Notifications** | The Rector's click, after Finalize, that emails every Absent Student who is not Excluded. Done from the Report's email list, usually around 23:00 IST. | finalize, mail all, submit | `sendNotifications` (TBD) |
 | **Notification** | The email to a Student about an Absent. Sent only after Finalize and Send Notifications, never to an Excluded Student, at most once per Student per Day. | alert, message | `Notification` (TBD) |

@@ -15,6 +15,34 @@
       "when": 1793635992536,
       "tag": "0001_create_punches",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793647987222,
+      "tag": "0002_create_students",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793712122791,
+      "tag": "0003_create_audit_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793715675797,
+      "tag": "0004_create_rectors",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793717372271,
+      "tag": "0005_create_leaves",
+      "breakpoints": true
     }
   ]
 }

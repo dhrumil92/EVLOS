@@ -22,6 +22,10 @@ class FakePunchRepository implements PunchRepository {
   punchesOn(): Promise<Punch[]> {
     return Promise.resolve(this.stored);
   }
+
+  punchesBetween(): Promise<Punch[]> {
+    return Promise.resolve(this.stored);
+  }
 }
 
 const buildDeps = (punches: PunchRepository) => {

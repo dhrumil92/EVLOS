@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Clock, Instant } from './clock.js';
-import { isAway, isDueBack } from './leave.js';
+import { isAway, isDueBack, leaveProblem, returnProblem } from './leave.js';
 import type { Leave } from './leave.js';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -85,5 +85,83 @@ describe('Due Back', () => {
     const firstSecondOfTomorrow = ist(12, 0, 0, 0);
 
     expect(isDueBack([openLeave(firstSecondOfTomorrow)], firstSecondOfDay)).toBe(true);
+  });
+});
+
+describe('leaveProblem', () => {
+  const NOW = ist(3, 21, 0);
+  const newLeave = (outAt: Instant, expectedReturnAt = ist(9)) => ({ outAt, expectedReturnAt });
+
+  it('accepts a Leave whose Out Time is days in the past', () => {
+    expect(leaveProblem(newLeave(ist(1, 8, 0)), [], NOW)).toBeNull();
+  });
+
+  it('accepts an Out Time of exactly now', () => {
+    expect(leaveProblem(newLeave(NOW), [], NOW)).toBeNull();
+  });
+
+  it('refuses an Out Time later than now', () => {
+    expect(leaveProblem(newLeave(NOW + 60_000), [], NOW)).toBe('out-time-in-future');
+  });
+
+  it('refuses an Expected Return earlier than the Out Time', () => {
+    expect(leaveProblem(newLeave(ist(3, 8, 0), ist(3, 7, 59)), [], NOW)).toBe(
+      'expected-return-before-out',
+    );
+  });
+
+  it('accepts an Expected Return equal to the Out Time', () => {
+    expect(leaveProblem(newLeave(ist(3, 8, 0), ist(3, 8, 0)), [], NOW)).toBeNull();
+  });
+
+  it('refuses a second Leave while one is open', () => {
+    expect(leaveProblem(newLeave(ist(3, 8, 0)), [openLeave(ist(9))], NOW)).toBe('already-away');
+  });
+
+  it('refuses a Leave that starts before his last Return Time', () => {
+    const earlier = { outAt: ist(1, 8, 0), expectedReturnAt: ist(2), returnedAt: ist(2, 18, 0) };
+
+    expect(leaveProblem(newLeave(ist(2, 17, 0)), [earlier], NOW)).toBe('overlaps-earlier-leave');
+  });
+
+  it('accepts a Leave that starts the minute he returned', () => {
+    const earlier = { outAt: ist(1, 8, 0), expectedReturnAt: ist(2), returnedAt: ist(2, 18, 0) };
+
+    expect(leaveProblem(newLeave(ist(2, 18, 0)), [earlier], NOW)).toBeNull();
+  });
+});
+
+describe('returnProblem', () => {
+  const NOW = ist(3, 21, 0);
+  const away = { outAt: ist(1, 8, 0), expectedReturnAt: ist(3), returnedAt: null };
+
+  it('accepts a Return Time between the Out Time and now', () => {
+    expect(returnProblem(away, ist(3, 18, 30), NOW)).toBeNull();
+  });
+
+  it('refuses a Return Time later than now', () => {
+    expect(returnProblem(away, NOW + 60_000, NOW)).toBe('return-time-in-future');
+  });
+
+  it('accepts a Return Time of exactly now', () => {
+    expect(returnProblem(away, NOW, NOW)).toBeNull();
+  });
+
+  it('accepts a Return Time equal to the Out Time', () => {
+    expect(returnProblem(away, away.outAt, NOW)).toBeNull();
+  });
+
+  it('refuses a Return Time earlier than the Out Time', () => {
+    expect(returnProblem(away, ist(1, 7, 59), NOW)).toBe('return-before-out');
+  });
+
+  it('refuses a Return when he has no open Leave', () => {
+    expect(returnProblem(null, ist(3, 18, 30), NOW)).toBe('no-open-leave');
+  });
+
+  it('accepts a Return later than the Expected Return', () => {
+    const late = { ...away, expectedReturnAt: ist(2) };
+
+    expect(returnProblem(late, ist(3, 18, 30), NOW)).toBeNull();
   });
 });

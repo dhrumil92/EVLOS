@@ -1,7 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
+import { httpAuthSource } from './auth-source.js';
 import { httpLiveViewSource } from './live-view-source.js';
+import { LoginGate } from './LoginGate.js';
 import './styles.css';
 
 const root = document.getElementById('root');
@@ -11,6 +13,8 @@ if (root === null) {
 
 createRoot(root).render(
   <StrictMode>
-    <App source={httpLiveViewSource} />
+    <LoginGate auth={httpAuthSource}>
+      {(logOut) => <App source={httpLiveViewSource} onLogOut={logOut} />}
+    </LoginGate>
   </StrictMode>,
 );

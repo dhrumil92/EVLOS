@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { LiveView } from '../../use-cases/get-live-view.js';
 import { LiveViewers, registerLiveRoutes } from './live-routes.js';
 
-const VIEW: LiveView = { day: '2026-11-10', studentsPresent: 0, punches: [] };
+const VIEW: LiveView = { day: '2026-11-10', studentsPresent: 0, activeStudents: 0, punches: [] };
 
 describe('live view routes', () => {
   const app = Fastify();

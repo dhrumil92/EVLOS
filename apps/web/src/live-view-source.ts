@@ -1,12 +1,20 @@
+import { fetchPage } from './auth-source.js';
+
+export type NotCountedBecause = 'unknown-student' | 'not-active' | 'outside-pooja-window';
+
 export interface LiveViewPunch {
   studentId: string;
+  // Null for a Student ID that belongs to no Student.
+  name: string | null;
   punchedAt: number;
   isCounted: boolean;
+  notCountedBecause: NotCountedBecause | null;
 }
 
 export interface LiveView {
   day: string;
   studentsPresent: number;
+  activeStudents: number;
   punches: LiveViewPunch[];
 }
 
@@ -18,7 +26,7 @@ export interface LiveViewSource {
 
 export const httpLiveViewSource: LiveViewSource = {
   async load() {
-    const reply = await fetch('/api/live-view');
+    const reply = await fetchPage('/api/live-view');
     if (!reply.ok) {
       throw new Error(`The server answered ${String(reply.status)}`);
     }

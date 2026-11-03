@@ -4,8 +4,8 @@ export interface ReportRow {
   studentId: string;
   name: string;
   room: string;
-  // One Pooja Status for each Day the Report covers.
-  statuses: PoojaStatusName[];
+  // One Pooja Status for each Day the Report covers; null on a Day he was not Active.
+  statuses: (PoojaStatusName | null)[];
 }
 
 export interface DayTotals {
@@ -22,7 +22,6 @@ export type ReportRequest =
 
 export interface Report {
   title: string;
-  isExample: boolean;
   isFinalized: boolean;
   rows: ReportRow[];
   // Students by hour of first Punch, from 05:30, for a Day Report.

@@ -1,6 +1,6 @@
 import { startOfDay } from '@evlos/core';
 import type { Day, Punch } from '@evlos/core';
-import { and, desc, gte, lt } from 'drizzle-orm';
+import { and, asc, desc, gte, lt } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { punches } from '../../db/schema.js';
 import type { PunchRepository, ReceivedPunch } from '../../ports/punch-repository.js';
@@ -36,6 +36,20 @@ export class PostgresPunchRepository implements PunchRepository {
         ),
       )
       .orderBy(desc(punches.punchedAt));
+    return rows.map((row) => ({ studentId: row.studentId, punchedAt: row.punchedAt.getTime() }));
+  }
+
+  async punchesBetween(first: Day, last: Day): Promise<Punch[]> {
+    const rows = await this.db
+      .select({ studentId: punches.studentId, punchedAt: punches.punchedAt })
+      .from(punches)
+      .where(
+        and(
+          gte(punches.punchedAt, new Date(startOfDay(first))),
+          lt(punches.punchedAt, new Date(startOfDay(last) + MS_PER_DAY)),
+        ),
+      )
+      .orderBy(asc(punches.punchedAt));
     return rows.map((row) => ({ studentId: row.studentId, punchedAt: row.punchedAt.getTime() }));
   }
 }

@@ -12,4 +12,6 @@ export interface PunchRepository {
   record(punch: ReceivedPunch): Promise<boolean>;
   // Every Punch made on the Day, newest first.
   punchesOn(day: Day): Promise<Punch[]>;
+  // Every Punch from the first Day to the last (IST Days, both included), oldest first.
+  punchesBetween(first: Day, last: Day): Promise<Punch[]>;
 }
