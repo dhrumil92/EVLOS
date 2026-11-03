@@ -56,6 +56,44 @@ export const leaves = pgTable('leaves', {
   cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
 });
 
+// A Finalized Day is locked: one row per Day, never removed (FR-8).
+export const dayFinalizations = pgTable('day_finalizations', {
+  day: date('day').primaryKey(),
+  finalizedBy: text('finalized_by').notNull(),
+  finalizedAt: timestamp('finalized_at', { withTimezone: true }).notNull(),
+});
+
+// Written at Finalize only, so a Finalized Day never changes when Leaves or Students change
+// later. Before Finalize, Pooja Status is worked out on read. excluded_at marks an Exclude.
+export const poojaResults = pgTable(
+  'pooja_results',
+  {
+    day: date('day').notNull(),
+    studentId: text('student_id')
+      .notNull()
+      .references(() => students.studentId),
+    status: text('status').notNull(),
+    firstPunchAt: timestamp('first_punch_at', { withTimezone: true }),
+    excludedAt: timestamp('excluded_at', { withTimezone: true }),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.studentId] })],
+);
+
+// Emails waiting to be sent. The unique dedupe_key (kind, Day, Student) means a second
+// Send Notifications, or a retry, can never queue a second email (FR-9).
+export const outboxEmails = pgTable('outbox_emails', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  kind: text('kind').notNull(),
+  recipient: text('recipient').notNull(),
+  subject: text('subject').notNull(),
+  body: text('body').notNull(),
+  dedupeKey: text('dedupe_key').notNull().unique(),
+  status: text('status').notNull().default('queued'),
+  attempts: integer('attempts').notNull().default(0),
+  sendAfter: timestamp('send_after', { withTimezone: true }).notNull(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+});
+
 // The Rector's login (FR-13). Only an Argon2 hash of the password is kept.
 export const rectors = pgTable('rectors', {
   id: integer('id').primaryKey().generatedAlwaysAsIdentity(),

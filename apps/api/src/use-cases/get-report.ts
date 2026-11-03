@@ -1,24 +1,15 @@
-import {
-  dayOf,
-  daysBetween,
-  hourSlotOf,
-  isActiveOn,
-  istInstant,
-  PoojaStatus,
-  poojaStatusOf,
-  startOfDay,
-} from '@evlos/core';
-import type { ActivePeriod, Clock, Day, Instant, Leave, Punch } from '@evlos/core';
-import type { LeaveRepository } from '../ports/leave-repository.js';
-import type { PunchRepository } from '../ports/punch-repository.js';
-import type { StudentRepository } from '../ports/student-repository.js';
+import { dayOf, daysBetween, hourSlotOf, istInstant, startOfDay } from '@evlos/core';
+import type { Clock, Day, Instant } from '@evlos/core';
+import type { FinalizeRepository, PoojaResult } from '../ports/finalize-repository.js';
+import { computedStatus, firstPunchOn, loadEvidence } from './day-evidence.js';
+import type { Evidence, EvidenceDeps, PoojaStatusName } from './day-evidence.js';
+
+export type { PoojaStatusName } from './day-evidence.js';
 
 export type ReportRequest =
   | { view: 'Day'; day: string }
   | { view: 'Month'; month: string }
   | { view: 'Date range'; from: string; to: string };
-
-export type PoojaStatusName = 'Present' | 'Absent' | 'Not Applicable' | 'Pending' | 'Needs Review';
 
 export interface ReportRow {
   studentId: string;
@@ -36,6 +27,7 @@ export interface DayTotals {
 }
 
 export interface Report {
+  // True only when every Day of the Report is Finalized.
   isFinalized: boolean;
   rows: ReportRow[];
   // Students by the hour of their first Punch, from 05:30, for a Day Report.
@@ -44,20 +36,8 @@ export interface Report {
   days: DayTotals[] | null;
 }
 
-export interface GetReportDeps {
-  students: StudentRepository;
-  leaves: LeaveRepository;
-  punches: PunchRepository;
-  clock: Clock;
-}
+export type GetReportDeps = EvidenceDeps & { finalized: FinalizeRepository; clock: Clock };
 
-const NAMES: Record<PoojaStatus, PoojaStatusName> = {
-  PRESENT: 'Present',
-  ABSENT: 'Absent',
-  NOT_APPLICABLE: 'Not Applicable',
-  PENDING: 'Pending',
-  NEEDS_REVIEW: 'Needs Review',
-};
 const MAX_DAYS = 366;
 const HOUR_SLOTS = 13;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -65,7 +45,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const isDay = (text: string) => istInstant(text, '00:00') !== null;
 
 // The Days a request covers, stopped at today; null when the request makes no sense.
-function daysOf(request: ReportRequest, today: Day): Day[] | null {
+export function daysOf(request: ReportRequest, today: Day): Day[] | null {
   const span = spanOf(request);
   // A request that starts after today gets no Days, so it is refused below.
   if (span === null || !isDay(span.first)) return null;
@@ -85,18 +65,41 @@ function spanOf(request: ReportRequest): { first: Day; last: Day } | null {
   return { first, last: days.filter((day) => day.startsWith(request.month)).at(-1) ?? first };
 }
 
-function byStudent<T extends { studentId: string }>(items: readonly T[]) {
-  const map = new Map<string, T[]>();
-  for (const item of items) map.set(item.studentId, [...(map.get(item.studentId) ?? []), item]);
-  return map;
+// A Finalized Day is read from what Finalize saved and never worked out again, so later
+// changes to Leaves or Students cannot change it (FR-1, FR-4, FR-8).
+class DayStatuses {
+  private readonly saved = new Map<string, PoojaResult>();
+
+  constructor(
+    private readonly finalizedDays: ReadonlySet<Day>,
+    results: readonly (PoojaResult & { day: Day })[],
+    private readonly clock: Clock,
+  ) {
+    for (const result of results) this.saved.set(`${result.day}|${result.studentId}`, result);
+  }
+
+  isFinalized(day: Day): boolean {
+    return this.finalizedDays.has(day);
+  }
+
+  statusOn(day: Day, evidence: Evidence): PoojaStatusName | null {
+    if (!this.isFinalized(day)) return computedStatus(day, evidence, this.clock);
+    return this.saved.get(`${day}|${evidence.student.studentId}`)?.status ?? null;
+  }
+
+  firstPunchOn(day: Day, evidence: Evidence): Instant | null {
+    if (!this.isFinalized(day)) return firstPunchOn(day, evidence.punches);
+    return this.saved.get(`${day}|${evidence.student.studentId}`)?.firstPunchAt ?? null;
+  }
 }
 
-function hoursOf(rows: ReportRow[], punches: Map<string, Punch[]>): number[] {
+function hoursOf(day: Day, everyone: Evidence[], statuses: DayStatuses): number[] {
   const hours = Array.from({ length: HOUR_SLOTS }, () => 0);
-  for (const row of rows.filter((one) => one.statuses[0] === 'Present')) {
-    const slots = (punches.get(row.studentId) ?? []).map((p) => hourSlotOf(p.punchedAt));
-    const first = Math.min(...slots.filter((slot) => slot !== null));
-    hours[first] = (hours[first] ?? 0) + 1;
+  for (const evidence of everyone) {
+    if (statuses.statusOn(day, evidence) !== 'Present') continue;
+    const first = statuses.firstPunchOn(day, evidence);
+    const slot = first === null ? null : hourSlotOf(first);
+    if (slot !== null) hours[slot] = (hours[slot] ?? 0) + 1;
   }
   return hours;
 }
@@ -114,26 +117,7 @@ function totalsOf(rows: ReportRow[], days: Day[]): DayTotals[] {
   });
 }
 
-interface Evidence {
-  periods: ActivePeriod[];
-  punches: Instant[];
-  leaves: Leave[];
-}
-
-// Null on a Day he was not Active: such a Day is not evaluated.
-function statusOn(day: Day, evidence: Evidence, clock: Clock): PoojaStatusName | null {
-  if (!isActiveOn(evidence.periods, day)) return null;
-  const studentDay = {
-    day,
-    punches: evidence.punches,
-    leaves: evidence.leaves,
-    isFinalized: false,
-  };
-  return NAMES[poojaStatusOf(studentDay, clock)];
-}
-
-// Pooja Status of every Active Student on every Day asked for, from Punches and Leaves (FR-7).
-// Finalize comes later, so no Day is Finalized yet: a past Day with no Punch is Needs Review.
+// Pooja Status of every Active Student on every Day asked for (FR-7, FR-11).
 export async function getReport(
   request: ReportRequest,
   deps: GetReportDeps,
@@ -141,39 +125,30 @@ export async function getReport(
   const days = daysOf(request, dayOf(deps.clock.now()));
   const [first, last] = [days?.[0], days?.at(-1)];
   if (days === null || first === undefined || last === undefined) return null;
-  const [students, periods, punches, leaves] = await Promise.all([
-    deps.students.list(),
-    deps.students.activePeriods(),
-    deps.punches.punchesBetween(first, last),
-    deps.leaves.leavesBetween(startOfDay(first), startOfDay(last) + MS_PER_DAY),
+  const [everyone, finalizations, results] = await Promise.all([
+    loadEvidence(first, last, deps),
+    deps.finalized.finalizationsBetween(first, last),
+    deps.finalized.resultsBetween(first, last),
   ]);
-  const [periodsOf, punchesOf, leavesOf] = [
-    byStudent(periods),
-    byStudent(punches),
-    byStudent(leaves),
-  ];
+  const statuses = new DayStatuses(
+    new Set(finalizations.map((one) => one.day)),
+    results,
+    deps.clock,
+  );
 
-  const rows = students
-    .map((student) => {
-      const { studentId, name, room } = student;
-      const evidence = {
-        periods: periodsOf.get(studentId) ?? [],
-        punches: (punchesOf.get(studentId) ?? []).map((punch) => punch.punchedAt),
-        leaves: leavesOf.get(studentId) ?? [],
-      };
-      return {
-        studentId,
-        name,
-        room,
-        statuses: days.map((day) => statusOn(day, evidence, deps.clock)),
-      };
-    })
+  const rows = everyone
+    .map((evidence) => ({
+      studentId: evidence.student.studentId,
+      name: evidence.student.name,
+      room: evidence.student.room,
+      statuses: days.map((day) => statuses.statusOn(day, evidence)),
+    }))
     .filter((row) => row.statuses.some((status) => status !== null));
 
   return {
-    isFinalized: false,
+    isFinalized: days.every((day) => statuses.isFinalized(day)),
     rows,
-    hours: request.view === 'Day' ? hoursOf(rows, punchesOf) : null,
+    hours: request.view === 'Day' ? hoursOf(first, everyone, statuses) : null,
     days: request.view === 'Month' ? totalsOf(rows, days) : null,
   };
 }

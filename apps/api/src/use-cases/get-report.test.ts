@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { PunchRepository } from '../ports/punch-repository.js';
 import { addStudent } from './add-student.js';
 import { deactivateStudent } from './deactivate-and-activate.js';
+import { fakeFinalizeRepository } from './fake-finalize-repository.js';
 import { fakeLeaveRepository } from './fake-leave-repository.js';
 import { fakeStudentRepository } from './fake-student-repository.js';
 import { getReport } from './get-report.js';
@@ -26,7 +27,14 @@ function fakePunches(punches: Punch[]): PunchRepository {
 async function setUp(punches: Punch[] = [], addedOn = 1) {
   const { students } = fakeStudentRepository();
   const { leaves } = fakeLeaveRepository();
-  const deps = { students, leaves, punches: fakePunches(punches), clock: { now: () => NOW } };
+  const { finalized } = fakeFinalizeRepository();
+  const deps = {
+    students,
+    leaves,
+    finalized,
+    punches: fakePunches(punches),
+    clock: { now: () => NOW },
+  };
   for (const [studentId, name, room] of [
     ['9001', 'Asha Rao', '101'],
     ['9002', 'Bina Rao', '205'],
@@ -146,5 +154,67 @@ describe('getReport refuses', () => {
     );
 
     expect(report?.rows[0]?.statuses).toHaveLength(3);
+  });
+});
+
+describe('getReport for a Finalized Day', () => {
+  const absent = (studentId: string) => ({
+    studentId,
+    status: 'Absent' as const,
+    firstPunchAt: null,
+  });
+
+  it('reads the saved Pooja Statuses, so a later Leave cannot change them', async () => {
+    const deps = await setUp();
+    await deps.finalized.finalize('2026-11-02', [absent('9001'), absent('9002')], NOW, RECTOR);
+    await recordLeave(
+      '9001',
+      {
+        outDay: '2026-11-02',
+        outTime: '05:00',
+        expectedReturnDay: '2026-11-03',
+        expectedReturnTime: '18:00',
+      },
+      RECTOR,
+      deps,
+    );
+
+    const report = await getReport({ view: 'Day', day: '2026-11-02' }, deps);
+
+    expect(report?.isFinalized).toBe(true);
+    expect(report?.rows.map((row) => row.statuses)).toEqual([['Absent'], ['Absent']]);
+  });
+
+  it('leaves out a Student with no saved result, as he was not Active then', async () => {
+    const deps = await setUp();
+    await deps.finalized.finalize('2026-11-02', [absent('9001')], NOW, RECTOR);
+
+    const report = await getReport({ view: 'Day', day: '2026-11-02' }, deps);
+
+    expect(report?.rows.map((row) => row.studentId)).toEqual(['9001']);
+  });
+
+  it('places Present Students by their saved first Punch', async () => {
+    const deps = await setUp();
+    await deps.finalized.finalize(
+      '2026-11-02',
+      [{ studentId: '9001', status: 'Present', firstPunchAt: ist(2, 8, 15) }],
+      NOW,
+      RECTOR,
+    );
+
+    const report = await getReport({ view: 'Day', day: '2026-11-02' }, deps);
+
+    expect(report?.hours?.[2]).toBe(1);
+  });
+
+  it('marks a month Finalized only when every Day in it is', async () => {
+    const deps = await setUp();
+    await deps.finalized.finalize('2026-11-02', [absent('9001')], NOW, RECTOR);
+
+    const report = await getReport({ view: 'Month', month: '2026-11' }, deps);
+
+    expect(report?.isFinalized).toBe(false);
+    expect(report?.rows[0]?.statuses).toEqual(['Needs Review', 'Absent', 'Needs Review']);
   });
 });

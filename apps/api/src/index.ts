@@ -6,9 +6,11 @@ import { registerAuth } from './adapters/http/auth-routes.js';
 import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
 import { registerReportRoutes } from './adapters/http/report-routes.js';
+import { registerReviewRoutes } from './adapters/http/review-routes.js';
 import { registerStudentRoutes } from './adapters/http/student-routes.js';
 import { argon2Passwords, randomSessionTokens } from './adapters/login/passwords.js';
 import { PostgresDeviceRegistry } from './adapters/postgres/device-registry.js';
+import { PostgresFinalizeRepository } from './adapters/postgres/finalize-repository.js';
 import { PostgresLeaveRepository } from './adapters/postgres/leave-repository.js';
 import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js';
 import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
@@ -18,6 +20,7 @@ import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-a
 import { editStudent } from './use-cases/edit-student.js';
 import { getLiveView } from './use-cases/get-live-view.js';
 import { getReport } from './use-cases/get-report.js';
+import { finalizeDay, getReview, sendNotifications } from './use-cases/review.js';
 import { cancelLeave, editLeave, recordLeave, returnLeave } from './use-cases/leaves.js';
 import { recordLeaves, returnLeaves } from './use-cases/leaves-for-many.js';
 import { listStudents } from './use-cases/list-students.js';
@@ -37,6 +40,7 @@ const db = drizzle(new pg.Pool({ connectionString: databaseUrl }));
 const punches = new PostgresPunchRepository(db);
 const students = new PostgresStudentRepository(db);
 const leaves = new PostgresLeaveRepository(db);
+const finalized = new PostgresFinalizeRepository(db);
 const clock = { now: () => Date.now() };
 const viewers = new LiveViewers();
 const login = {
@@ -66,7 +70,14 @@ registerLiveRoutes(pageApp, {
   getLiveView: () => getLiveView({ punches, students, clock }),
 });
 registerReportRoutes(pageApp, {
-  getReport: (request) => getReport(request, { students, leaves, punches, clock }),
+  getReport: (request) => getReport(request, { students, leaves, punches, finalized, clock }),
+});
+const reviewDeps = { students, leaves, punches, finalized, clock };
+registerReviewRoutes(pageApp, {
+  getReview: (day) => getReview(day, reviewDeps),
+  finalizeDay: (day, doneBy) => finalizeDay(day, doneBy, reviewDeps),
+  sendNotifications: (day, excluded, doneBy) =>
+    sendNotifications(day, excluded, doneBy, reviewDeps),
 });
 registerStudentRoutes(pageApp, {
   addStudent: (form) => addStudent(form, { students, clock }),

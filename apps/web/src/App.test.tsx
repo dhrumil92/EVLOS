@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App.js';
 import type { LiveView, LiveViewSource } from './live-view-source.js';
 import type { ReportSource } from './report-source.js';
+import type { ReviewSource } from './review-source.js';
 
 const NOTE = 'Outside Pooja Window (05:30–18:00)';
 const AT_0700_IST = Date.UTC(2026, 10, 2, 1, 30, 0);
@@ -258,13 +259,27 @@ describe('menu', () => {
     expect(screen.getByText('Showing 2 of 2 Students')).toBeTruthy();
   });
 
-  it('says when a page that is not built yet will arrive', async () => {
-    render(<App reports={reports} source={fakeSource(view()).source} />);
+  it('opens the Review and Finalize page', async () => {
+    const review: ReviewSource = {
+      load: (day) =>
+        Promise.resolve({
+          day,
+          canFinalize: false,
+          finalization: null,
+          needsReview: [],
+          absent: [],
+          notFinalizedDays: [],
+        }),
+      finalize: () => Promise.resolve({ reason: 'pooja-window-open' }),
+      send: () => Promise.resolve({ reason: 'not-finalized' }),
+    };
+    render(<App reports={reports} review={review} source={fakeSource(view()).source} />);
     await screen.findByText(/No Punches yet/);
 
     fireEvent.click(screen.getByRole('button', { name: 'Review and Finalize' }));
 
-    expect(screen.getByText(/comes in Phase 4/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Review and Finalize', level: 1 })).toBeTruthy();
+    expect(await screen.findByText(/Finalize is available after 18:00/)).toBeTruthy();
     expect(screen.queryByText(/No Punches yet/)).toBeNull();
   });
 

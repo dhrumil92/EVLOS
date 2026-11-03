@@ -531,6 +531,38 @@ input[type='time'] {
   grid-column: 2 / -1;
 }
 
+/* Review and Finalize: the email list, one Absent Student per row with a cross. */
+.email-row {
+  display: grid;
+  grid-template-columns: 4rem minmax(8rem, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.email-row-excluded > :nth-child(-n + 2) {
+  color: var(--color-mist);
+  text-decoration: line-through;
+}
+
+.cross {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e0526a;
+  border-radius: 999px;
+  color: #ff9fb0;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cross:hover {
+  background: rgb(224 82 106 / 16%);
+}
+
 .status-not-applicable {
   background: rgb(207 195 223 / 16%);
   color: var(--color-mist);

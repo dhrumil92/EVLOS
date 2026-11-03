@@ -43,6 +43,13 @@
       "when": 1793717372271,
       "tag": "0005_create_leaves",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793722245822,
+      "tag": "0006_create_finalize_and_outbox",
+      "breakpoints": true
     }
   ]
 }

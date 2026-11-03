@@ -1,0 +1,156 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import type { Review, ReviewSource } from './review-source.js';
+import { ReviewPage } from './ReviewPage.js';
+
+const TODAY = '2026-11-03';
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const AT_2305_IST = Date.UTC(2026, 10, 3, 23, 5) - IST_OFFSET_MS;
+
+const student = (studentId: string, name: string, room: string) => ({ studentId, name, room });
+
+const open: Review = {
+  day: TODAY,
+  canFinalize: true,
+  finalization: null,
+  needsReview: [student('9002', 'Bina Rao', '205'), student('9003', 'Chitra Rao', '310')],
+  absent: [],
+  notFinalizedDays: [TODAY],
+};
+
+const finalized: Review = {
+  ...open,
+  canFinalize: false,
+  finalization: { finalizedBy: 'rector@example.com', finalizedAt: AT_2305_IST },
+  needsReview: [],
+  absent: [
+    { ...student('9002', 'Bina Rao', '205'), isExcluded: false, isNotified: false },
+    { ...student('9003', 'Chitra Rao', '310'), isExcluded: false, isNotified: false },
+  ],
+  notFinalizedDays: [],
+};
+
+function fakeSource(first: Review) {
+  const state = {
+    review: first,
+    asked: [] as string[],
+    finalized: [] as string[],
+    sent: [] as unknown[],
+  };
+  const source: ReviewSource = {
+    load: (day) => {
+      state.asked.push(day);
+      return Promise.resolve(state.review);
+    },
+    finalize: (day) => {
+      state.finalized.push(day);
+      state.review = finalized;
+      return Promise.resolve({ outcome: 'finalized', absent: 2 });
+    },
+    send: (day, excluded) => {
+      state.sent.push([day, excluded]);
+      return Promise.resolve({ outcome: 'queued', queued: 2 - excluded.length });
+    },
+  };
+  return { source, state };
+}
+
+afterEach(cleanup);
+
+describe('Review and Finalize, before Finalize', () => {
+  it('lists the Needs Review Students and reminds to check the books first', async () => {
+    render(<ReviewPage source={fakeSource(open).source} today={TODAY} />);
+
+    const list = await screen.findByRole('table', { name: 'Needs Review' });
+    expect(within(list).getByText('Bina Rao')).toBeTruthy();
+    expect(within(list).getByText('Chitra Rao')).toBeTruthy();
+    expect(screen.getByText(/check the Leave Notes and both books/)).toBeTruthy();
+  });
+
+  it('shows a summary and asks before it Finalizes', async () => {
+    const { source, state } = fakeSource(open);
+    render(<ReviewPage source={source} today={TODAY} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Finalize the Day' }));
+    expect(screen.getByText('2 Students will be Absent. The Day will be locked.')).toBeTruthy();
+    expect(state.finalized).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, Finalize' }));
+
+    expect(await screen.findByText(/Finalized at 23:05 by rector@example.com/)).toBeTruthy();
+    expect(state.finalized).toEqual([TODAY]);
+  });
+
+  it('says when Finalize becomes available while the Pooja Window is open', async () => {
+    render(
+      <ReviewPage
+        source={fakeSource({ ...open, canFinalize: false, needsReview: [] }).source}
+        today={TODAY}
+      />,
+    );
+
+    expect(await screen.findByText(/Finalize is available after 18:00/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Finalize the Day' })).toBeNull();
+  });
+
+  it('allows no future Day and lists past Days not Finalized yet', async () => {
+    const { source, state } = fakeSource({ ...open, notFinalizedDays: ['2026-11-01', TODAY] });
+    render(<ReviewPage source={source} today={TODAY} />);
+
+    const picker = await screen.findByLabelText<HTMLInputElement>('Day');
+    expect(picker.max).toBe(TODAY);
+    fireEvent.click(screen.getByRole('button', { name: 'Sunday 1 November' }));
+
+    expect(state.asked.at(-1)).toBe('2026-11-01');
+  });
+});
+
+describe('Review and Finalize, after Finalize', () => {
+  it('Excludes a Student with his cross, and the cross can be undone', async () => {
+    render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Exclude Bina Rao' }));
+    expect(screen.getByRole('button', { name: 'Send Notifications to 1 Student' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Include Bina Rao again' }));
+    expect(screen.getByRole('button', { name: 'Send Notifications to 2 Students' })).toBeTruthy();
+  });
+
+  it('asks before it sends, then sends with the Excluded Students', async () => {
+    const { source, state } = fakeSource(finalized);
+    render(<ReviewPage source={source} today={TODAY} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Exclude Bina Rao' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send Notifications to 1 Student' }));
+    expect(state.sent).toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send' }));
+
+    expect(await screen.findByText(/1 Notification queued/)).toBeTruthy();
+    expect(state.sent).toEqual([[TODAY, ['9002']]]);
+  });
+
+  it('shows who is already notified or Excluded and offers no cross for them', async () => {
+    render(
+      <ReviewPage
+        source={
+          fakeSource({
+            ...finalized,
+            absent: [
+              { ...student('9002', 'Bina Rao', '205'), isExcluded: true, isNotified: false },
+              { ...student('9003', 'Chitra Rao', '310'), isExcluded: false, isNotified: true },
+            ],
+          }).source
+        }
+        today={TODAY}
+      />,
+    );
+
+    expect(await screen.findByText('Excluded')).toBeTruthy();
+    expect(screen.getByText('Notification queued')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Exclude/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Send Notifications to 0 Students' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+  });
+});

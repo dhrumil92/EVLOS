@@ -2,6 +2,9 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Altar } from './Altar.js';
 import { httpReportSource } from './http-report-source.js';
+import { httpReviewSource } from './review-source.js';
+import type { ReviewSource } from './review-source.js';
+import { ReviewPage } from './ReviewPage.js';
 import { LeavesPage } from './LeavesPage.js';
 import type { LiveViewPunch, LiveViewSource, NotCountedBecause } from './live-view-source.js';
 import { PoojaRing } from './PoojaRing.js';
@@ -24,14 +27,8 @@ const LIVE_VIEW = 'Live view';
 const REPORTS = 'Reports';
 const STUDENTS = 'Students';
 const LEAVES = 'Leaves';
-const PAGES: Record<string, string | null> = {
-  [LIVE_VIEW]: null,
-  [STUDENTS]: null,
-  [LEAVES]: null,
-  'Review and Finalize':
-    'Check the Needs Review list, then Finalize the Day and Send Notifications. This page comes in Phase 4.',
-  [REPORTS]: null,
-};
+const REVIEW = 'Review and Finalize';
+const PAGES = [LIVE_VIEW, STUDENTS, LEAVES, REVIEW, REPORTS];
 
 const istToday = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(Date.now());
@@ -145,17 +142,18 @@ export function App(props: {
   source: LiveViewSource;
   students?: StudentSource;
   reports?: ReportSource;
+  review?: ReviewSource;
   onLogOut?: () => void;
 }) {
-  const { source, students = httpStudentSource, reports = httpReportSource, onLogOut } = props;
+  const { source, students = httpStudentSource, reports = httpReportSource } = props;
   const [page, setPage] = useState(LIVE_VIEW);
   const live = useLiveView(source);
-  const soon = PAGES[page];
   const [today] = useState(istToday);
   const widePages: Record<string, ReactNode> = {
     [REPORTS]: <ReportsPage source={reports} today={today} />,
     [STUDENTS]: <StudentsPage source={students} today={today} />,
     [LEAVES]: <LeavesPage source={students} today={today} />,
+    [REVIEW]: <ReviewPage source={props.review ?? httpReviewSource} today={today} />,
   };
 
   return (
@@ -167,7 +165,7 @@ export function App(props: {
             aria-label="Main menu"
             className="flex min-w-0 basis-full gap-1 overflow-x-auto py-2 md:basis-auto"
           >
-            {Object.keys(PAGES).map((name) => (
+            {PAGES.map((name) => (
               <button
                 key={name}
                 type="button"
@@ -181,8 +179,8 @@ export function App(props: {
               </button>
             ))}
           </nav>
-          {onLogOut && (
-            <button type="button" className="menu-item ml-auto" onClick={onLogOut}>
+          {props.onLogOut && (
+            <button type="button" className="menu-item ml-auto" onClick={props.onLogOut}>
               Log out
             </button>
           )}
@@ -197,14 +195,7 @@ export function App(props: {
             <TodaysCount live={live} />
 
             <section className="min-w-0 rounded-2xl border border-line bg-night/60 p-2">
-              {soon ? (
-                <>
-                  <h2 className="font-display px-3 py-2 text-2xl font-semibold">{page}</h2>
-                  <p className="max-w-prose px-3 pb-4 text-mist">{soon}</p>
-                </>
-              ) : (
-                <LiveLists live={live} reports={reports} today={today} />
-              )}
+              <LiveLists live={live} reports={reports} today={today} />
             </section>
           </main>
         )}
