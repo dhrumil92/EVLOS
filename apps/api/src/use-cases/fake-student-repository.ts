@@ -16,6 +16,16 @@ export function fakeStudentRepository() {
       periods.push({ studentId: student.studentId, activeFrom, activeUntil: null });
       return Promise.resolve(true);
     },
+    addMany: (many, activeFrom) => {
+      if (many.some((one) => saved.some((old) => old.studentId === one.studentId))) {
+        return Promise.reject(new Error('A Student ID is already used.'));
+      }
+      for (const student of many) {
+        saved.push(student);
+        periods.push({ studentId: student.studentId, activeFrom, activeUntil: null });
+      }
+      return Promise.resolve();
+    },
     list: () => Promise.resolve([...saved]),
     activePeriods: () => Promise.resolve(periods.map((period) => ({ ...period }))),
     update: (student) => {

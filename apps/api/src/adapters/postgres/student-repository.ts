@@ -23,6 +23,16 @@ export class PostgresStudentRepository implements StudentRepository {
     });
   }
 
+  // One transaction: a Student ID already used makes the insert fail, and nothing is saved.
+  addMany(many: readonly Student[], activeFrom: Day): Promise<void> {
+    return this.db.transaction(async (tx) => {
+      await tx.insert(students).values([...many]);
+      await tx
+        .insert(studentActivePeriods)
+        .values(many.map((student) => ({ studentId: student.studentId, activeFrom })));
+    });
+  }
+
   list(): Promise<Student[]> {
     return this.db.select().from(students).orderBy(asc(students.studentId));
   }

@@ -86,6 +86,23 @@ describe('PostgresStudentRepository', () => {
     expect(listed?.studentId).toBe('0042');
   });
 
+  it('adds many Students at once, each Active from the given Day', async () => {
+    await repository.addMany([student(), student({ studentId: '9002' })], TODAY);
+
+    expect((await repository.list()).map((one) => one.studentId)).toEqual(['9001', '9002']);
+    expect((await repository.activePeriods()).map((one) => one.activeFrom)).toEqual([TODAY, TODAY]);
+  });
+
+  it('adds none of many Students when one Student ID is already used', async () => {
+    await repository.add(student({ studentId: '9002' }), TODAY);
+
+    await expect(
+      repository.addMany([student(), student({ studentId: '9002', name: 'Other' })], TODAY),
+    ).rejects.toThrow();
+
+    expect((await repository.list()).map((one) => one.studentId)).toEqual(['9002']);
+  });
+
   it('lists every Active period with its Student ID', async () => {
     await repository.add(student(), '2026-11-01');
 
