@@ -6,12 +6,12 @@
 | Rule | Test `file:line` | If untested — what stops you |
 |------|------------------|-----------------------------|
 | 1. A Punch counts only between 05:30 and 18:00 IST, both included | `packages/core/src/pooja-window.test.ts:11`, `:15`, `:23`, `:27` | |
-| 2. The same Punch uploaded twice is stored once | `packages/core/src/punch.test.ts:11` | The core rule is tested. The unique key on `punches` arrives in Phase 3 and needs its own test. |
+| 2. The same Punch uploaded twice is stored once | `packages/core/src/punch.test.ts:11`; the unique key on `punches`: `apps/api/src/adapters/postgres/punch-repository.test.ts:59` | |
 | 3. Away for any part of the Pooja Window with no Punch gives Not Applicable, never Absent | `packages/core/src/pooja-status.test.ts:114`, `:118`, `:128` | |
-| 4. In the hostel for the whole Pooja Window with no Punch is only Needs Review until Finalize | `packages/core/src/pooja-status.test.ts:172`, `:182` | |
-| 5. A Notification goes only after Finalize, at most once per Student per Day (never to an Excluded Student) | `packages/core/src/notification.test.ts:26`, `:43`, `:51` | The core rule is tested. The outbox `dedupe_key` arrives in Phase 5 and needs its own test. |
+| 4. In the hostel for the whole Pooja Window with no Punch is only Needs Review until Finalize | `packages/core/src/pooja-status.test.ts:172`, `:182`; Finalize makes Needs Review Absent: `apps/api/src/use-cases/review.test.ts:86` | |
+| 5. A Notification goes only after Finalize, at most once per Student per Day (never to an Excluded Student) | `packages/core/src/notification.test.ts:26`, `:43`, `:51`; refused before Finalize: `apps/api/src/use-cases/review.test.ts:189`; the outbox `dedupe_key`: `apps/api/src/adapters/postgres/finalize-repository.test.ts:112` | Notifications are queued, not yet sent. The sender that empties the outbox and retries arrives in Phase 5 and needs its own test. |
 
-Rules tested: 5 of 5 as pure functions; the database keys behind rules 2 and 5 are not tested yet.
+Rules tested: 5 of 5 as pure functions, and the database keys behind rules 2 and 5 against PostgreSQL. Email delivery is not built yet.
 
 ## Weak test
 None yet. When found: the test, why it would still pass if the rule were broken, and what fixes it.

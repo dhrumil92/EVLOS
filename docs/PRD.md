@@ -141,7 +141,7 @@ Acceptance criteria:
 ## 8. Risks
 | Risk | Response |
 |------|----------|
-| Matching 360 names to Device IDs for the first load has errors | Export the Device user list; match by name; review every mismatch with the Rector. |
+| The Rector's list for the first load has errors (wrong Student ID, room or email) | `npm run students:load` checks every row like the form and saves nothing while any row has a problem; each reported line is checked with the Rector. |
 | The 1 GB free VM runs short of memory | Stop other containers or use a separate account; keep the app small. |
 | Deployment starts late and leaves little pilot time | Build locally first, rehearse the VM with a hello-world around 9 Nov, deploy right after Phase 4. |
 | Real emails reach Students too early | Local mail catcher until Phase 5; test addresses first; written approval from the Rector. |
@@ -154,7 +154,7 @@ Acceptance criteria:
 - A live URL works; `README.md` runs locally in five commands or fewer.
 
 ## 10. Open questions
-1. Answered 2026-11-03: the Device holds only Student IDs and fingerprints, no names. The first load therefore cannot match the Device's list to the Excel by name, as the First load paragraph in FR-1 assumes. Instead, the Rector holds a list of Student IDs with names and will provide it. Until then, development uses test Students enrolled by the author and friends, who have agreed to this.
+1. Answered 2026-11-03: the Device holds only Student IDs and fingerprints, no names. The first load therefore cannot match the Device's list to the Excel by name, as the First load paragraph in FR-1 first assumed (it now describes the CSV load). Instead, the Rector holds a list of Student IDs with names and will provide it. Until then, development uses test Students enrolled by the author and friends, who have agreed to this.
 2. Which email provider and sender address will be used? Deferred to Phase 5; a Gmail app password is enough for testing.
 3. Has the Rector agreed in writing to emails going to Students?
 4. Should the Rector be able to unlock (reopen) a Finalized Day to correct a mistake? Set aside on 2026-10-30; until decided, a Finalized Day cannot be changed.

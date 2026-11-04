@@ -13,13 +13,13 @@
 | # | Decision | Principle | `file:line` | Before | Why changed |
 |---|----------|-----------|-------------|--------|-------------|
 | D1 | Rules are pure functions that receive a `Clock` instead of reading the system time | Dependency inversion | `packages/core/src/clock.ts:5` | TBD | Tests must be able to say "it is 23:30 IST" without waiting; the server runs in UTC. |
-| D2 | Sending email is a `Notifier` port; delivery goes through an outbox with a unique key | Dependency inversion, single responsibility | TBD | TBD | Retries must never send a second Notification; tests use a fake notifier. |
+| D2 | Sending email is a `Notifier` port; delivery goes through an outbox with a unique key | Dependency inversion, single responsibility | Outbox key: `apps/api/src/db/schema.ts:90`; `Notifier` port: Phase 5 | TBD | Retries must never send a second Notification; tests use a fake notifier. |
 | D3 | Pooja Status is computed from stored facts (Punches, Leaves) and written only at Finalize | Single source of truth | `packages/core/src/pooja-status.ts:33` | TBD | A stored status can go stale when a Leave or Punch arrives late. |
 
 Replace a row if the real refactors turn out different. A decision counts only when its before and after really happened in this repo's history.
 
 ## One boundary
-The Device adapter. It is where the fingerprint terminal's push protocol, serial numbers and timezone-less timestamps stop. Inside the boundary, the core sees only a Punch with a Student ID and an IST time. This protects the core from the Device vendor: changing the Device, its firmware or its protocol touches the adapter only. A second, smaller boundary is the email provider behind `Notifier`.
+The Device adapter (`apps/api/src/adapters/device/`, parser at `parse-attlog.ts:37`). It is where the fingerprint terminal's push protocol, serial numbers and timezone-less timestamps stop. Inside the boundary, the core sees only a Punch with a Student ID and an IST time. This protects the core from the Device vendor: changing the Device, its firmware or its protocol touches the adapter only. A second, smaller boundary is the email provider behind `Notifier`.
 
 ## Known limitations
 - A Student with a short Leave late in the Pooja Window (for example leaving at 17:00 IST) gets Not Applicable even if he was in the hostel most of the window. The Rector accepts this. No Pooja Status can be changed by hand.

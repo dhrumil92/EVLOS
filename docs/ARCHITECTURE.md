@@ -1,16 +1,16 @@
 # ARCHITECTURE
 
-How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Everything here is planned until the code exists; update it as the code lands.
+How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Checked against the code on 2026-11-04 (end of Phase 4); anything not built yet is marked with the phase that brings it.
 
 ## Tech stack
-Status: proposed choices for the 30-day build. A choice is confirmed once it is used in the repo; versions are pinned exactly when each is added.
+Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Vitest, ESLint, Prettier, GitHub Actions CI. Not yet: the scheduler, email and Excel (Phase 5); Playwright; Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
 
 | Layer | Choice | Why |
 |-------|--------|-----|
 | Language | TypeScript (strict) everywhere | One language, types as design, matches the author's full-stack goal. |
 | Runtime | Node.js 22 LTS | Already used for the Device test server. |
 | API | Fastify | Small, fast, easy to test with `inject`; serves the Device endpoints too. |
-| Web | React with Vite and Tailwind, shadcn/ui components | Quick to build a clear table-and-panel UI without designing from scratch. |
+| Web | React with Vite and Tailwind (plain components; shadcn/ui was not needed) | Quick to build a clear table-and-panel UI. |
 | Database | PostgreSQL 17 with Drizzle ORM and SQL migrations | Constraints for uniqueness and idempotency; light on a 1 GB VM. |
 | Live updates | Server-Sent Events | One-way push of new Punches; simpler than WebSockets. |
 | Scheduler | In-process loop in Asia/Kolkata plus the `outbox_emails` table | Enough at this scale and easy to explain. |
@@ -40,23 +40,31 @@ In production, one small VM runs Caddy and the API. The Device keeps its own Pun
 
 ## 2. Layers (hexagonal)
 ```
-packages/core      pure rules and types: Pooja Status, Pooja Window, Away, Due Back,
-                   Active, Report building. No I/O, no system clock.
+packages/core      pure rules and types: Day, Pooja Window, Pooja Status, Away,
+                   Due Back, Leave and Return checks, Active, Student checks,
+                   canFinalize, studentsToNotify, Session expiry, Report hour
+                   slots. No I/O, no system clock.
 apps/api
-  use cases        RecordPunch, AddStudent, DeactivateStudent, ActivateStudent,
-                   RecordLeave, RecordLeaveForMany, RecordReturn, GetDay,
-                   FinalizeDay, ExcludeStudent, SendNotifications, BuildReport
-  ports            Clock, PunchRepository, StudentRepository, LeaveRepository,
-                   DayRepository, Notifier
-  adapters         device (Device protocol parser), postgres (Drizzle), email
-                   (Nodemailer), roster (first-load script, later upload),
-                   http routes, scheduler
+  use cases        recordPunches, addStudent, editStudent, deactivateStudent,
+                   activateStudent, recordLeave, editLeave, cancelLeave,
+                   returnLeave, recordLeaves and returnLeaves (many Students),
+                   listStudents, getLiveView, getReview, finalizeDay,
+                   sendNotifications (which also saves each Exclude), getReport,
+                   loadRoster, createRector, logIn, logOut
+  ports            Clock (in core), DeviceRegistry, PunchRepository,
+                   StudentRepository, LeaveRepository, FinalizeRepository,
+                   RectorRepository, LiveFeed, Passwords, SessionTokens;
+                   Notifier in Phase 5
+  adapters         device (Device protocol parser and routes), postgres (Drizzle),
+                   http routes, login (Argon2 and session tokens), roster (CSV
+                   reader for the first load); email (Nodemailer) and scheduler
+                   in Phase 5
 apps/web           React UI for the Rector
 ```
-Dependencies point inward: adapters know about the core, the core knows nothing about adapters.
+Dependencies point inward: adapters know about the core, the core knows nothing about adapters. Reports are put together in the `getReport` use case from core rules; the core holds no Report builder of its own.
 
 ## 3. Data model
-Facts are stored; statuses are computed. Only the Rector's decisions are stored as results.
+Facts are stored; statuses are computed. Only the Rector's decisions are stored as results. The tables are defined in `apps/api/src/db/schema.ts`; migrations are in `apps/api/migrations/`.
 
 | Table | Key columns | Notes |
 |-------|-------------|-------|
@@ -64,36 +72,36 @@ Facts are stored; statuses are computed. Only the Rector's decisions are stored 
 | `student_active_periods` | `student_id`, `active_from`, `active_until` null | One open period while a Student is Active. Deactivate closes it with today's date; Activate opens a new one. A Student is Active on a Day if some period covers it, so deactivating and reactivating never rewrites history. |
 | `devices` | `device_serial` PK, label | Registered Devices only; today one row, the Pooja Device. A purpose column is added when a second Device arrives (section 7). |
 | `punches` | device serial, `student_id`, `punched_at` (timestamptz), `received_at`; unique on serial, `student_id`, `punched_at` | Never edited. The unique key makes re-uploads harmless. No foreign key on `student_id` on purpose: Punches from unknown or Deactivated Student IDs are kept but not counted. Uploads from an unregistered Device Serial are refused and not stored. |
-| `leaves` | `student_id`, `out_at`, `expected_return_at`, `returned_at` null, `cancelled_at` null | Open while `returned_at` and `cancelled_at` are null. Away and Due Back are derived. |
+| `leaves` | `id` PK, `student_id`, `out_at`, `expected_return_at`, `returned_at` null, `cancelled_at` null | Open while `returned_at` and `cancelled_at` are null. Away and Due Back are derived. |
 | `day_finalizations` | `day` PK, finalized by, finalized at | Locks a Day. |
 | `pooja_results` | `day`, `student_id` PK; status, first punch time, `excluded_at` null | Written at Finalize only. Before Finalize the status is computed on read. `excluded_at` is set when the Rector Excludes an Absent Student. |
-| `outbox_emails` | kind, recipient, subject, body, `dedupe_key` unique, status, attempts, `send_after`, `sent_at` | Kinds: Notification, Review Reminder, Daily Report, Monthly Report. |
+| `outbox_emails` | kind, recipient, subject, body, `dedupe_key` unique, status, attempts, `send_after`, `sent_at` | Kinds: Notification, Review Reminder, Daily Report, Monthly Report. Only Notification rows are written so far; nothing sends them until Phase 5. |
 | `rectors`, `rector_sessions` | email, Argon2 password hash; SHA-256 hash of the session token, expiry | One Rector account at first, made with `npm run rector:create`. Named after the glossary, not "users". |
-| `audit_log` | who, what, when, subject | Leave (record, edit, cancel), Return, Finalize, Exclude, Send Notifications, Deactivate, Activate. |
+| `audit_log` | `action`, `student_id` (empty for a Day action), `done_at`, `done_by` | Rows are only added. Actions: Leave, Edit Leave, Cancel Leave, Return, Finalize, Exclude, Send Notifications, Deactivate, Activate. |
 
 Dates are stored as timestamptz in UTC and converted with an explicit Asia/Kolkata zone for all rules. A Day is an IST calendar date.
 
 ## 4. Key flows
-**Punch.** Device pushes to its endpoints -> the Device adapter parses the upload, refuses an unregistered Device Serial, converts the timestamp to IST -> `RecordPunch` stores it once -> the live view is notified. A Punch for a Finalized Day is stored, the Day stays locked, and the Rector sees a warning for that Student.
+**Punch.** Device pushes to its endpoints -> the Device adapter parses the upload, refuses an unregistered Device Serial, converts the timestamp to IST -> `recordPunches` stores it once -> the live view is notified over Server-Sent Events. A Punch for a Finalized Day is stored and the Day stays locked. *Not built yet:* the warning the Rector should see for that Student (PRD FR-2).
 
 **Day view.** The Rector's page asks for a Day -> the use case loads Active Students, Punches and Leaves -> the core computes each Pooja Status with the injected Clock -> the UI shows Present, Not Applicable, Pending and Needs Review, with Away in red and Due Back in yellow (always with text).
 
 **Settings panel.** The gear icon on a row opens three tabs: Details (edit name, room, email and phone; the Student ID never changes), Leave status (record Leave or Return) and Danger zone (Deactivate or Activate). The common gear icon opens search-and-select for Leave or Return for many Students; the use case reports which Students were skipped because a Leave was already open.
 
-**Finalize.** Available only after the Pooja Window closes (18:00 IST). The Rector reviews Needs Review and clicks Finalize -> in one transaction: write `pooja_results` (each Needs Review becomes Absent), write `day_finalizations`. No email is queued.
+**Finalize.** Available only after the Pooja Window closes (18:00 IST). The Rector reviews Needs Review and clicks Finalize -> in one transaction: write `pooja_results` (each Needs Review becomes Absent), write `day_finalizations`, write the audit row. No email is queued. A Finalized Day cannot be reopened (PRD open question 4).
 
-**Exclude and Send Notifications.** The Report shows the Absent Students with a cross each. The Rector Excludes some and clicks Send Notifications -> in one transaction: set `excluded_at` for the Excluded Students, insert one Notification per remaining Absent Student into `outbox_emails` with a `dedupe_key` of kind, Day and Student. A second click finds the keys already present and queues nothing.
+**Exclude and Send Notifications.** The Review page shows the Absent Students with a cross each. The Rector Excludes some and clicks Send Notifications -> in one transaction: set `excluded_at` for the Excluded Students, insert one Notification per remaining Absent Student into `outbox_emails` with a `dedupe_key` of kind, Day and Student, and write the audit rows. A second click finds the keys already present and queues nothing.
 
-**Scheduler.** An in-process loop in Asia/Kolkata:
+**Scheduler (Phase 5).** An in-process loop in Asia/Kolkata:
 - every minute: send due rows from `outbox_emails`, mark sent or failed, retry failures a few times;
 - 23:00: Review Reminder if the Day is not Finalized and Needs Review Students exist;
 - 23:30: Daily Report to the Rector, marked Not Finalized where the Day is not Finalized;
 - 09:00 on the 1st: Monthly Report for the previous month.
 Each job writes a row with a `dedupe_key`, so running twice does not send twice.
 
-**Report.** Built by the core from stored data for a Day, month or date range, rendered to CSV or Excel. The monthly grid (Students by Days) is an export format, not the storage format.
+**Report.** Built by the `getReport` use case from stored data for a Day, month or date range: a Finalized Day is read from `pooja_results`, any other Day is worked out from Punches and Leaves. Shown on the Reports page today; CSV and Excel downloads come in Phase 5. The monthly grid (Students by Days) is an export format, not the storage format.
 
-**First load.** A one-time script reads the matched Excel (names, rooms, Student IDs from the Device user list), validates it like the form, and creates the Students. Real data stays out of the repo.
+**First load.** `npm run students:load -- <file.csv>` reads the Rector's list (Student IDs, names, rooms, emails), saved from Excel as "CSV UTF-8" with the columns of `sample-roster.csv`. It checks every row like the form and reports problems by line; with `--save` it adds every Student in one transaction, or none. Real data stays out of the repo.
 
 ## 5. Deployment (Phase 6)
 - Docker Compose on the VM: `api` and `caddy` (and PostgreSQL if kept local to the VM).
@@ -104,7 +112,7 @@ Each job writes a row with a `dedupe_key`, so running twice does not send twice.
 
 ## 6. Security and privacy
 - The Rector site requires login, uses HTTPS and session cookies, and hashes passwords with Argon2.
-- The Device endpoint cannot carry a password. It accepts only registered Device Serials and refuses all others, stores Punches for unknown Student IDs without counting them, and is rate limited.
+- The Device endpoint cannot carry a password. It accepts only registered Device Serials and refuses all others, and stores Punches for unknown Student IDs without counting them. *Not built yet:* rate limiting on the Device endpoint; today only the login is rate limited (5 tries per 15 minutes).
 - Minimal personal data. No fingerprint templates. Real Student emails only after the Rector agrees in writing.
 
 ## 7. Extension seam
