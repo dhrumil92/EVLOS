@@ -34,6 +34,8 @@ export interface Report {
   hours: number[] | null;
   // Totals for each Day, for a month Report.
   days: DayTotals[] | null;
+  // Every Day of the Report in order, matching the statuses of each row.
+  reportDays: { day: Day; isFinalized: boolean }[];
 }
 
 export type GetReportDeps = EvidenceDeps & { finalized: FinalizeRepository; clock: Clock };
@@ -145,10 +147,12 @@ export async function getReport(
     }))
     .filter((row) => row.statuses.some((status) => status !== null));
 
+  const reportDays = days.map((day) => ({ day, isFinalized: statuses.isFinalized(day) }));
   return {
-    isFinalized: days.every((day) => statuses.isFinalized(day)),
+    isFinalized: reportDays.every((one) => one.isFinalized),
     rows,
     hours: request.view === 'Day' ? hoursOf(first, everyone, statuses) : null,
     days: request.view === 'Month' ? totalsOf(rows, days) : null,
+    reportDays,
   };
 }

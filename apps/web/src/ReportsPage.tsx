@@ -267,7 +267,8 @@ export function ReportsPage({ source, today }: { source: ReportSource; today: st
     from: `${today.slice(0, 7)}-01`,
     to: today,
   });
-  const { report, failed } = useReport(source, JSON.stringify(requestFor(view, dates)));
+  const request = requestFor(view, dates);
+  const { report, failed } = useReport(source, JSON.stringify(request));
 
   return (
     <div className="grid gap-5">
@@ -286,6 +287,11 @@ export function ReportsPage({ source, today }: { source: ReportSource; today: st
             }}
           />
           <Segments label="Report period" options={VIEWS} value={view} onChange={setView} />
+          {report && (
+            <a className="btn" href={source.csvUrl(request)} download>
+              Download CSV
+            </a>
+          )}
         </div>
       </div>
 

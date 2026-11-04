@@ -208,6 +208,19 @@ describe('getReport for a Finalized Day', () => {
     expect(report?.hours?.[2]).toBe(1);
   });
 
+  it('gives each Day of the Report in order, with whether it is Finalized', async () => {
+    const deps = await setUp();
+    await deps.finalized.finalize('2026-11-02', [absent('9001')], NOW, RECTOR);
+
+    const report = await getReport({ view: 'Month', month: '2026-11' }, deps);
+
+    expect(report?.reportDays).toEqual([
+      { day: '2026-11-01', isFinalized: false },
+      { day: '2026-11-02', isFinalized: true },
+      { day: '2026-11-03', isFinalized: false },
+    ]);
+  });
+
   it('marks a month Finalized only when every Day in it is', async () => {
     const deps = await setUp();
     await deps.finalized.finalize('2026-11-02', [absent('9001')], NOW, RECTOR);

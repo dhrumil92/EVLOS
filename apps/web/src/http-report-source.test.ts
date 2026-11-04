@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { reportQuery, titleOf } from './http-report-source.js';
+import { httpReportSource, reportQuery, titleOf } from './http-report-source.js';
 
 describe('http Report source', () => {
   it.each([
@@ -19,5 +19,11 @@ describe('http Report source', () => {
     [{ view: 'Date range', from: '2026-11-01', to: '2026-11-03' }, '2026-11-01 to 2026-11-03'],
   ] as const)('titles %o', (request, title) => {
     expect(titleOf(request)).toBe(title);
+  });
+
+  it('downloads the CSV of a Report from the same query', () => {
+    expect(httpReportSource.csvUrl({ view: 'Month', month: '2026-11' })).toBe(
+      '/api/reports/csv?view=Month&month=2026-11',
+    );
   });
 });

@@ -32,4 +32,6 @@ export interface Report {
 
 export interface ReportSource {
   load(request: ReportRequest): Promise<Report>;
+  // Where the browser downloads the same Report as a CSV file.
+  csvUrl(request: ReportRequest): string;
 }

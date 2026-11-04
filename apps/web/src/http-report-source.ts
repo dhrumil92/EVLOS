@@ -40,4 +40,5 @@ export const httpReportSource: ReportSource = {
     }
     return { title: titleOf(request), ...((await reply.json()) as Omit<Report, 'title'>) };
   },
+  csvUrl: (request) => `/api/reports/csv?${reportQuery(request)}`,
 };

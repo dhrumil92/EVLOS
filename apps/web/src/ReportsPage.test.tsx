@@ -28,6 +28,7 @@ function fakeSource(answer: (request: ReportRequest) => Report = () => report())
       asked.push(request);
       return Promise.resolve(answer(request));
     },
+    csvUrl: (request) => `/csv/${request.view}`,
   };
   return { source, asked };
 }
@@ -48,6 +49,16 @@ describe('Reports page', () => {
 
     await screen.findByText('Bina Rao');
     expect(asked[0]).toEqual({ view: 'Day', day: TODAY });
+  });
+
+  it('offers the Report shown as a CSV download', async () => {
+    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
+    await screen.findByText('Bina Rao');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
+
+    const link = await screen.findByRole('link', { name: 'Download CSV' });
+    expect(link.getAttribute('href')).toBe('/csv/Month');
   });
 
   it('lists Students by room in ascending order first', async () => {

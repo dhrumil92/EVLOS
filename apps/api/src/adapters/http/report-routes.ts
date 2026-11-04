@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Report, ReportRequest } from '../../use-cases/get-report.js';
+import { csvFileName, reportCsv } from '../report/report-csv.js';
 
 export interface ReportRoutesDeps {
   getReport(request: ReportRequest): Promise<Report | null>;
@@ -25,5 +26,18 @@ export function registerReportRoutes(app: FastifyInstance, deps: ReportRoutesDep
       return reply.code(400).send({ message: 'This Report cannot be made. Check the dates.' });
     }
     return report;
+  });
+
+  // The same Report as a CSV file to download (FR-11).
+  app.get<{ Querystring: Query }>('/api/reports/csv', async (request, reply) => {
+    const asked = requestFrom(request.query);
+    const report = asked && (await deps.getReport(asked));
+    if (!asked || !report) {
+      return reply.code(400).send({ message: 'This Report cannot be made. Check the dates.' });
+    }
+    return reply
+      .type('text/csv; charset=utf-8')
+      .header('Content-Disposition', `attachment; filename="${csvFileName(asked)}"`)
+      .send(reportCsv(report));
   });
 }

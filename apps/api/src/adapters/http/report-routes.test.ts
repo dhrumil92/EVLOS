@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { Report, ReportRequest } from '../../use-cases/get-report.js';
 import { registerReportRoutes } from './report-routes.js';
 
-const REPORT: Report = { isFinalized: false, rows: [], hours: null, days: null };
+const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
+const REPORT: Report = { isFinalized: false, rows: [], hours: null, days: null, reportDays: [] };
 
 function buildApp(answer: Report | null = REPORT) {
   const asked: ReportRequest[] = [];
@@ -51,5 +52,39 @@ describe('Report route', () => {
     const reply = await app.inject({ method: 'GET', url: '/api/reports?view=Day&day=2030-01-01' });
 
     expect(reply.statusCode).toBe(400);
+  });
+});
+
+describe('Report CSV route', () => {
+  it('downloads the Report as a CSV file named after its Day', async () => {
+    const { app, asked } = buildApp({
+      ...REPORT,
+      reportDays: [{ day: '2026-11-03', isFinalized: true }],
+    });
+
+    const reply = await app.inject({
+      method: 'GET',
+      url: '/api/reports/csv?view=Day&day=2026-11-03',
+    });
+
+    expect(reply.statusCode).toBe(200);
+    expect(reply.headers['content-type']).toBe('text/csv; charset=utf-8');
+    expect(reply.headers['content-disposition']).toBe(
+      'attachment; filename="EVLOS Report 2026-11-03.csv"',
+    );
+    expect(reply.body).toBe(`${BYTE_ORDER_MARK}Student ID,Name,Room,2026-11-03\r\n`);
+    expect(asked).toEqual([{ view: 'Day', day: '2026-11-03' }]);
+  });
+
+  it('answers 400 and sends no file when the Report cannot be made', async () => {
+    const { app } = buildApp(null);
+
+    const reply = await app.inject({
+      method: 'GET',
+      url: '/api/reports/csv?view=Day&day=2030-01-01',
+    });
+
+    expect(reply.statusCode).toBe(400);
+    expect(reply.headers['content-disposition']).toBeUndefined();
   });
 });
