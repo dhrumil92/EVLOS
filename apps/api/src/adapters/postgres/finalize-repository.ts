@@ -7,11 +7,15 @@ import type {
   Finalization,
   FinalizeRepository,
   Notification,
+  NotificationState,
   PoojaResult,
 } from '../../ports/finalize-repository.js';
 
 const dedupeKeyOf = (day: Day, studentId: string) => `Notification|${day}|${studentId}`;
 const toDate = (instant: Instant | null) => (instant === null ? null : new Date(instant));
+// An email being sent right now has not gone yet, so the Rector sees it as queued.
+const stateOf = (status: string): NotificationState =>
+  status === 'sent' || status === 'failed' ? status : 'queued';
 
 export class PostgresFinalizeRepository implements FinalizeRepository {
   constructor(private readonly db: NodePgDatabase) {}
@@ -75,6 +79,19 @@ export class PostgresFinalizeRepository implements FinalizeRepository {
       .where(like(outboxEmails.dedupeKey, `${prefix}%`))
       .orderBy(asc(outboxEmails.id));
     return rows.map((row) => row.dedupeKey.slice(prefix.length));
+  }
+
+  async notificationStates(day: Day): Promise<{ studentId: string; state: NotificationState }[]> {
+    const prefix = dedupeKeyOf(day, '');
+    const rows = await this.db
+      .select({ dedupeKey: outboxEmails.dedupeKey, status: outboxEmails.status })
+      .from(outboxEmails)
+      .where(like(outboxEmails.dedupeKey, `${prefix}%`))
+      .orderBy(asc(outboxEmails.id));
+    return rows.map((row) => ({
+      studentId: row.dedupeKey.slice(prefix.length),
+      state: stateOf(row.status),
+    }));
   }
 
   sendNotifications(

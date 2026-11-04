@@ -5,6 +5,7 @@ import { migrateDatabase } from '../../db/migrate.js';
 import { resetTestDatabase } from '../../db/reset-test-database.js';
 import { assertTestDatabase } from '../../db/test-database.js';
 import { PostgresFinalizeRepository } from './finalize-repository.js';
+import { PostgresOutboxRepository } from './outbox-repository.js';
 import { PostgresStudentRepository } from './student-repository.js';
 
 const testUrl = process.env.TEST_DATABASE_URL;
@@ -14,6 +15,7 @@ const pool = new pg.Pool({ connectionString: testUrl });
 const db = drizzle(pool);
 const repository = new PostgresFinalizeRepository(db);
 const students = new PostgresStudentRepository(db);
+const outboxRepository = new PostgresOutboxRepository(db);
 
 const DAY = '2026-11-03';
 const AT = Date.UTC(2026, 10, 3, 17, 30);
@@ -117,6 +119,57 @@ describe('PostgresFinalizeRepository', () => {
 
     expect(again).toBe(0);
     expect(await outbox()).toHaveLength(1);
+  });
+
+  it('gives a Notification just queued as queued', async () => {
+    await repository.finalize(DAY, RESULTS, AT, RECTOR);
+    await repository.sendNotifications(DAY, [], [notification('9002')], AT, RECTOR);
+
+    expect(await repository.notificationStates(DAY)).toEqual([
+      { studentId: '9002', state: 'queued' },
+    ]);
+  });
+
+  it('still gives a Notification as queued while it is being sent', async () => {
+    await repository.finalize(DAY, RESULTS, AT, RECTOR);
+    await repository.sendNotifications(DAY, [], [notification('9002')], AT, RECTOR);
+
+    await outboxRepository.takeDue(AT, 10);
+
+    expect(await repository.notificationStates(DAY)).toEqual([
+      { studentId: '9002', state: 'queued' },
+    ]);
+  });
+
+  it('gives a Notification as sent once the email has gone', async () => {
+    await repository.finalize(DAY, RESULTS, AT, RECTOR);
+    await repository.sendNotifications(DAY, [], [notification('9002')], AT, RECTOR);
+    const [taken] = await outboxRepository.takeDue(AT, 10);
+
+    await outboxRepository.markSent(taken?.id ?? 0, AT);
+
+    expect(await repository.notificationStates(DAY)).toEqual([
+      { studentId: '9002', state: 'sent' },
+    ]);
+  });
+
+  it('gives a Notification as failed once its email is given up', async () => {
+    await repository.finalize(DAY, RESULTS, AT, RECTOR);
+    await repository.sendNotifications(DAY, [], [notification('9002')], AT, RECTOR);
+    const [taken] = await outboxRepository.takeDue(AT, 10);
+
+    await outboxRepository.markNotSent(taken?.id ?? 0, { status: 'failed' });
+
+    expect(await repository.notificationStates(DAY)).toEqual([
+      { studentId: '9002', state: 'failed' },
+    ]);
+  });
+
+  it('gives no Notification state for another Day', async () => {
+    await repository.finalize(DAY, RESULTS, AT, RECTOR);
+    await repository.sendNotifications(DAY, [], [notification('9002')], AT, RECTOR);
+
+    expect(await repository.notificationStates('2026-11-02')).toEqual([]);
   });
 
   it('records an Exclude once, keeping the first time, when it is sent again', async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Review, ReviewSource, ReviewStudent } from './review-source.js';
+import type { NotificationState, Review, ReviewSource, ReviewStudent } from './review-source.js';
 
 const IST = { timeZone: 'Asia/Kolkata' } as const;
 const dayWords = new Intl.DateTimeFormat('en-GB', {
@@ -25,6 +25,11 @@ const REFUSALS: Record<string, string> = {
   'not-finalized': 'Finalize the Day before sending Notifications.',
 };
 const refusalText = (reason: string) => REFUSALS[reason] ?? 'Nothing changed. Reload the page.';
+const NOTIFICATION_TEXT: Record<NotificationState, string> = {
+  queued: 'Notification queued',
+  sent: 'Notification sent',
+  failed: 'Notification not sent',
+};
 // The server failed part way, so the page cannot know what was saved.
 const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
 
@@ -122,7 +127,11 @@ function AbsentRow(props: {
   onToggle: () => void;
 }) {
   const { student, isCrossed } = props;
-  const state = student.isNotified ? 'Notification queued' : student.isExcluded ? 'Excluded' : null;
+  const state = student.notification
+    ? NOTIFICATION_TEXT[student.notification]
+    : student.isExcluded
+      ? 'Excluded'
+      : null;
   return (
     <li className={`email-row ${isCrossed || student.isExcluded ? 'email-row-excluded' : ''}`}>
       <span className="text-mist">{student.room}</span>
@@ -150,7 +159,7 @@ function AfterFinalize(props: { review: Review; onSend: (excluded: string[]) => 
   const [crossed, setCrossed] = useState<string[]>([]);
   const [asking, setAsking] = useState(false);
   const toSend = review.absent.filter(
-    (one) => !one.isNotified && !one.isExcluded && !crossed.includes(one.studentId),
+    (one) => one.notification === null && !one.isExcluded && !crossed.includes(one.studentId),
   ).length;
   const toggle = (studentId: string) => {
     setCrossed((old) =>

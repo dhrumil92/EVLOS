@@ -3,14 +3,16 @@ import type {
   Finalization,
   FinalizeRepository,
   Notification,
+  NotificationState,
   PoojaResult,
 } from '../ports/finalize-repository.js';
 
-// An in-memory FinalizeRepository for use-case tests.
+// An in-memory FinalizeRepository for use-case tests. A test moves a Notification on by
+// changing its state in `queued`.
 export function fakeFinalizeRepository() {
   const finalizations: Finalization[] = [];
   const results: (PoojaResult & { day: Day })[] = [];
-  const queued: (Notification & { day: Day })[] = [];
+  const queued: (Notification & { day: Day; state: NotificationState })[] = [];
   const audit: string[] = [];
   // Every list of Notifications the use case asked to queue.
   const asked: Notification[][] = [];
@@ -30,6 +32,12 @@ export function fakeFinalizeRepository() {
       Promise.resolve(results.filter((one) => inSpan(one.day, first, last)).map((r) => ({ ...r }))),
     notifiedStudentIds: (day) =>
       Promise.resolve(queued.filter((one) => one.day === day).map((one) => one.studentId)),
+    notificationStates: (day) =>
+      Promise.resolve(
+        queued
+          .filter((one) => one.day === day)
+          .map(({ studentId, state }) => ({ studentId, state })),
+      ),
     sendNotifications: (day, excludedStudentIds, notifications, at) => {
       asked.push(notifications);
       for (const result of results) {
@@ -40,7 +48,7 @@ export function fakeFinalizeRepository() {
       const fresh = notifications.filter(
         (one) => !queued.some((old) => old.day === day && old.studentId === one.studentId),
       );
-      queued.push(...fresh.map((one) => ({ ...one, day })));
+      queued.push(...fresh.map((one) => ({ ...one, day, state: 'queued' as const })));
       audit.push('Send Notifications');
       return Promise.resolve(fresh.length);
     },

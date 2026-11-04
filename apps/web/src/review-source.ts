@@ -6,12 +6,15 @@ export interface ReviewStudent {
   room: string;
 }
 
+// queued: waiting to be sent. sent: the email has gone. failed: it was given up.
+export type NotificationState = 'queued' | 'sent' | 'failed';
+
 export interface Review {
   day: string;
   canFinalize: boolean;
   finalization: { finalizedBy: string; finalizedAt: number } | null;
   needsReview: ReviewStudent[];
-  absent: (ReviewStudent & { isExcluded: boolean; isNotified: boolean })[];
+  absent: (ReviewStudent & { isExcluded: boolean; notification: NotificationState | null })[];
   notFinalizedDays: string[];
 }
 

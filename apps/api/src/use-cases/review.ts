@@ -11,6 +11,7 @@ import type {
   FinalStatus,
   FinalizeRepository,
   Notification,
+  NotificationState,
   PoojaResult,
 } from '../ports/finalize-repository.js';
 import { computedStatus, firstPunchOn, loadEvidence } from './day-evidence.js';
@@ -32,7 +33,7 @@ export interface Review {
   // Before Finalize: the Students Finalize will make Absent.
   needsReview: ReviewStudent[];
   // After Finalize: the email list, each with its Exclude and Notification state.
-  absent: (ReviewStudent & { isExcluded: boolean; isNotified: boolean })[];
+  absent: (ReviewStudent & { isExcluded: boolean; notification: NotificationState | null })[];
   // Days up to now that can be Finalized and are not yet, so none is forgotten.
   notFinalizedDays: Day[];
 }
@@ -74,20 +75,20 @@ async function notFinalizedDays(deps: ReviewDeps): Promise<Day[]> {
 }
 
 async function absentList(day: Day, results: PoojaResult[], deps: ReviewDeps) {
-  const [students, notified] = await Promise.all([
+  const [students, notifications] = await Promise.all([
     deps.students.list(),
-    deps.finalized.notifiedStudentIds(day),
+    deps.finalized.notificationStates(day),
   ]);
   const byId = new Map(students.map((student) => [student.studentId, student]));
+  const stateOf = new Map(notifications.map((one) => [one.studentId, one.state]));
   return results
     .filter((result) => result.status === 'Absent')
     .flatMap((result) => {
       const student = byId.get(result.studentId);
       if (student === undefined) return [];
       const isExcluded = result.excludedAt !== null;
-      return [
-        { ...shortly(student), isExcluded, isNotified: notified.includes(student.studentId) },
-      ];
+      const notification = stateOf.get(student.studentId) ?? null;
+      return [{ ...shortly(student), isExcluded, notification }];
     });
 }
 

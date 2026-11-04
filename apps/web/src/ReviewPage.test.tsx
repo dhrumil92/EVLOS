@@ -26,8 +26,8 @@ const finalized: Review = {
   finalization: { finalizedBy: 'rector@example.com', finalizedAt: AT_2305_IST },
   needsReview: [],
   absent: [
-    { ...student('9002', 'Bina Rao', '205'), isExcluded: false, isNotified: false },
-    { ...student('9003', 'Chitra Rao', '310'), isExcluded: false, isNotified: false },
+    { ...student('9002', 'Bina Rao', '205'), isExcluded: false, notification: null },
+    { ...student('9003', 'Chitra Rao', '310'), isExcluded: false, notification: null },
   ],
   notFinalizedDays: [],
 };
@@ -171,15 +171,21 @@ describe('Review and Finalize, after Finalize', () => {
     expect(await screen.findByText(SERVER_FAILED)).toBeTruthy();
   });
 
-  it('shows who is already notified or Excluded and offers no cross for them', async () => {
+  it('shows how far each Notification has got, or Excluded, and offers no cross for them', async () => {
     render(
       <ReviewPage
         source={
           fakeSource({
             ...finalized,
             absent: [
-              { ...student('9002', 'Bina Rao', '205'), isExcluded: true, isNotified: false },
-              { ...student('9003', 'Chitra Rao', '310'), isExcluded: false, isNotified: true },
+              { ...student('9002', 'Bina Rao', '205'), isExcluded: true, notification: null },
+              {
+                ...student('9003', 'Chitra Rao', '310'),
+                isExcluded: false,
+                notification: 'queued',
+              },
+              { ...student('9004', 'Divya Rao', '402'), isExcluded: false, notification: 'sent' },
+              { ...student('9005', 'Esha Rao', '503'), isExcluded: false, notification: 'failed' },
             ],
           }).source
         }
@@ -189,6 +195,8 @@ describe('Review and Finalize, after Finalize', () => {
 
     expect(await screen.findByText('Excluded')).toBeTruthy();
     expect(screen.getByText('Notification queued')).toBeTruthy();
+    expect(screen.getByText('Notification sent')).toBeTruthy();
+    expect(screen.getByText('Notification not sent')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Exclude/ })).toBeNull();
     expect(screen.getByRole('button', { name: 'Send Notifications to 0 Students' })).toHaveProperty(
       'disabled',

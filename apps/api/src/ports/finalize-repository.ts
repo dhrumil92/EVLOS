@@ -23,6 +23,10 @@ export interface Notification {
   body: string;
 }
 
+// queued: waiting to be sent, or being sent now. sent: the email has gone.
+// failed: the email provider refused it every time, so it was given up.
+export type NotificationState = 'queued' | 'sent' | 'failed';
+
 // Each change is written with its audit entry in one transaction (FR-14).
 export interface FinalizeRepository {
   finalizationsBetween(first: Day, last: Day): Promise<Finalization[]>;
@@ -36,6 +40,8 @@ export interface FinalizeRepository {
   resultsBetween(first: Day, last: Day): Promise<(PoojaResult & { day: Day })[]>;
   // Student IDs that already have a Notification queued for the Day.
   notifiedStudentIds(day: Day): Promise<string[]>;
+  // How far each Notification of the Day has got, for the Rector to see.
+  notificationStates(day: Day): Promise<{ studentId: string; state: NotificationState }[]>;
   // Saves the Exclusions and queues the Notifications. Returns how many were newly queued;
   // one already queued for the same Day and Student is never queued again.
   sendNotifications(

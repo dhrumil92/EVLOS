@@ -135,10 +135,25 @@ describe('finalizeDay', () => {
     const review = await getReview(DAY, deps);
 
     expect(review?.finalization).toEqual({ finalizedBy: RECTOR, finalizedAt: ist(3, 23) });
-    expect(review?.absent.map((one) => [one.studentId, one.isExcluded, one.isNotified])).toEqual([
-      ['9001', false, false],
-      ['9002', false, false],
-      ['9003', false, false],
+    expect(review?.absent.map((one) => [one.studentId, one.isExcluded, one.notification])).toEqual([
+      ['9001', false, null],
+      ['9002', false, null],
+      ['9003', false, null],
+    ]);
+  });
+
+  it('shows whether each Notification is queued, sent or failed', async () => {
+    const { deps, queued } = await setUp();
+    await finalizeDay(DAY, RECTOR, deps);
+    await sendNotifications(DAY, ['9001'], RECTOR, deps);
+    for (const one of queued) one.state = one.studentId === '9002' ? 'sent' : 'failed';
+
+    const review = await getReview(DAY, deps);
+
+    expect(review?.absent.map((one) => [one.studentId, one.isExcluded, one.notification])).toEqual([
+      ['9001', true, null],
+      ['9002', false, 'sent'],
+      ['9003', false, 'failed'],
     ]);
   });
 });
