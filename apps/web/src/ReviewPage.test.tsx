@@ -7,6 +7,7 @@ import { ReviewPage } from './ReviewPage.js';
 const TODAY = '2026-11-03';
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const AT_2305_IST = Date.UTC(2026, 10, 3, 23, 5) - IST_OFFSET_MS;
+const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
 
 const student = (studentId: string, name: string, room: string) => ({ studentId, name, room });
 
@@ -81,6 +82,19 @@ describe('Review and Finalize, before Finalize', () => {
     expect(state.finalized).toEqual([TODAY]);
   });
 
+  it('says so when the server cannot finish Finalize, instead of showing nothing', async () => {
+    const source: ReviewSource = {
+      ...fakeSource(open).source,
+      finalize: () => Promise.reject(new Error('The server answered 500')),
+    };
+    render(<ReviewPage source={source} today={TODAY} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Finalize the Day' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, Finalize' }));
+
+    expect(await screen.findByText(SERVER_FAILED)).toBeTruthy();
+  });
+
   it('says when Finalize becomes available while the Pooja Window is open', async () => {
     render(
       <ReviewPage
@@ -127,6 +141,34 @@ describe('Review and Finalize, after Finalize', () => {
 
     expect(await screen.findByText(/1 Notification queued/)).toBeTruthy();
     expect(state.sent).toEqual([[TODAY, ['9002']]]);
+  });
+
+  it('says the queued Notifications go out within a few minutes', async () => {
+    render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Send Notifications to 2 Students' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send' }));
+
+    expect(
+      await screen.findByText('2 Notifications queued. Emails go out within a few minutes.'),
+    ).toBeTruthy();
+  });
+
+  it('says so when the server cannot finish Send Notifications, instead of showing nothing', async () => {
+    const source: ReviewSource = {
+      ...fakeSource(finalized).source,
+      send: () => Promise.reject(new Error('The server answered 500')),
+    };
+    render(<ReviewPage source={source} today={TODAY} />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Send Notifications to 2 Students' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send' }));
+
+    expect(await screen.findByText(SERVER_FAILED)).toBeTruthy();
   });
 
   it('shows who is already notified or Excluded and offers no cross for them', async () => {

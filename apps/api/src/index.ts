@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import Fastify from 'fastify';
 import pg from 'pg';
 import { registerDeviceRoutes } from './adapters/device/device-routes.js';
+import { smtpNotifier, smtpSettingsFrom } from './adapters/email/smtp-notifier.js';
 import { registerAuth } from './adapters/http/auth-routes.js';
 import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
@@ -12,6 +13,7 @@ import { argon2Passwords, randomSessionTokens } from './adapters/login/passwords
 import { PostgresDeviceRegistry } from './adapters/postgres/device-registry.js';
 import { PostgresFinalizeRepository } from './adapters/postgres/finalize-repository.js';
 import { PostgresLeaveRepository } from './adapters/postgres/leave-repository.js';
+import { PostgresOutboxRepository } from './adapters/postgres/outbox-repository.js';
 import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js';
 import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
 import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
@@ -27,6 +29,7 @@ import { listStudents } from './use-cases/list-students.js';
 import { logIn, logOut, rectorOfSession } from './use-cases/rector-login.js';
 import { recordPunches } from './use-cases/record-punches.js';
 import type { UploadedPunch } from './use-cases/record-punches.js';
+import { sendDueEmails } from './use-cases/send-due-emails.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl === undefined) {
@@ -35,6 +38,9 @@ if (databaseUrl === undefined) {
 const devicePort = Number(process.env.DEVICE_PORT ?? '8081');
 const pagePort = Number(process.env.PAGE_PORT ?? '3000');
 const secureCookie = process.env.COOKIE_SECURE === 'true';
+// Read before anything starts, so a wrong email setting stops the server at once.
+const smtp = smtpSettingsFrom(process.env);
+const ONE_MINUTE_MS = 60 * 1000;
 
 const db = drizzle(new pg.Pool({ connectionString: databaseUrl }));
 const punches = new PostgresPunchRepository(db);
@@ -102,3 +108,25 @@ registerLeaveRoutes(pageApp, {
 await deviceApp.listen({ port: devicePort, host: '0.0.0.0' });
 // 127.0.0.1 only until deployment, where Caddy adds HTTPS in front of it.
 await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
+
+// Every minute, send the queued emails that are due (FR-9).
+if (smtp === null) {
+  pageApp.log.warn('SMTP_HOST is not set, so emails stay queued. See .env.example.');
+} else {
+  const emailDeps = {
+    outbox: new PostgresOutboxRepository(db),
+    notifier: smtpNotifier(smtp),
+    clock,
+  };
+  const sendEmails = () => {
+    sendDueEmails(emailDeps)
+      .then((summary) => {
+        if (summary.sent + summary.notSent > 0) pageApp.log.info(summary, 'Emails sent');
+      })
+      .catch((error: unknown) => {
+        pageApp.log.error(error, 'Sending emails failed');
+      });
+  };
+  sendEmails();
+  setInterval(sendEmails, ONE_MINUTE_MS);
+}

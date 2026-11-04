@@ -25,6 +25,8 @@ const REFUSALS: Record<string, string> = {
   'not-finalized': 'Finalize the Day before sending Notifications.',
 };
 const refusalText = (reason: string) => REFUSALS[reason] ?? 'Nothing changed. Reload the page.';
+// The server failed part way, so the page cannot know what was saved.
+const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
 
 function Confirm(props: { question: string; yes: string; onYes: () => void; onNo: () => void }) {
   return (
@@ -274,25 +276,31 @@ export function ReviewPage(props: { source: ReviewSource; today: string }) {
     void refresh();
   }, [refresh]);
 
-  const finalize = async () => {
-    const answer = await source.finalize(day);
-    setNote(
-      'outcome' in answer
-        ? `Finalized. ${plural(answer.absent, 'Student')} Absent.`
-        : refusalText(answer.reason),
-    );
+  // Runs one of the Rector's actions and always shows how it ended, even when the server fails.
+  const act = async (action: () => Promise<string>) => {
+    try {
+      setNote(await action());
+    } catch {
+      setNote(SERVER_FAILED);
+    }
     await refresh();
   };
 
-  const send = async (excluded: string[]) => {
-    const answer = await source.send(day, excluded);
-    setNote(
-      'outcome' in answer
-        ? `${plural(answer.queued, 'Notification')} queued. They are emailed once email sending is switched on.`
-        : refusalText(answer.reason),
-    );
-    await refresh();
-  };
+  const finalize = () =>
+    act(async () => {
+      const answer = await source.finalize(day);
+      return 'outcome' in answer
+        ? `Finalized. ${plural(answer.absent, 'Student')} Absent.`
+        : refusalText(answer.reason);
+    });
+
+  const send = (excluded: string[]) =>
+    act(async () => {
+      const answer = await source.send(day, excluded);
+      return 'outcome' in answer
+        ? `${plural(answer.queued, 'Notification')} queued. Emails go out within a few minutes.`
+        : refusalText(answer.reason);
+    });
 
   const finalization = review?.day === day ? review.finalization : null;
   return (

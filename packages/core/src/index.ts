@@ -4,6 +4,8 @@ export type { Day } from './day.js';
 export { isAway, isDueBack, leaveProblem, returnProblem } from './leave.js';
 export type { Leave, LeaveProblem, ReturnProblem } from './leave.js';
 export { studentsToNotify } from './notification.js';
+export { afterFailedSend } from './outbox.js';
+export type { AfterFailedSend } from './outbox.js';
 export type { FinalizedList, StudentStatus } from './notification.js';
 export { PoojaStatus, poojaStatusOf } from './pooja-status.js';
 export type { StudentDay } from './pooja-status.js';
