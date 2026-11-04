@@ -9,7 +9,7 @@
 | 2. The same Punch uploaded twice is stored once | `packages/core/src/punch.test.ts:11`; the unique key on `punches`: `apps/api/src/adapters/postgres/punch-repository.test.ts:59` | |
 | 3. Away for any part of the Pooja Window with no Punch gives Not Applicable, never Absent | `packages/core/src/pooja-status.test.ts:114`, `:118`, `:128` | |
 | 4. In the hostel for the whole Pooja Window with no Punch is only Needs Review until Finalize | `packages/core/src/pooja-status.test.ts:172`, `:182`; Finalize makes Needs Review Absent: `apps/api/src/use-cases/review.test.ts:86` | |
-| 5. A Notification goes only after Finalize, at most once per Student per Day (never to an Excluded Student) | `packages/core/src/notification.test.ts:26`, `:43`, `:51`; refused before Finalize: `apps/api/src/use-cases/review.test.ts:204`; the outbox `dedupe_key`: `apps/api/src/adapters/postgres/finalize-repository.test.ts:114`; the sender takes each email once, even with two runs at once: `apps/api/src/adapters/postgres/outbox-repository.test.ts:65`, `:74` | |
+| 5. A Notification goes only after Finalize, at most once per Student per Day (never to an Excluded Student) | `packages/core/src/notification.test.ts:26`, `:43`, `:51`; refused before Finalize: `apps/api/src/use-cases/review.test.ts:204`; the outbox `dedupe_key`: `apps/api/src/adapters/postgres/finalize-repository.test.ts:114`; the sender takes each email once, even with two runs at once: `apps/api/src/adapters/postgres/outbox-repository.test.ts:66`, `:75` | |
 
 Rules tested: 5 of 5 as pure functions, and the database keys behind rules 2 and 5 against PostgreSQL, including that the outbox sender never takes an email twice.
 

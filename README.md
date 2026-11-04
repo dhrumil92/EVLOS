@@ -6,7 +6,7 @@ IT643 Software Design and Testing term project, DAU.
 
 ## Status
 
-In development, running locally. Phases 0 to 4 are done (see `docs/PHASES.md`): the five rules are written and tested, Punches arrive from the Device and show live, and the Rector can log in, manage Students, record Leaves and Returns, review and Finalize a Day, Exclude Students and Send Notifications. Notifications are emailed through SMTP (Mailpit on this machine for now). The timed emails to the Rector, Report downloads and a real email provider come next (Phase 5), then deployment.
+In development, running locally. Phases 0 to 4 are done (see `docs/PHASES.md`): the five rules are written and tested, Punches arrive from the Device and show live, and the Rector can log in, manage Students, record Leaves and Returns, review and Finalize a Day, Exclude Students and Send Notifications. Notifications are emailed through SMTP (Mailpit on this machine for now). Reports download as CSV, and the Daily Report is emailed at 23:30 IST to the addresses in `REPORT_EMAIL`. The Review Reminder, Monthly Report, Excel and a real email provider come next (Phase 5), then deployment.
 
 ## Live URL
 
