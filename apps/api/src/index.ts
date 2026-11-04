@@ -17,6 +17,7 @@ import { PostgresOutboxRepository } from './adapters/postgres/outbox-repository.
 import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js';
 import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
 import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
+import { ScheduleLoop } from './adapters/scheduler/schedule-loop.js';
 import { addStudent } from './use-cases/add-student.js';
 import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-activate.js';
 import { editStudent } from './use-cases/edit-student.js';
@@ -109,24 +110,30 @@ await deviceApp.listen({ port: devicePort, host: '0.0.0.0' });
 // 127.0.0.1 only until deployment, where Caddy adds HTTPS in front of it.
 await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
 
-// Every minute, send the queued emails that are due (FR-9).
 if (smtp === null) {
   pageApp.log.warn('SMTP_HOST is not set, so emails stay queued. See .env.example.');
-} else {
-  const emailDeps = {
-    outbox: new PostgresOutboxRepository(db),
-    notifier: smtpNotifier(smtp),
-    clock,
-  };
-  const sendEmails = () => {
-    sendDueEmails(emailDeps)
-      .then((summary) => {
-        if (summary.sent + summary.notSent > 0) pageApp.log.info(summary, 'Emails sent');
-      })
-      .catch((error: unknown) => {
-        pageApp.log.error(error, 'Sending emails failed');
-      });
-  };
-  sendEmails();
-  setInterval(sendEmails, ONE_MINUTE_MS);
 }
+const emailDeps = smtp && {
+  outbox: new PostgresOutboxRepository(db),
+  notifier: smtpNotifier(smtp),
+  clock,
+};
+
+// Every minute: queue the scheduled emails that fell due, then send the due emails (FR-9).
+new ScheduleLoop({
+  clock,
+  // The Review Reminder, Daily Report and Monthly Report are built in the next steps of
+  // Phase 5. Until then the loop only records that one is due.
+  queue: (email) => {
+    pageApp.log.info({ kind: email.kind }, 'Scheduled email is due, but not built yet');
+    return Promise.resolve();
+  },
+  sendEmails: async () => {
+    if (emailDeps === null) return;
+    const summary = await sendDueEmails(emailDeps);
+    if (summary.sent + summary.notSent > 0) pageApp.log.info(summary, 'Emails sent');
+  },
+  onError: (error) => {
+    pageApp.log.error(error, 'Schedule run failed');
+  },
+}).start(ONE_MINUTE_MS);

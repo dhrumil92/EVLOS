@@ -6,6 +6,8 @@ export type { Leave, LeaveProblem, ReturnProblem } from './leave.js';
 export { studentsToNotify } from './notification.js';
 export { afterFailedSend } from './outbox.js';
 export type { AfterFailedSend } from './outbox.js';
+export { scheduledEmailsDue } from './schedule.js';
+export type { ScheduledEmail } from './schedule.js';
 export type { FinalizedList, StudentStatus } from './notification.js';
 export { PoojaStatus, poojaStatusOf } from './pooja-status.js';
 export type { StudentDay } from './pooja-status.js';
