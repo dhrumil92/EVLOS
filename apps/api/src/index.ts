@@ -34,6 +34,7 @@ import { recordPunches } from './use-cases/record-punches.js';
 import type { UploadedPunch } from './use-cases/record-punches.js';
 import { sendDueEmails } from './use-cases/send-due-emails.js';
 import { queueDailyReport } from './use-cases/daily-report.js';
+import { queueReviewReminder } from './use-cases/review-reminder.js';
 import type { Report, ReportRequest } from './use-cases/get-report.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -141,11 +142,15 @@ const reportEmailDeps = {
 new ScheduleLoop({
   clock,
   queue: async (email) => {
+    if (email.kind === 'Review Reminder') {
+      await queueReviewReminder(email.day, reportEmailDeps);
+      return;
+    }
     if (email.kind === 'Daily Report') {
       await queueDailyReport(email.day, reportEmailDeps);
       return;
     }
-    // The Review Reminder and Monthly Report come in the next steps of Phase 5.
+    // The Monthly Report comes in the next step of Phase 5.
     pageApp.log.info({ kind: email.kind }, 'Scheduled email is due, but not built yet');
   },
   sendEmails: async () => {

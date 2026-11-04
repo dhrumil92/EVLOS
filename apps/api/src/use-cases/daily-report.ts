@@ -4,6 +4,7 @@ import type { OutboxRepository } from '../ports/outbox-repository.js';
 import { dayInWords } from './day-in-words.js';
 import { getReport } from './get-report.js';
 import type { GetReportDeps, PoojaStatusName, Report, ReportRequest } from './get-report.js';
+import { toEachAddress } from './report-email.js';
 
 export type DailyReportDeps = GetReportDeps & {
   outbox: Pick<OutboxRepository, 'queue'>;
@@ -49,19 +50,12 @@ export async function queueDailyReport(day: Day, deps: DailyReportDeps): Promise
   const request: ReportRequest = { view: 'Day', day };
   const report = await getReport(request, deps);
   if (report === null) return 0;
-  const subject = `Daily Report: ${dayInWords(day)}${report.isFinalized ? '' : ' (Not Finalized)'}`;
-  const body = bodyOf(day, report);
-  const attachment = deps.attachmentOf(request, report);
-  const sendAfter = deps.clock.now();
-  return deps.outbox.queue(
-    deps.reportEmailAddresses.map((recipient) => ({
-      kind: 'Daily Report',
-      recipient,
-      subject,
-      body,
-      attachment,
-      dedupeKey: `Daily Report|${day}|${recipient}`,
-      sendAfter,
-    })),
-  );
+  const email = {
+    kind: 'Daily Report' as const,
+    about: day,
+    subject: `Daily Report: ${dayInWords(day)}${report.isFinalized ? '' : ' (Not Finalized)'}`,
+    body: bodyOf(day, report),
+    attachment: deps.attachmentOf(request, report),
+  };
+  return deps.outbox.queue(toEachAddress(deps.reportEmailAddresses, email, deps.clock.now()));
 }

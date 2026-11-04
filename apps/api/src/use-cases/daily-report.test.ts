@@ -1,11 +1,11 @@
 import type { Punch } from '@evlos/core';
 import { describe, expect, it } from 'vitest';
-import type { OutgoingEmail } from '../ports/outbox-repository.js';
 import type { PunchRepository } from '../ports/punch-repository.js';
 import { addStudent } from './add-student.js';
 import { queueDailyReport } from './daily-report.js';
 import { fakeFinalizeRepository } from './fake-finalize-repository.js';
 import { fakeLeaveRepository } from './fake-leave-repository.js';
+import { fakeOutbox } from './fake-outbox.js';
 import { fakeStudentRepository } from './fake-student-repository.js';
 
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
@@ -23,19 +23,6 @@ function fakePunches(punches: Punch[]): PunchRepository {
     punchesOn: () => Promise.resolve([]),
     punchesBetween: () => Promise.resolve(punches),
   };
-}
-
-// An outbox that, like the real one, queues each dedupe key once.
-function fakeOutbox() {
-  const queued: OutgoingEmail[] = [];
-  const outbox = {
-    queue: (emails: OutgoingEmail[]) => {
-      const fresh = emails.filter((one) => !queued.some((old) => old.dedupeKey === one.dedupeKey));
-      queued.push(...fresh);
-      return Promise.resolve(fresh.length);
-    },
-  };
-  return { outbox, queued };
 }
 
 // Asha punched at 07:00 IST; Bina did not punch and was in the hostel.
