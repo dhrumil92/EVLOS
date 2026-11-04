@@ -3,6 +3,7 @@ import { mailNotifier, smtpSettingsFrom } from './smtp-notifier.js';
 import type { MailMessage } from './smtp-notifier.js';
 
 const FROM = 'EVLOS <evlos@example.com>';
+const EMAIL = { recipient: '9001@example.com', subject: 'Pooja missed', body: 'Body' };
 
 describe('smtpSettingsFrom', () => {
   it('is off when SMTP_HOST is not set, so emails stay queued', () => {
@@ -78,11 +79,28 @@ describe('mailNotifier', () => {
       FROM,
     );
 
-    await notifier.send({ recipient: '9001@example.com', subject: 'Pooja missed', body: 'Body' });
+    await notifier.send({ ...EMAIL, attachment: null });
 
     expect(handed).toEqual([
       { from: FROM, to: '9001@example.com', subject: 'Pooja missed', text: 'Body' },
     ]);
+  });
+
+  it('attaches the file when the email has one', async () => {
+    const handed: MailMessage[] = [];
+    const notifier = mailNotifier(
+      {
+        sendMail: (message) => {
+          handed.push(message);
+          return Promise.resolve();
+        },
+      },
+      FROM,
+    );
+
+    await notifier.send({ ...EMAIL, attachment: { filename: 'Report.csv', content: 'a,b' } });
+
+    expect(handed[0]?.attachments).toEqual([{ filename: 'Report.csv', content: 'a,b' }]);
   });
 
   it('fails when the email provider refuses the email', async () => {
@@ -91,8 +109,8 @@ describe('mailNotifier', () => {
       FROM,
     );
 
-    await expect(
-      notifier.send({ recipient: '9001@example.com', subject: 'Pooja missed', body: 'Body' }),
-    ).rejects.toThrow('Mailbox unavailable');
+    await expect(notifier.send({ ...EMAIL, attachment: null })).rejects.toThrow(
+      'Mailbox unavailable',
+    );
   });
 });

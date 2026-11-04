@@ -13,6 +13,7 @@ const email = (id: number, attempts = 1): TakenEmail => ({
   recipient: `${String(id)}@example.com`,
   subject: 'Pooja missed',
   body: 'You did not punch at Pooja.',
+  attachment: null,
 });
 
 // An outbox holding the given due emails, which records what the use case did with them.
@@ -20,6 +21,7 @@ function fakeOutbox(due: TakenEmail[]) {
   const sent: { id: number; at: Instant }[] = [];
   const notSent: { id: number; next: AfterFailedSend }[] = [];
   const outbox: OutboxRepository = {
+    queue: () => Promise.resolve(0),
     takeDue: () => Promise.resolve(due.splice(0)),
     markSent: (id, at) => {
       sent.push({ id, at });
@@ -75,6 +77,7 @@ describe('sendDueEmails', () => {
         recipient: '1@example.com',
         subject: 'Pooja missed',
         body: 'You did not punch at Pooja.',
+        attachment: null,
       },
     ]);
   });

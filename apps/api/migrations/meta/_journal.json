@@ -50,6 +50,13 @@
       "when": 1793722245822,
       "tag": "0006_create_finalize_and_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793791180012,
+      "tag": "0007_add_outbox_attachment",
+      "breakpoints": true
     }
   ]
 }

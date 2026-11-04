@@ -2,6 +2,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import Fastify from 'fastify';
 import pg from 'pg';
 import { registerDeviceRoutes } from './adapters/device/device-routes.js';
+import { reportEmailAddressesFrom } from './adapters/email/report-email-setting.js';
 import { smtpNotifier, smtpSettingsFrom } from './adapters/email/smtp-notifier.js';
 import { registerAuth } from './adapters/http/auth-routes.js';
 import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
@@ -17,6 +18,7 @@ import { PostgresOutboxRepository } from './adapters/postgres/outbox-repository.
 import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js';
 import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
 import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
+import { csvFileName, reportCsv } from './adapters/report/report-csv.js';
 import { ScheduleLoop } from './adapters/scheduler/schedule-loop.js';
 import { addStudent } from './use-cases/add-student.js';
 import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-activate.js';
@@ -31,6 +33,8 @@ import { logIn, logOut, rectorOfSession } from './use-cases/rector-login.js';
 import { recordPunches } from './use-cases/record-punches.js';
 import type { UploadedPunch } from './use-cases/record-punches.js';
 import { sendDueEmails } from './use-cases/send-due-emails.js';
+import { queueDailyReport } from './use-cases/daily-report.js';
+import type { Report, ReportRequest } from './use-cases/get-report.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl === undefined) {
@@ -41,6 +45,7 @@ const pagePort = Number(process.env.PAGE_PORT ?? '3000');
 const secureCookie = process.env.COOKIE_SECURE === 'true';
 // Read before anything starts, so a wrong email setting stops the server at once.
 const smtp = smtpSettingsFrom(process.env);
+const reportEmailAddresses = reportEmailAddressesFrom(process.env);
 const ONE_MINUTE_MS = 60 * 1000;
 
 const db = drizzle(new pg.Pool({ connectionString: databaseUrl }));
@@ -113,20 +118,35 @@ await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
 if (smtp === null) {
   pageApp.log.warn('SMTP_HOST is not set, so emails stay queued. See .env.example.');
 }
-const emailDeps = smtp && {
-  outbox: new PostgresOutboxRepository(db),
-  notifier: smtpNotifier(smtp),
+if (reportEmailAddresses.length === 0) {
+  pageApp.log.warn('REPORT_EMAIL is not set, so no Report emails are queued. See .env.example.');
+}
+const outbox = new PostgresOutboxRepository(db);
+const emailDeps = smtp && { outbox, notifier: smtpNotifier(smtp), clock };
+const reportEmailDeps = {
+  students,
+  leaves,
+  punches,
+  finalized,
   clock,
+  outbox,
+  reportEmailAddresses,
+  attachmentOf: (request: ReportRequest, report: Report) => ({
+    filename: csvFileName(request),
+    content: reportCsv(report),
+  }),
 };
 
 // Every minute: queue the scheduled emails that fell due, then send the due emails (FR-9).
 new ScheduleLoop({
   clock,
-  // The Review Reminder, Daily Report and Monthly Report are built in the next steps of
-  // Phase 5. Until then the loop only records that one is due.
-  queue: (email) => {
+  queue: async (email) => {
+    if (email.kind === 'Daily Report') {
+      await queueDailyReport(email.day, reportEmailDeps);
+      return;
+    }
+    // The Review Reminder and Monthly Report come in the next steps of Phase 5.
     pageApp.log.info({ kind: email.kind }, 'Scheduled email is due, but not built yet');
-    return Promise.resolve();
   },
   sendEmails: async () => {
     if (emailDeps === null) return;

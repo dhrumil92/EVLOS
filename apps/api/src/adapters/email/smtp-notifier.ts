@@ -16,6 +16,7 @@ export interface MailMessage {
   to: string;
   subject: string;
   text: string;
+  attachments?: { filename: string; content: string }[];
 }
 
 // The one thing EVLOS needs from a mail library. Rejects when the provider refuses the email.
@@ -63,12 +64,10 @@ export function smtpSettingsFrom(env: Record<string, string | undefined>): SmtpS
 export function mailNotifier(transport: MailTransport, from: string): Notifier {
   return {
     async send(email) {
-      await transport.sendMail({
-        from,
-        to: email.recipient,
-        subject: email.subject,
-        text: email.body,
-      });
+      const message = { from, to: email.recipient, subject: email.subject, text: email.body };
+      await transport.sendMail(
+        email.attachment === null ? message : { ...message, attachments: [email.attachment] },
+      );
     },
   };
 }

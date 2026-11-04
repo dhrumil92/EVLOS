@@ -1,11 +1,4 @@
-import {
-  canFinalize,
-  dayOf,
-  daysBetween,
-  PoojaStatus,
-  startOfDay,
-  studentsToNotify,
-} from '@evlos/core';
+import { canFinalize, dayOf, daysBetween, PoojaStatus, studentsToNotify } from '@evlos/core';
 import type { Clock, Day, Instant, Student } from '@evlos/core';
 import type {
   FinalStatus,
@@ -15,6 +8,7 @@ import type {
   PoojaResult,
 } from '../ports/finalize-repository.js';
 import { computedStatus, firstPunchOn, loadEvidence } from './day-evidence.js';
+import { dayInWords } from './day-in-words.js';
 import type { EvidenceDeps } from './day-evidence.js';
 import { daysOf } from './get-report.js';
 
@@ -48,15 +42,6 @@ export type SendResult =
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // How far back the not-Finalized reminder looks.
 const LOOK_BACK_DAYS = 31;
-
-const dayInWords = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Kolkata',
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-const inWords = (day: Day) => dayInWords.format(startOfDay(day) + MS_PER_DAY / 2).replace(',', '');
 
 const shortly = ({ studentId, name, room }: Student): ReviewStudent => ({ studentId, name, room });
 
@@ -148,10 +133,10 @@ function notificationFor(day: Day, student: Student): Notification {
   return {
     studentId: student.studentId,
     recipient: student.email,
-    subject: `Pooja missed on ${inWords(day)}`,
+    subject: `Pooja missed on ${dayInWords(day)}`,
     body:
       `Dear ${student.name},\n\n` +
-      `You did not punch at Pooja on ${inWords(day)}, and you were in the hostel that day.\n` +
+      `You did not punch at Pooja on ${dayInWords(day)}, and you were in the hostel that day.\n` +
       'If you think this is a mistake, please speak to the Rector.\n\n' +
       'EVLOS, hostel Pooja attendance',
   };

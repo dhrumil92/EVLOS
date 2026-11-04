@@ -57,6 +57,7 @@ describe('PostgresOutboxRepository', () => {
         recipient: '9001@example.com',
         subject: 'Pooja missed',
         body: 'You did not punch at Pooja.',
+        attachment: null,
       },
     ]);
     expect((await rows())[0]).toMatchObject({ status: 'sending', attempts: 1 });
@@ -115,6 +116,45 @@ describe('PostgresOutboxRepository', () => {
 
     expect(await repository.takeDue(NOW, 10)).toEqual([]);
     expect((await repository.takeDue(LATER, 10)).map((one) => one.attempts)).toEqual([2]);
+  });
+
+  it('queues an email once for each dedupe key, however often it is asked', async () => {
+    const report = {
+      kind: 'Daily Report' as const,
+      recipient: 'rector@example.com',
+      subject: 'Daily Report',
+      body: 'Present: 1',
+      attachment: null,
+      dedupeKey: 'Daily Report|2026-11-04|rector@example.com',
+      sendAfter: QUEUED_AT,
+    };
+
+    const first = await repository.queue([report]);
+    const second = await repository.queue([report]);
+
+    expect([first, second]).toEqual([1, 0]);
+    expect(await rows()).toHaveLength(1);
+  });
+
+  it('gives back the attachment of a queued email when it is taken', async () => {
+    await repository.queue([
+      {
+        kind: 'Daily Report',
+        recipient: 'rector@example.com',
+        subject: 'Daily Report',
+        body: 'Present: 1',
+        attachment: { filename: 'EVLOS Report 2026-11-04.csv', content: 'Student ID,Name' },
+        dedupeKey: 'Daily Report|2026-11-04|rector@example.com',
+        sendAfter: QUEUED_AT,
+      },
+    ]);
+
+    const [taken] = await repository.takeDue(NOW, 10);
+
+    expect(taken?.attachment).toEqual({
+      filename: 'EVLOS Report 2026-11-04.csv',
+      content: 'Student ID,Name',
+    });
   });
 
   it('never takes an email that was given up', async () => {

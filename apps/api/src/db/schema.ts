@@ -92,6 +92,9 @@ export const outboxEmails = pgTable('outbox_emails', {
   attempts: integer('attempts').notNull().default(0),
   sendAfter: timestamp('send_after', { withTimezone: true }).notNull(),
   sentAt: timestamp('sent_at', { withTimezone: true }),
+  // A file sent with the email, such as the Daily Report as CSV. Null when there is none.
+  attachmentName: text('attachment_name'),
+  attachment: text('attachment'),
 });
 
 // The Rector's login (FR-13). Only an Argon2 hash of the password is kept.
