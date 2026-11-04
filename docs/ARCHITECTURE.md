@@ -3,7 +3,7 @@
 How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Checked against the code on 2026-11-04 (end of Phase 4); anything not built yet is marked with the phase that brings it.
 
 ## Tech stack
-Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Vitest, ESLint, Prettier, GitHub Actions CI. Not yet: the scheduler, email and Excel (Phase 5); Playwright; Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
+Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Mailpit on this machine), Vitest, ESLint, Prettier, GitHub Actions CI. Not yet: the timed jobs of the scheduler, Excel and a real email provider (Phase 5); Playwright; Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
 
 | Layer | Choice | Why |
 |-------|--------|-----|
@@ -50,15 +50,15 @@ apps/api
                    returnLeave, recordLeaves and returnLeaves (many Students),
                    listStudents, getLiveView, getReview, finalizeDay,
                    sendNotifications (which also saves each Exclude), getReport,
-                   loadRoster, createRector, logIn, logOut
+                   sendDueEmails, loadRoster, createRector, logIn, logOut
   ports            Clock (in core), DeviceRegistry, PunchRepository,
                    StudentRepository, LeaveRepository, FinalizeRepository,
-                   RectorRepository, LiveFeed, Passwords, SessionTokens;
-                   Notifier in Phase 5
+                   RectorRepository, LiveFeed, Passwords, SessionTokens,
+                   Notifier, OutboxRepository
   adapters         device (Device protocol parser and routes), postgres (Drizzle),
                    http routes, login (Argon2 and session tokens), roster (CSV
-                   reader for the first load); email (Nodemailer) and scheduler
-                   in Phase 5
+                   reader for the first load), email (Nodemailer over SMTP);
+                   scheduler in Phase 5
 apps/web           React UI for the Rector
 ```
 Dependencies point inward: adapters know about the core, the core knows nothing about adapters. Reports are put together in the `getReport` use case from core rules; the core holds no Report builder of its own.
@@ -75,7 +75,7 @@ Facts are stored; statuses are computed. Only the Rector's decisions are stored 
 | `leaves` | `id` PK, `student_id`, `out_at`, `expected_return_at`, `returned_at` null, `cancelled_at` null | Open while `returned_at` and `cancelled_at` are null. Away and Due Back are derived. |
 | `day_finalizations` | `day` PK, finalized by, finalized at | Locks a Day. |
 | `pooja_results` | `day`, `student_id` PK; status, first punch time, `excluded_at` null | Written at Finalize only. Before Finalize the status is computed on read. `excluded_at` is set when the Rector Excludes an Absent Student. |
-| `outbox_emails` | kind, recipient, subject, body, `dedupe_key` unique, status, attempts, `send_after`, `sent_at` | Kinds: Notification, Review Reminder, Daily Report, Monthly Report. Only Notification rows are written so far; nothing sends them until Phase 5. |
+| `outbox_emails` | kind, recipient, subject, body, `dedupe_key` unique, status, attempts, `send_after`, `sent_at` | Kinds: Notification, Review Reminder, Daily Report, Monthly Report. Only Notification rows are written so far. `status` goes queued -> sending -> sent; a refused email goes back to queued for a retry, or to failed after the third refusal. |
 | `rectors`, `rector_sessions` | email, Argon2 password hash; SHA-256 hash of the session token, expiry | One Rector account at first, made with `npm run rector:create`. Named after the glossary, not "users". |
 | `audit_log` | `action`, `student_id` (empty for a Day action), `done_at`, `done_by` | Rows are only added. Actions: Leave, Edit Leave, Cancel Leave, Return, Finalize, Exclude, Send Notifications, Deactivate, Activate. |
 
@@ -90,10 +90,10 @@ Dates are stored as timestamptz in UTC and converted with an explicit Asia/Kolka
 
 **Finalize.** Available only after the Pooja Window closes (18:00 IST). The Rector reviews Needs Review and clicks Finalize -> in one transaction: write `pooja_results` (each Needs Review becomes Absent), write `day_finalizations`, write the audit row. No email is queued. A Finalized Day cannot be reopened (PRD open question 4).
 
-**Exclude and Send Notifications.** The Review page shows the Absent Students with a cross each. The Rector Excludes some and clicks Send Notifications -> in one transaction: set `excluded_at` for the Excluded Students, insert one Notification per remaining Absent Student into `outbox_emails` with a `dedupe_key` of kind, Day and Student, and write the audit rows. A second click finds the keys already present and queues nothing.
+**Exclude and Send Notifications.** The Review page shows the Absent Students with a cross each. The Rector Excludes some and clicks Send Notifications -> in one transaction: set `excluded_at` for the Excluded Students, insert one Notification per remaining Absent Student into `outbox_emails` with a `dedupe_key` of kind, Day and Student, and write the audit rows. A second click finds the keys already present and queues nothing. The Review page then shows each Notification as queued, sent or not sent.
 
 **Scheduler (Phase 5).** An in-process loop in Asia/Kolkata:
-- every minute: send due rows from `outbox_emails`, mark sent or failed, retry failures a few times;
+- every minute (built): take the due rows from `outbox_emails` and mark each as being sent before handing it to the email provider, so none is sent twice; mark it sent, or queue it again 5 minutes later, or mark it failed after the third refusal;
 - 23:00: Review Reminder if the Day is not Finalized and Needs Review Students exist;
 - 23:30: Daily Report to the Rector, marked Not Finalized where the Day is not Finalized;
 - 09:00 on the 1st: Monthly Report for the previous month.

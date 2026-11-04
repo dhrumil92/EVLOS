@@ -6,7 +6,7 @@ IT643 Software Design and Testing term project, DAU.
 
 ## Status
 
-In development, running locally. Phases 0 to 4 are done (see `docs/PHASES.md`): the five rules are written and tested, Punches arrive from the Device and show live, and the Rector can log in, manage Students, record Leaves and Returns, review and Finalize a Day, Exclude Students and Send Notifications. Notifications are queued but not yet emailed; emails and Report downloads come next (Phase 5), then deployment.
+In development, running locally. Phases 0 to 4 are done (see `docs/PHASES.md`): the five rules are written and tested, Punches arrive from the Device and show live, and the Rector can log in, manage Students, record Leaves and Returns, review and Finalize a Day, Exclude Students and Send Notifications. Notifications are emailed through SMTP (Mailpit on this machine for now). The timed emails to the Rector, Report downloads and a real email provider come next (Phase 5), then deployment.
 
 ## Live URL
 
@@ -26,7 +26,7 @@ npm run db:setup            # creates the tables in evlos and evlos_test
 npm test
 ```
 
-To start the app, use two terminals. Run `npm run dev` in one (the server for the Device and the page) and `npm run dev:web` in the other, then open http://localhost:5173. To log in, first create the Rector's account with `npm run rector:create -- <email>`. The Device's Cloud server setting must point at this machine's address and `DEVICE_PORT`, and its Device Serial must be in the `devices` table.
+To start the app, use two terminals. Run `npm run dev` in one (the server for the Device and the page) and `npm run dev:web` in the other, then open http://localhost:5173. To log in, first create the Rector's account with `npm run rector:create -- <email>`. To see the emails, run Mailpit (https://github.com/axllent/mailpit) and open http://localhost:8025; with the email settings from `.env.example`, every email lands there and none reaches a real inbox. The Device's Cloud server setting must point at this machine's address and `DEVICE_PORT`, and its Device Serial must be in the `devices` table.
 
 ## The five rules the product enforces
 
