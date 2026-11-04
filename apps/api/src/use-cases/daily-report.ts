@@ -3,8 +3,8 @@ import type { Attachment } from '../ports/notifier.js';
 import type { OutboxRepository } from '../ports/outbox-repository.js';
 import { dayInWords } from './day-in-words.js';
 import { getReport } from './get-report.js';
-import type { GetReportDeps, PoojaStatusName, Report, ReportRequest } from './get-report.js';
-import { toEachAddress } from './report-email.js';
+import type { GetReportDeps, Report, ReportRequest } from './get-report.js';
+import { statusCounts, toEachAddress } from './report-email.js';
 
 export type DailyReportDeps = GetReportDeps & {
   outbox: Pick<OutboxRepository, 'queue'>;
@@ -12,20 +12,8 @@ export type DailyReportDeps = GetReportDeps & {
   attachmentOf(request: ReportRequest, report: Report): Attachment;
 };
 
-// The order the counts are written in. A Pooja Status no Student has is left out.
-const COUNTED: PoojaStatusName[] = [
-  'Present',
-  'Absent',
-  'Needs Review',
-  'Pending',
-  'Not Applicable',
-];
-
 function countsOf(report: Report): string {
-  const lines = COUNTED.flatMap((name) => {
-    const count = report.rows.filter((row) => row.statuses[0] === name).length;
-    return count === 0 ? [] : [`${name}: ${String(count)}`];
-  });
+  const lines = statusCounts(report);
   return lines.length === 0 ? 'No Student was Active on this Day.' : lines.join('\n');
 }
 
