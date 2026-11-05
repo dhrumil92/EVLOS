@@ -3,7 +3,7 @@
 How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Checked against the code on 2026-11-04 (end of Phase 4); anything not built yet is marked with the phase that brings it.
 
 ## Tech stack
-Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Gmail with an app password; Mailpit for local tests), Vitest, ESLint, Prettier, GitHub Actions CI. Not yet: Excel (Phase 5); Playwright; Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
+Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Gmail with an app password; Mailpit for local tests), write-excel-file for Excel Reports, Vitest, ESLint, Prettier, GitHub Actions CI. Not yet: Playwright; Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
 
 | Layer | Choice | Why |
 |-------|--------|-----|
@@ -15,7 +15,7 @@ Status: a choice is confirmed once it is used in the repo; versions are pinned e
 | Live updates | Server-Sent Events | One-way push of new Punches; simpler than WebSockets. |
 | Scheduler | In-process loop in Asia/Kolkata plus the `outbox_emails` table | Enough at this scale and easy to explain. |
 | Email | Nodemailer through an SMTP provider on port 587: Gmail with an app password (chosen 4 Nov; about 500 emails a day), Mailpit on this machine for tests. `npm run email:test` checks the settings. | GCP blocks outbound port 25, and mail sent straight from a VM IP usually lands in spam. Any SMTP provider can replace Gmail through `.env` alone. |
-| Reports | CSV by hand; Excel with a library such as ExcelJS | Needed for FR-11. |
+| Reports | CSV by hand; Excel with `write-excel-file` (one dependency; `read-excel-file` only in tests, to read the file back) | Needed for FR-11. ExcelJS was set aside: no release since 2023 and many dependencies. |
 | Auth | Session cookies, Argon2 password hashing | No hand-rolled crypto. |
 | Tests | Vitest, Fastify `inject`, a real PostgreSQL test database for repository tests, Playwright for one or two flows | Rules are pure and fast to test; see `TESTING.md`. |
 | Quality | ESLint with the `complexity` rule on, Prettier, strict TypeScript | The course measures complexity. |
@@ -101,7 +101,7 @@ Dates are stored as timestamptz in UTC and converted with an explicit Asia/Kolka
 - 09:00 on the 1st (built): Monthly Report for the previous month, one email for each address in `REPORT_EMAIL`, with every Pooja Status of the month counted, the Days not Finalized named, and the month's CSV attached. Its `dedupe_key` is kind, month and address.
 Each job writes a row with a `dedupe_key`, so running twice does not send twice.
 
-**Report.** Built by the `getReport` use case from stored data for a Day, month or date range: a Finalized Day is read from `pooja_results`, any other Day is worked out from Punches and Leaves. Shown on the Reports page and downloaded as CSV from `GET /api/reports/csv`: one row per Student, one column per Day, Not Applicable as "-", and a Day not Finalized marked in its heading. Excel comes later in Phase 5. The monthly grid (Students by Days) is an export format, not the storage format.
+**Report.** Built by the `getReport` use case from stored data for a Day, month or date range: a Finalized Day is read from `pooja_results`, any other Day is worked out from Punches and Leaves. Shown on the Reports page and downloaded as CSV from `GET /api/reports/csv` or as Excel from `GET /api/reports/xlsx`: one row per Student, one column per Day, Not Applicable as "-", and a Day not Finalized marked in its heading. Both files are built from one shared table (`report-table.ts`), so they always hold the same cells; the Excel file stores every cell as text, so a Student ID keeps its leading zeros and no cell can run as a formula. Report emails attach the CSV. The monthly grid (Students by Days) is an export format, not the storage format.
 
 **First load.** `npm run students:load -- <file.csv>` reads the Rector's list (Student IDs, names, rooms, emails), saved from Excel as "CSV UTF-8" with the columns of `sample-roster.csv`. It checks every row like the form and reports problems by line; with `--save` it adds every Student in one transaction, or none. Real data stays out of the repo.
 
