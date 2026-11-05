@@ -1,4 +1,16 @@
-import { date, integer, pgTable, primaryKey, text, timestamp, unique } from 'drizzle-orm/pg-core';
+import {
+  customType,
+  date,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core';
+
+// PostgreSQL's column for raw bytes, such as an Excel file. Drizzle has no built-in one.
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
 
 // Registered Devices. An upload from a Device Serial not listed here is refused (FR-2).
 export const devices = pgTable('devices', {
@@ -92,10 +104,22 @@ export const outboxEmails = pgTable('outbox_emails', {
   attempts: integer('attempts').notNull().default(0),
   sendAfter: timestamp('send_after', { withTimezone: true }).notNull(),
   sentAt: timestamp('sent_at', { withTimezone: true }),
-  // A file sent with the email, such as the Daily Report as CSV. Null when there is none.
-  attachmentName: text('attachment_name'),
-  attachment: text('attachment'),
 });
+
+// The files sent with an outbox email, such as the Daily Report as Excel and as CSV, in the
+// order given by position. Kept as bytes, since an Excel file is not text.
+export const outboxAttachments = pgTable(
+  'outbox_attachments',
+  {
+    outboxEmailId: integer('outbox_email_id')
+      .notNull()
+      .references(() => outboxEmails.id),
+    position: integer('position').notNull(),
+    fileName: text('file_name').notNull(),
+    content: bytea('content').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.outboxEmailId, table.position] })],
+);
 
 // The Rector's login (FR-13). Only an Argon2 hash of the password is kept.
 export const rectors = pgTable('rectors', {

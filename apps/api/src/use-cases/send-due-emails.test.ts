@@ -13,7 +13,7 @@ const email = (id: number, attempts = 1): TakenEmail => ({
   recipient: `${String(id)}@example.com`,
   subject: 'Pooja missed',
   body: 'You did not punch at Pooja.',
-  attachment: null,
+  attachments: [],
 });
 
 // An outbox holding the given due emails, which records what the use case did with them.
@@ -77,7 +77,7 @@ describe('sendDueEmails', () => {
         recipient: '1@example.com',
         subject: 'Pooja missed',
         body: 'You did not punch at Pooja.',
-        attachment: null,
+        attachments: [],
       },
     ]);
   });

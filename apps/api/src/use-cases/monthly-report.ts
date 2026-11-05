@@ -5,7 +5,7 @@ import { getReport } from './get-report.js';
 import type { Report, ReportRequest } from './get-report.js';
 import { statusCounts, toEachAddress } from './report-email.js';
 
-// The same addresses, outbox and attachment as the Daily Report.
+// The same addresses, outbox and attachments as the Daily Report.
 export type MonthlyReportDeps = DailyReportDeps;
 
 // The Days of the month not Finalized on which some Student was Active. A Day before any
@@ -36,14 +36,15 @@ function bodyOf(month: string, report: Report): string {
       ? 'No Student was Active in the month.'
       : ['Pooja Statuses in the month, one for each Student on each Day:', ...counts].join('\n'),
     finalizedLine(report),
-    'The full Report is attached as a CSV file, one row per Student and one column per Day.',
+    'The full Report is attached as an Excel file, with each Pooja Status in colour, and as a ' +
+      'CSV file, one row per Student and one column per Day.',
     'EVLOS, hostel Pooja attendance',
   ].join('\n\n');
 }
 
 // The Monthly Report (FR-12): queued at 09:00 IST on the 1st for the previous month, for each
-// address in REPORT_EMAIL, with the month's Report attached. Queued once per month and
-// address, so running it again queues nothing. Returns how many were queued.
+// address in REPORT_EMAIL, with the month's Report attached as Excel and CSV. Queued once per
+// month and address, so running it again queues nothing. Returns how many were queued.
 export async function queueMonthlyReport(month: string, deps: MonthlyReportDeps): Promise<number> {
   if (deps.reportEmailAddresses.length === 0) return 0;
   const request: ReportRequest = { view: 'Month', month };
@@ -54,7 +55,7 @@ export async function queueMonthlyReport(month: string, deps: MonthlyReportDeps)
     about: month,
     subject: `Monthly Report: ${monthInWords(month)}`,
     body: bodyOf(month, report),
-    attachment: deps.attachmentOf(request, report),
+    attachments: await deps.attachmentsOf(request, report),
   };
   return deps.outbox.queue(toEachAddress(deps.reportEmailAddresses, email, deps.clock.now()));
 }

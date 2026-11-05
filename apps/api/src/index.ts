@@ -20,6 +20,7 @@ import { PostgresRectorRepository } from './adapters/postgres/rector-repository.
 import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
 import { reportCsv } from './adapters/report/report-csv.js';
 import { reportFileName } from './adapters/report/report-table.js';
+import { reportXlsx } from './adapters/report/report-xlsx.js';
 import { ScheduleLoop } from './adapters/scheduler/schedule-loop.js';
 import { addStudent } from './use-cases/add-student.js';
 import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-activate.js';
@@ -134,10 +135,11 @@ const reportEmailDeps = {
   clock,
   outbox,
   reportEmailAddresses,
-  attachmentOf: (request: ReportRequest, report: Report) => ({
-    filename: reportFileName(request, 'csv', null),
-    content: reportCsv(report),
-  }),
+  // The full Report, as the coloured Excel file first, then the plain CSV.
+  attachmentsOf: async (request: ReportRequest, report: Report) => [
+    { filename: reportFileName(request, 'xlsx', null), content: await reportXlsx(report) },
+    { filename: reportFileName(request, 'csv', null), content: Buffer.from(reportCsv(report)) },
+  ],
 };
 
 // Every minute: queue the scheduled emails that fell due, then send the due emails (FR-9).

@@ -1,14 +1,16 @@
-// A file sent with an email, such as the Daily Report as CSV.
+// A file sent with an email, such as the Daily Report as Excel or CSV. The content is the
+// file's bytes, so a binary Excel file and a text CSV are handled the same way.
 export interface Attachment {
   filename: string;
-  content: string;
+  content: Buffer;
 }
 
 export interface Email {
   recipient: string;
   subject: string;
   body: string;
-  attachment: Attachment | null;
+  // In the order they are shown; empty when there is none.
+  attachments: Attachment[];
 }
 
 // Hands one email to the email provider. Throws when the provider refuses it.

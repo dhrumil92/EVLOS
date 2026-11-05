@@ -39,10 +39,14 @@ async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
     clock: { now: () => NOW },
     outbox,
     reportEmailAddresses,
-    attachmentOf: (request: { view: string }, report: { rows: unknown[] }) => ({
-      filename: `${request.view} Report.csv`,
-      content: `${String(report.rows.length)} rows`,
-    }),
+    attachmentsOf: (request: { view: string }, report: { rows: unknown[] }) =>
+      Promise.resolve([
+        { filename: `${request.view} Report.xlsx`, content: Buffer.from('xlsx') },
+        {
+          filename: `${request.view} Report.csv`,
+          content: Buffer.from(`${String(report.rows.length)} rows`),
+        },
+      ]),
   };
   for (const [studentId, name, room] of [
     ['9001', 'Asha Rao', '101'],
@@ -57,7 +61,7 @@ async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
 }
 
 describe('queueDailyReport', () => {
-  it('queues the Daily Report for each address in REPORT_EMAIL, with the Report attached', async () => {
+  it('queues the Daily Report for each address in REPORT_EMAIL, with the Report attached as Excel and CSV', async () => {
     const { deps, queued } = await setUp();
 
     const count = await queueDailyReport(DAY, deps);
@@ -67,7 +71,10 @@ describe('queueDailyReport', () => {
       ['Daily Report', 'rector@example.com', `Daily Report|${DAY}|rector@example.com`, NOW],
       ['Daily Report', 'office@example.com', `Daily Report|${DAY}|office@example.com`, NOW],
     ]);
-    expect(queued[0]?.attachment).toEqual({ filename: 'Day Report.csv', content: '2 rows' });
+    expect(queued[0]?.attachments).toEqual([
+      { filename: 'Day Report.xlsx', content: Buffer.from('xlsx') },
+      { filename: 'Day Report.csv', content: Buffer.from('2 rows') },
+    ]);
   });
 
   it('counts Needs Review and says the Day is not Finalized, before Finalize', async () => {
@@ -81,7 +88,8 @@ describe('queueDailyReport', () => {
         'Present: 1\n' +
         'Needs Review: 1\n\n' +
         'This Day is not Finalized yet, so a Student with no Punch shows Needs Review, not Absent.\n\n' +
-        'The full Report is attached as a CSV file.\n\n' +
+        'The full Report is attached as an Excel file, with each Pooja Status in colour, ' +
+        'and as a CSV file.\n\n' +
         'EVLOS, hostel Pooja attendance',
     );
   });

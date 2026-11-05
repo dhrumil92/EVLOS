@@ -44,10 +44,11 @@ async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
     clock: { now: () => NOW },
     outbox,
     reportEmailAddresses,
-    attachmentOf: (request: object) => ({
-      filename: JSON.stringify(request),
-      content: 'csv',
-    }),
+    attachmentsOf: (request: object) =>
+      Promise.resolve([
+        { filename: `${JSON.stringify(request)}.xlsx`, content: Buffer.from('xlsx') },
+        { filename: `${JSON.stringify(request)}.csv`, content: Buffer.from('csv') },
+      ]),
   };
   for (const [studentId, name, room] of [
     ['9001', 'Asha Rao', '101'],
@@ -71,7 +72,7 @@ async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
 }
 
 describe('queueMonthlyReport', () => {
-  it('queues the month for each address in REPORT_EMAIL, with its Report attached', async () => {
+  it('queues the month for each address in REPORT_EMAIL, with its Report attached as Excel and CSV', async () => {
     const { deps, queued } = await setUp();
 
     const count = await queueMonthlyReport(MONTH, deps);
@@ -82,10 +83,10 @@ describe('queueMonthlyReport', () => {
       ['Monthly Report', 'office@example.com', `Monthly Report|${MONTH}|office@example.com`, NOW],
     ]);
     expect(queued[0]?.subject).toBe('Monthly Report: November 2026');
-    expect(queued[0]?.attachment).toEqual({
-      filename: '{"view":"Month","month":"2026-11"}',
-      content: 'csv',
-    });
+    expect(queued[0]?.attachments).toEqual([
+      { filename: '{"view":"Month","month":"2026-11"}.xlsx', content: Buffer.from('xlsx') },
+      { filename: '{"view":"Month","month":"2026-11"}.csv', content: Buffer.from('csv') },
+    ]);
   });
 
   it('counts every Pooja Status of the month and names the Days not Finalized', async () => {
@@ -101,7 +102,8 @@ describe('queueMonthlyReport', () => {
         'Needs Review: 1\n\n' +
         'Not Finalized: 2026-11-30. On a Day that is not Finalized, a Student with no Punch ' +
         'shows Needs Review, not Absent.\n\n' +
-        'The full Report is attached as a CSV file, one row per Student and one column per Day.\n\n' +
+        'The full Report is attached as an Excel file, with each Pooja Status in colour, and as a ' +
+        'CSV file, one row per Student and one column per Day.\n\n' +
         'EVLOS, hostel Pooja attendance',
     );
   });

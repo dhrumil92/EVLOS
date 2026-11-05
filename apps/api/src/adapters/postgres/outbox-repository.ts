@@ -1,36 +1,55 @@
 import type { AfterFailedSend, Instant } from '@evlos/core';
-import { and, asc, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { outboxEmails } from '../../db/schema.js';
+import { outboxAttachments, outboxEmails } from '../../db/schema.js';
+import type { Attachment } from '../../ports/notifier.js';
 import type { OutboxRepository, OutgoingEmail, TakenEmail } from '../../ports/outbox-repository.js';
 
 // queued -> sending -> sent, or back to queued for a retry, or failed for good. A row left
 // in sending by a crash is never taken again, so its email is never sent twice (rule 5).
 const isTaken = (id: number) => and(eq(outboxEmails.id, id), eq(outboxEmails.status, 'sending'));
 
+// The rows that keep one queued email's attachments, numbered in their order.
+const attachmentRows = (outboxEmailId: number, email: OutgoingEmail | undefined) =>
+  (email?.attachments ?? []).map((file, position) => ({
+    outboxEmailId,
+    position,
+    fileName: file.filename,
+    content: file.content,
+  }));
+
 export class PostgresOutboxRepository implements OutboxRepository {
   constructor(private readonly db: NodePgDatabase) {}
 
+  // The email and its attachments are saved together, or not at all.
   async queue(emails: OutgoingEmail[]): Promise<number> {
     if (emails.length === 0) return 0;
-    const queued = await this.db
-      .insert(outboxEmails)
-      .values(
-        emails.map((email) => ({
-          kind: email.kind,
-          recipient: email.recipient,
-          subject: email.subject,
-          body: email.body,
-          attachmentName: email.attachment?.filename ?? null,
-          attachment: email.attachment?.content ?? null,
-          dedupeKey: email.dedupeKey,
-          sendAfter: new Date(email.sendAfter),
-        })),
-      )
-      // The unique dedupe key turns a second request for the same email into nothing.
-      .onConflictDoNothing()
-      .returning({ id: outboxEmails.id });
-    return queued.length;
+    return this.db.transaction(async (tx) => {
+      const queued = await tx
+        .insert(outboxEmails)
+        .values(
+          emails.map((email) => ({
+            kind: email.kind,
+            recipient: email.recipient,
+            subject: email.subject,
+            body: email.body,
+            dedupeKey: email.dedupeKey,
+            sendAfter: new Date(email.sendAfter),
+          })),
+        )
+        // The unique dedupe key turns a second request for the same email into nothing, so
+        // its attachments are not saved a second time either.
+        .onConflictDoNothing()
+        .returning({ id: outboxEmails.id, dedupeKey: outboxEmails.dedupeKey });
+      const files = queued.flatMap(({ id, dedupeKey }) =>
+        attachmentRows(
+          id,
+          emails.find((email) => email.dedupeKey === dedupeKey),
+        ),
+      );
+      if (files.length > 0) await tx.insert(outboxAttachments).values(files);
+      return queued.length;
+    });
   }
 
   async takeDue(now: Instant, limit: number): Promise<TakenEmail[]> {
@@ -65,18 +84,28 @@ export class PostgresOutboxRepository implements OutboxRepository {
         recipient: outboxEmails.recipient,
         subject: outboxEmails.subject,
         body: outboxEmails.body,
-        attachmentName: outboxEmails.attachmentName,
-        attachment: outboxEmails.attachment,
       });
+    const files = await this.attachmentsOf(taken.map((email) => email.id));
     return taken
       .sort((first, second) => first.id - second.id)
-      .map(({ attachmentName, attachment, ...email }) => ({
-        ...email,
-        attachment:
-          attachmentName === null || attachment === null
-            ? null
-            : { filename: attachmentName, content: attachment },
-      }));
+      .map((email) => ({ ...email, attachments: files.get(email.id) ?? [] }));
+  }
+
+  // The attachments of the given emails, by email id, each list in position order.
+  private async attachmentsOf(ids: number[]): Promise<Map<number, Attachment[]>> {
+    const byEmail = new Map<number, Attachment[]>();
+    if (ids.length === 0) return byEmail;
+    const files = await this.db
+      .select()
+      .from(outboxAttachments)
+      .where(inArray(outboxAttachments.outboxEmailId, ids))
+      .orderBy(asc(outboxAttachments.outboxEmailId), asc(outboxAttachments.position));
+    for (const file of files) {
+      const list = byEmail.get(file.outboxEmailId) ?? [];
+      list.push({ filename: file.fileName, content: file.content });
+      byEmail.set(file.outboxEmailId, list);
+    }
+    return byEmail;
   }
 
   async markSent(id: number, at: Instant): Promise<void> {

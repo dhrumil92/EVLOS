@@ -16,7 +16,7 @@ export interface MailMessage {
   to: string;
   subject: string;
   text: string;
-  attachments?: { filename: string; content: string }[];
+  attachments?: { filename: string; content: Buffer }[];
 }
 
 // The one thing EVLOS needs from a mail library. Rejects when the provider refuses the email.
@@ -66,7 +66,7 @@ export function mailNotifier(transport: MailTransport, from: string): Notifier {
     async send(email) {
       const message = { from, to: email.recipient, subject: email.subject, text: email.body };
       await transport.sendMail(
-        email.attachment === null ? message : { ...message, attachments: [email.attachment] },
+        email.attachments.length === 0 ? message : { ...message, attachments: email.attachments },
       );
     },
   };

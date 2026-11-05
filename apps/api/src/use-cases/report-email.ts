@@ -28,7 +28,7 @@ export interface ReportEmail {
   about: string;
   subject: string;
   body: string;
-  attachment: Attachment | null;
+  attachments: Attachment[];
 }
 
 // One copy of an email for each address in REPORT_EMAIL. The dedupe key is the kind, what

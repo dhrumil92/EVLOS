@@ -14,8 +14,8 @@
 | **Active** | A Student who currently lives in the hostel. Only Active Students are listed and given a Pooja Status. A Student is Active from the Day he is added until he is Deactivated, and again after he is Activated. | current, enrolled | `packages/core/src/student.ts:25` |
 | **Deactivate** | The Rector's act of recording that a Student has left the hostel, using the Danger zone button in his settings. Takes effect today: he is no longer listed or evaluated. Finalized Days never change; his Punches, Leaves and Reports stay. | delete, remove, archive | `apps/api/src/use-cases/deactivate-and-activate.ts:19` |
 | **Activate** | The Rector's act of reversing a Deactivate, from today. The Days in between are not evaluated. | restore, undelete | `apps/api/src/use-cases/deactivate-and-activate.ts:33` |
-| **Device** | The fingerprint terminal that reads fingerprints and uploads Punches. The Rector registers each Student's fingerprint on it by hand. | machine, terminal, biometric | `apps/api/src/db/schema.ts:4` |
-| **Device Serial** | The serial number a Device sends with every upload. Only a registered Device Serial is accepted; an upload from any other is refused. Not a Student identifier. | device ID, machine number | `apps/api/src/db/schema.ts:5` |
+| **Device** | The fingerprint terminal that reads fingerprints and uploads Punches. The Rector registers each Student's fingerprint on it by hand. | machine, terminal, biometric | `apps/api/src/db/schema.ts:16` |
+| **Device Serial** | The serial number a Device sends with every upload. Only a registered Device Serial is accepted; an upload from any other is refused. Not a Student identifier. | device ID, machine number | `apps/api/src/db/schema.ts:17` |
 | **Student ID** | The number the Rector registers on the Device together with a Student's fingerprint. The only identifier of a Student, used in the form, Punches, Leaves and Reports. Never reused. | roll number, biometric ID, user ID, PIN, enroll number, serial number | `packages/core/src/punch.ts:4` |
 | **Punch** | One fingerprint scan uploaded by a Device: a Student ID plus a timestamp. A fact that never changes. | log, scan, swipe, entry, attendance record | `packages/core/src/punch.ts:3` |
 | **Pooja** | The daily worship Students are expected to attend. Evidenced only by a Punch inside the Pooja Window. | prayer, session, event | n/a (domain word) |
@@ -44,8 +44,8 @@
 | **Notification** | The email to a Student about an Absent. Sent only after Finalize and Send Notifications, never to an Excluded Student, at most once per Student per Day. | alert, message | `apps/api/src/ports/finalize-repository.ts:19` |
 | **Review Reminder** | The 23:00 IST email to the Rector listing Students on Needs Review, sent only if the Day is not Finalized and such Students exist. | alert, nag | `apps/api/src/use-cases/review-reminder.ts:36` |
 | **Report** | A table of Pooja Statuses for a Day, a month, or a date range, downloadable as CSV or Excel. A Day that is not Finalized is marked Not Finalized and shows Needs Review, never Absent. | export, sheet, register | `apps/api/src/use-cases/get-report.ts:29` |
-| **Daily Report** | The Report for one Day, emailed to the Rector at 23:30 IST whether or not the Day is Finalized. | night mail | `apps/api/src/use-cases/daily-report.ts:36` |
-| **Monthly Report** | The Report for the previous month, emailed to the Rector at 09:00 IST on the 1st. | month-end mail | `apps/api/src/use-cases/monthly-report.ts:47` |
+| **Daily Report** | The Report for one Day, emailed to the Rector at 23:30 IST whether or not the Day is Finalized. | night mail | `apps/api/src/use-cases/daily-report.ts:37` |
+| **Monthly Report** | The Report for the previous month, emailed to the Rector at 09:00 IST on the 1st. | month-end mail | `apps/api/src/use-cases/monthly-report.ts:48` |
 
 ## Flagged ambiguities
 

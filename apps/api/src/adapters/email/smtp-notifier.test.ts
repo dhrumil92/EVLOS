@@ -79,14 +79,14 @@ describe('mailNotifier', () => {
       FROM,
     );
 
-    await notifier.send({ ...EMAIL, attachment: null });
+    await notifier.send({ ...EMAIL, attachments: [] });
 
     expect(handed).toEqual([
       { from: FROM, to: '9001@example.com', subject: 'Pooja missed', text: 'Body' },
     ]);
   });
 
-  it('attaches the file when the email has one', async () => {
+  it('attaches every file the email has, in order', async () => {
     const handed: MailMessage[] = [];
     const notifier = mailNotifier(
       {
@@ -98,9 +98,14 @@ describe('mailNotifier', () => {
       FROM,
     );
 
-    await notifier.send({ ...EMAIL, attachment: { filename: 'Report.csv', content: 'a,b' } });
+    const attachments = [
+      { filename: 'Report.xlsx', content: Buffer.from([0x50, 0x4b, 0x03, 0x04]) },
+      { filename: 'Report.csv', content: Buffer.from('a,b') },
+    ];
 
-    expect(handed[0]?.attachments).toEqual([{ filename: 'Report.csv', content: 'a,b' }]);
+    await notifier.send({ ...EMAIL, attachments });
+
+    expect(handed[0]?.attachments).toEqual(attachments);
   });
 
   it('fails when the email provider refuses the email', async () => {
@@ -109,7 +114,7 @@ describe('mailNotifier', () => {
       FROM,
     );
 
-    await expect(notifier.send({ ...EMAIL, attachment: null })).rejects.toThrow(
+    await expect(notifier.send({ ...EMAIL, attachments: [] })).rejects.toThrow(
       'Mailbox unavailable',
     );
   });

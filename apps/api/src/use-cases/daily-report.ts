@@ -9,7 +9,8 @@ import { statusCounts, toEachAddress } from './report-email.js';
 export type DailyReportDeps = GetReportDeps & {
   outbox: Pick<OutboxRepository, 'queue'>;
   reportEmailAddresses: readonly string[];
-  attachmentOf(request: ReportRequest, report: Report): Attachment;
+  // The Report as files to attach: the coloured Excel file first, then the plain CSV.
+  attachmentsOf(request: ReportRequest, report: Report): Promise<Attachment[]>;
 };
 
 function countsOf(report: Report): string {
@@ -25,14 +26,14 @@ function bodyOf(day: Day, report: Report): string {
     `Daily Report for ${dayInWords(day)}.`,
     countsOf(report),
     ...notFinalized,
-    'The full Report is attached as a CSV file.',
+    'The full Report is attached as an Excel file, with each Pooja Status in colour, and as a CSV file.',
     'EVLOS, hostel Pooja attendance',
   ].join('\n\n');
 }
 
 // The Daily Report (FR-11): queued at 23:30 IST for each address in REPORT_EMAIL, whether or
-// not the Day is Finalized, with the Day's Report attached. Queued once per Day and address,
-// so running it again queues nothing. Returns how many were queued.
+// not the Day is Finalized, with the Day's Report attached as Excel and CSV. Queued once per
+// Day and address, so running it again queues nothing. Returns how many were queued.
 export async function queueDailyReport(day: Day, deps: DailyReportDeps): Promise<number> {
   if (deps.reportEmailAddresses.length === 0) return 0;
   const request: ReportRequest = { view: 'Day', day };
@@ -43,7 +44,7 @@ export async function queueDailyReport(day: Day, deps: DailyReportDeps): Promise
     about: day,
     subject: `Daily Report: ${dayInWords(day)}${report.isFinalized ? '' : ' (Not Finalized)'}`,
     body: bodyOf(day, report),
-    attachment: deps.attachmentOf(request, report),
+    attachments: await deps.attachmentsOf(request, report),
   };
   return deps.outbox.queue(toEachAddress(deps.reportEmailAddresses, email, deps.clock.now()));
 }

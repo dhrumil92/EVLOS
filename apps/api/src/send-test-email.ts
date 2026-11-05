@@ -24,7 +24,7 @@ try {
     body:
       `This is a test email from EVLOS, sent through ${where} as ${smtp.from}.\n\n` +
       'If it arrived, the email settings work.',
-    attachment: null,
+    attachments: [],
   });
   console.log(`Sent through ${where}. Check the inbox of ${recipient}, and its spam folder.`);
 } catch (error) {

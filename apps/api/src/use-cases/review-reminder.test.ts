@@ -82,7 +82,7 @@ describe('queueReviewReminder', () => {
         'then Finalize the Day on the Review page.\n\n' +
         'EVLOS, hostel Pooja attendance',
     );
-    expect(queued[0]?.attachment).toBeNull();
+    expect(queued[0]?.attachments).toEqual([]);
   });
 
   it('says Student, not Students, when one Student is on Needs Review', async () => {

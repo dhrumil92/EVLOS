@@ -28,6 +28,12 @@ const queue = (studentId: string, sendAfter = QUEUED_AT) =>
     sendAfter: new Date(sendAfter),
   });
 
+const EVERY_BYTE = Array.from({ length: 256 }, (_, byte) => byte);
+
+const attachmentCount = async () =>
+  (await pool.query<{ count: number }>('select count(*)::int as count from outbox_attachments'))
+    .rows[0]?.count;
+
 const rows = async () =>
   (
     await pool.query<{ id: number; status: string; attempts: number; sentAt: Date | null }>(
@@ -57,7 +63,7 @@ describe('PostgresOutboxRepository', () => {
         recipient: '9001@example.com',
         subject: 'Pooja missed',
         body: 'You did not punch at Pooja.',
-        attachment: null,
+        attachments: [],
       },
     ]);
     expect((await rows())[0]).toMatchObject({ status: 'sending', attempts: 1 });
@@ -124,7 +130,7 @@ describe('PostgresOutboxRepository', () => {
       recipient: 'rector@example.com',
       subject: 'Daily Report',
       body: 'Present: 1',
-      attachment: null,
+      attachments: [{ filename: 'EVLOS Report 2026-11-04.csv', content: Buffer.from('a,b') }],
       dedupeKey: 'Daily Report|2026-11-04|rector@example.com',
       sendAfter: QUEUED_AT,
     };
@@ -134,16 +140,22 @@ describe('PostgresOutboxRepository', () => {
 
     expect([first, second]).toEqual([1, 0]);
     expect(await rows()).toHaveLength(1);
+    expect(await attachmentCount()).toBe(1);
   });
 
-  it('gives back the attachment of a queued email when it is taken', async () => {
+  it('gives back every attachment of a queued email when it is taken, in order and unchanged', async () => {
+    // Every possible byte, as in an Excel file, and text, as in a CSV.
+    const attachments = [
+      { filename: 'EVLOS Report 2026-11-04.xlsx', content: Buffer.from(EVERY_BYTE) },
+      { filename: 'EVLOS Report 2026-11-04.csv', content: Buffer.from('Student ID,Name') },
+    ];
     await repository.queue([
       {
         kind: 'Daily Report',
         recipient: 'rector@example.com',
         subject: 'Daily Report',
         body: 'Present: 1',
-        attachment: { filename: 'EVLOS Report 2026-11-04.csv', content: 'Student ID,Name' },
+        attachments,
         dedupeKey: 'Daily Report|2026-11-04|rector@example.com',
         sendAfter: QUEUED_AT,
       },
@@ -151,10 +163,7 @@ describe('PostgresOutboxRepository', () => {
 
     const [taken] = await repository.takeDue(NOW, 10);
 
-    expect(taken?.attachment).toEqual({
-      filename: 'EVLOS Report 2026-11-04.csv',
-      content: 'Student ID,Name',
-    });
+    expect(taken?.attachments).toEqual(attachments);
   });
 
   it('never takes an email that was given up', async () => {

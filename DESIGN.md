@@ -13,7 +13,7 @@
 | # | Decision | Principle | `file:line` | Before | Why changed |
 |---|----------|-----------|-------------|--------|-------------|
 | D1 | Rules are pure functions that receive a `Clock` instead of reading the system time | Dependency inversion | `packages/core/src/clock.ts:5` | TBD | Tests must be able to say "it is 23:30 IST" without waiting; the server runs in UTC. |
-| D2 | Sending email is a `Notifier` port; delivery goes through an outbox with a unique key | Dependency inversion, single responsibility | `apps/api/src/ports/notifier.ts:15`; outbox key: `apps/api/src/db/schema.ts:90` | TBD | Retries must never send a second Notification; tests use a fake notifier. |
+| D2 | Sending email is a `Notifier` port; delivery goes through an outbox with a unique key | Dependency inversion, single responsibility | `apps/api/src/ports/notifier.ts:17`; outbox key: `apps/api/src/db/schema.ts:102` | TBD | Retries must never send a second Notification; tests use a fake notifier. |
 | D3 | Pooja Status is computed from stored facts (Punches, Leaves) and written only at Finalize | Single source of truth | `packages/core/src/pooja-status.ts:33` | TBD | A stored status can go stale when a Leave or Punch arrives late. |
 
 Replace a row if the real refactors turn out different. A decision counts only when its before and after really happened in this repo's history.
