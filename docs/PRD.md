@@ -115,11 +115,11 @@ Acceptance criteria:
 
 **FR-12 Monthly Report.** At 09:00 IST on the 1st, the Monthly Report for the previous month is emailed to the Report Recipients, attached the same way. The last day of the month still gets its usual Daily Report.
 
-**FR-13 Rector login.** Every page and API except the Device endpoints requires a login. Sessions expire.
+**FR-13 Rector login.** Every page and API except the Device endpoints requires a login. Sessions expire. Five wrong tries from one address within 15 minutes are refused. The logged-in Rector can change the password on the Settings page (FR-15).
 
-**FR-14 Audit.** Leave (record, edit, cancel), Return, Finalize, Exclude, Send Notifications, Deactivate, Activate, and Add and Remove Report Recipient record who did it and when.
+**FR-14 Audit.** Leave (record, edit, cancel), Return, Finalize, Exclude, Send Notifications, Deactivate, Activate, Add and Remove Report Recipient, and Change Password record who did it and when (never the password).
 
-**FR-15 Settings.** A Settings page, opened beside Log out, holds the Report Recipients: the Rector adds an email address or removes one (after a confirmation). An address is checked like a Student's email and kept in lower case; the same address cannot be added twice. When the list is empty, the page warns that no one receives the Review Reminder, Daily Report or Monthly Report. A change applies to the next email without a restart.
+**FR-15 Settings.** A Settings page, opened beside Log out, holds the Report Recipients: the Rector adds an email address or removes one (after a confirmation). An address is checked like a Student's email and kept in lower case; the same address cannot be added twice. When the list is empty, the page warns that no one receives the Review Reminder, Daily Report or Monthly Report. A change applies to the next email without a restart. The page also lets the Rector change the password: the current password, then the new one twice (at least 12 characters, and not the same as the current one). The two new ones are compared on the page. A wrong current password is refused, with five tries per 15 minutes. After a change, every other login of the Rector ends and this one stays.
 
 ## 6. Non-functional requirements
 - **NFR-1 Time correctness.** All rules use IST. The server's timezone must not change results. Schedules run in Asia/Kolkata.

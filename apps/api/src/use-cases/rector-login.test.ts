@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fakeLogin } from './fake-rector-repository.js';
-import { createRector, logIn, logOut, rectorOfSession } from './rector-login.js';
+import { changePassword, createRector, logIn, logOut, rectorOfSession } from './rector-login.js';
 
 const HOUR = 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 10, 3, 3, 0, 0);
@@ -131,5 +131,75 @@ describe('logOut', () => {
     await logOut('token-1', deps);
 
     expect(await rectorOfSession('token-1', deps)).toBeNull();
+  });
+});
+
+describe('changePassword', () => {
+  const NEW_PASSWORD = 'another long password';
+  const RECTOR = { id: 1, email: EMAIL };
+
+  // The Rector logged in twice, as on a laptop (token-1) and a phone (token-2).
+  async function loggedInTwice() {
+    const fake = await withRector();
+    await logIn(EMAIL, PASSWORD, fake.deps);
+    await logIn(EMAIL, PASSWORD, fake.deps);
+    return fake;
+  }
+
+  it('changes the password, so only the new one logs in', async () => {
+    const { deps } = await loggedInTwice();
+
+    const result = await changePassword(RECTOR, 'token-1', PASSWORD, NEW_PASSWORD, deps);
+
+    expect(result).toBe('changed');
+    expect((await logIn(EMAIL, NEW_PASSWORD, deps)).outcome).toBe('logged-in');
+    expect((await logIn(EMAIL, PASSWORD, deps)).outcome).toBe('refused');
+  });
+
+  it('ends every other login of the Rector and keeps this one', async () => {
+    const { deps } = await loggedInTwice();
+
+    await changePassword(RECTOR, 'token-1', PASSWORD, NEW_PASSWORD, deps);
+
+    expect(await rectorOfSession('token-1', deps)).toEqual(RECTOR);
+    expect(await rectorOfSession('token-2', deps)).toBeNull();
+  });
+
+  it('records who changed the password and when, never the password', async () => {
+    const { deps, audit } = await loggedInTwice();
+
+    await changePassword(RECTOR, 'token-1', PASSWORD, NEW_PASSWORD, deps);
+
+    expect(audit).toEqual([{ action: 'Change Password', doneAt: NOW, doneBy: EMAIL }]);
+  });
+
+  it('refuses a wrong current password and changes nothing', async () => {
+    const { deps, accounts, audit } = await loggedInTwice();
+
+    const result = await changePassword(RECTOR, 'token-1', 'not the password', NEW_PASSWORD, deps);
+
+    expect(result).toBe('wrong-password');
+    expect(accounts[0]?.passwordHash).toBe(`hashed:${PASSWORD}`);
+    expect(await rectorOfSession('token-2', deps)).toEqual(RECTOR);
+    expect(audit).toEqual([]);
+  });
+
+  it('refuses a new password shorter than 12 characters', async () => {
+    const { deps, accounts } = await loggedInTwice();
+
+    const result = await changePassword(RECTOR, 'token-1', PASSWORD, 'short', deps);
+
+    expect(result).toBe('password-too-short');
+    expect(accounts[0]?.passwordHash).toBe(`hashed:${PASSWORD}`);
+  });
+
+  it('refuses a new password that is the same as the current one', async () => {
+    const { deps, audit } = await loggedInTwice();
+
+    const result = await changePassword(RECTOR, 'token-1', PASSWORD, PASSWORD, deps);
+
+    expect(result).toBe('same-password');
+    expect(await rectorOfSession('token-2', deps)).toEqual(RECTOR);
+    expect(audit).toEqual([]);
   });
 });

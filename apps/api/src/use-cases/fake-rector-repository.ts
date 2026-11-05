@@ -8,6 +8,7 @@ export function fakeLogin() {
   const accounts: { rector: Rector; passwordHash: string }[] = [];
   const sessions = new Map<string, { rectorId: number; expiresAt: Instant }>();
   const checked: (string | null)[] = [];
+  const audit: { action: string; doneAt: Instant; doneBy: string }[] = [];
   let nextToken = 1;
 
   const rectors: RectorRepository = {
@@ -33,6 +34,16 @@ export function fakeLogin() {
       sessions.delete(tokenHash);
       return Promise.resolve();
     },
+    changePassword: (rectorId, passwordHash, keepTokenHash, at, doneBy) => {
+      const account = accounts.find((one) => one.rector.id === rectorId);
+      if (account) account.passwordHash = passwordHash;
+      for (const [tokenHash, session] of sessions) {
+        if (session.rectorId === rectorId && tokenHash !== keepTokenHash)
+          sessions.delete(tokenHash);
+      }
+      audit.push({ action: 'Change Password', doneAt: at, doneBy });
+      return Promise.resolve();
+    },
   };
   const passwords: Passwords = {
     hash: (password) => Promise.resolve(`hashed:${password}`),
@@ -45,5 +56,5 @@ export function fakeLogin() {
     create: () => `token-${String(nextToken++)}`,
     hashOf: (token) => `hash-of-${token}`,
   };
-  return { rectors, passwords, tokens, accounts, sessions, checked };
+  return { rectors, passwords, tokens, accounts, sessions, checked, audit };
 }

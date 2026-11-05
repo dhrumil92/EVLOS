@@ -64,3 +64,31 @@ export async function rectorOfSession(
 export async function logOut(token: string, deps: RectorLoginDeps): Promise<void> {
   await deps.rectors.removeSession(deps.tokens.hashOf(token));
 }
+
+export type ChangePasswordResult =
+  'changed' | 'wrong-password' | 'password-too-short' | 'same-password';
+
+// The logged-in Rector changes the password. The current one must be right, as at login.
+// Every other login of this Rector ends; the one with this token stays, so the Rector is not
+// sent back to the login page.
+export async function changePassword(
+  rector: Rector,
+  token: string,
+  currentPassword: string,
+  newPassword: string,
+  deps: RectorLoginDeps,
+): Promise<ChangePasswordResult> {
+  const account = await deps.rectors.findByEmail(rector.email);
+  const isRight = await deps.passwords.verify(account?.passwordHash ?? null, currentPassword);
+  if (account === null || !isRight) return 'wrong-password';
+  if (newPassword.length < MIN_PASSWORD_LENGTH) return 'password-too-short';
+  if (newPassword === currentPassword) return 'same-password';
+  await deps.rectors.changePassword(
+    rector.id,
+    await deps.passwords.hash(newPassword),
+    deps.tokens.hashOf(token),
+    deps.clock.now(),
+    rector.email,
+  );
+  return 'changed';
+}

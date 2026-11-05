@@ -269,6 +269,7 @@ describe('menu', () => {
       reportRecipients: () => Promise.resolve(['office@example.com']),
       addReportRecipient: () => Promise.resolve('done'),
       removeReportRecipient: () => Promise.resolve('done'),
+      changePassword: () => Promise.resolve('done'),
     };
     render(<App settings={settings} source={fakeSource(view()).source} />);
     await screen.findByText(/No Punches yet/);

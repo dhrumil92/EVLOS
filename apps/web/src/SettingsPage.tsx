@@ -74,9 +74,8 @@ function AddForm(props: { onAdd: (email: string) => Promise<boolean> }) {
   );
 }
 
-// The Rector's settings. The Report Recipients receive the Review Reminder, Daily Report and
-// Monthly Report.
-export function SettingsPage({ source }: { source: SettingsSource }) {
+// The Report Recipients receive the Review Reminder, Daily Report and Monthly Report.
+function ReportRecipientsCard({ source }: { source: SettingsSource }) {
   const [emails, setEmails] = useState<string[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -97,35 +96,111 @@ export function SettingsPage({ source }: { source: SettingsSource }) {
   };
 
   return (
+    <section className="report-card grid gap-4" aria-label="Report Recipients">
+      <div>
+        <h2 className="font-display text-2xl font-semibold">Report Recipients</h2>
+        <p className="text-mist">
+          These addresses receive the Review Reminder (23:00), the Daily Report (23:30) and the
+          Monthly Report (09:00 on the 1st).
+        </p>
+      </div>
+      {failed && <p className="notice">The Report Recipients could not load. Reload the page.</p>}
+      {emails?.length === 0 && (
+        <p className="notice" role="status">
+          {NO_ONE}
+        </p>
+      )}
+      {emails && (
+        <RecipientList
+          emails={emails}
+          onRemove={(email) => void act(source.removeReportRecipient(email))}
+        />
+      )}
+      <AddForm onAdd={(email) => act(source.addReportRecipient(email))} />
+      {message && (
+        <p className="field-error" role="alert">
+          {message}
+        </p>
+      )}
+    </section>
+  );
+}
+
+const PASSWORD_BOXES = ['Current password', 'New password', 'New password again'] as const;
+const AUTOCOMPLETE = ['current-password', 'new-password', 'new-password'];
+const EMPTY: [string, string, string] = ['', '', ''];
+
+// The logged-in Rector changes the password. The new one is typed twice, and the two are
+// compared here, so a typing slip never becomes the password.
+function ChangePasswordCard({ source }: { source: SettingsSource }) {
+  const [typed, setTyped] = useState(EMPTY);
+  const [answer, setAnswer] = useState<{ done: boolean; text: string } | null>(null);
+
+  const submit = async (event: SyntheticEvent) => {
+    event.preventDefault();
+    const [current, first, again] = typed;
+    if (first !== again) {
+      setAnswer({ done: false, text: 'The two new passwords are not the same.' });
+      return;
+    }
+    const reply = await source.changePassword(current, first).catch(() => SERVER_FAILED);
+    if (reply === 'done') setTyped(EMPTY);
+    setAnswer(
+      reply === 'done'
+        ? { done: true, text: 'Password changed. Every other login has been ended.' }
+        : { done: false, text: reply },
+    );
+  };
+
+  return (
+    <section className="report-card grid gap-4" aria-label="Change password">
+      <div>
+        <h2 className="font-display text-2xl font-semibold">Change password</h2>
+        <p className="text-mist">
+          The new password needs at least 12 characters. Changing it ends every other login, such as
+          on a phone; this one stays.
+        </p>
+      </div>
+      <form className="grid max-w-md gap-3" noValidate onSubmit={(event) => void submit(event)}>
+        {PASSWORD_BOXES.map((label, index) => (
+          <label key={label} className="grid gap-1 text-mist">
+            {label}
+            <input
+              className="field"
+              type="password"
+              autoComplete={AUTOCOMPLETE[index]}
+              value={typed[index]}
+              onChange={(event) => {
+                const next: [string, string, string] = [...typed];
+                next[index] = event.target.value;
+                setTyped(next);
+              }}
+            />
+          </label>
+        ))}
+        <button className="btn justify-self-start" type="submit">
+          Change password
+        </button>
+      </form>
+      {answer && (
+        <p
+          className={answer.done ? 'notice' : 'field-error'}
+          role={answer.done ? 'status' : 'alert'}
+        >
+          {answer.text}
+        </p>
+      )}
+    </section>
+  );
+}
+
+// The Rector's settings: who receives the Report emails, and the password.
+export function SettingsPage({ source }: { source: SettingsSource }) {
+  return (
     <div className="grid gap-5">
       <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">Settings</h1>
-      <section className="report-card grid gap-4" aria-label="Report Recipients">
-        <div>
-          <h2 className="font-display text-2xl font-semibold">Report Recipients</h2>
-          <p className="text-mist">
-            These addresses receive the Review Reminder (23:00), the Daily Report (23:30) and the
-            Monthly Report (09:00 on the 1st).
-          </p>
-        </div>
-        {failed && <p className="notice">The Report Recipients could not load. Reload the page.</p>}
-        {emails?.length === 0 && (
-          <p className="notice" role="status">
-            {NO_ONE}
-          </p>
-        )}
-        {emails && (
-          <RecipientList
-            emails={emails}
-            onRemove={(email) => void act(source.removeReportRecipient(email))}
-          />
-        )}
-        <AddForm onAdd={(email) => act(source.addReportRecipient(email))} />
-        {message && (
-          <p className="field-error" role="alert">
-            {message}
-          </p>
-        )}
-      </section>
+      <ReportRecipientsCard source={source} />
+      <ChangePasswordCard source={source} />
     </div>
   );
 }

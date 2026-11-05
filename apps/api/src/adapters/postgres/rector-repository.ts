@@ -1,7 +1,7 @@
 import type { Instant } from '@evlos/core';
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { rectorSessions, rectors } from '../../db/schema.js';
+import { auditLog, rectorSessions, rectors } from '../../db/schema.js';
 import type { Rector, RectorRepository } from '../../ports/rector-repository.js';
 
 export class PostgresRectorRepository implements RectorRepository {
@@ -42,5 +42,24 @@ export class PostgresRectorRepository implements RectorRepository {
 
   async removeSession(tokenHash: string): Promise<void> {
     await this.db.delete(rectorSessions).where(eq(rectorSessions.tokenHash, tokenHash));
+  }
+
+  // The new hash, the ended sessions and the audit row are saved together, or not at all.
+  async changePassword(
+    rectorId: number,
+    passwordHash: string,
+    keepTokenHash: string,
+    at: Instant,
+    doneBy: string,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      await tx.update(rectors).set({ passwordHash }).where(eq(rectors.id, rectorId));
+      await tx
+        .delete(rectorSessions)
+        .where(
+          and(eq(rectorSessions.rectorId, rectorId), ne(rectorSessions.tokenHash, keepTokenHash)),
+        );
+      await tx.insert(auditLog).values({ action: 'Change Password', doneAt: new Date(at), doneBy });
+    });
   }
 }

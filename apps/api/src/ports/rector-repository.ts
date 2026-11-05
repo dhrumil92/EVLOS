@@ -14,4 +14,13 @@ export interface RectorRepository {
   // Null for a token hash with no session.
   sessionOf(tokenHash: string): Promise<{ rector: Rector; expiresAt: Instant } | null>;
   removeSession(tokenHash: string): Promise<void>;
+  // Saves the new password hash, ends every other session of this Rector (the one with
+  // keepTokenHash stays), and writes a Change Password row to the audit log, all at once.
+  changePassword(
+    rectorId: number,
+    passwordHash: string,
+    keepTokenHash: string,
+    at: Instant,
+    doneBy: string,
+  ): Promise<void>;
 }

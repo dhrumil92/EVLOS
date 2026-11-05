@@ -32,7 +32,7 @@ import { finalizeDay, getReview, sendNotifications } from './use-cases/review.js
 import { cancelLeave, editLeave, recordLeave, returnLeave } from './use-cases/leaves.js';
 import { recordLeaves, returnLeaves } from './use-cases/leaves-for-many.js';
 import { listStudents } from './use-cases/list-students.js';
-import { logIn, logOut, rectorOfSession } from './use-cases/rector-login.js';
+import { changePassword, logIn, logOut, rectorOfSession } from './use-cases/rector-login.js';
 import { recordPunches } from './use-cases/record-punches.js';
 import type { UploadedPunch } from './use-cases/record-punches.js';
 import { sendDueEmails } from './use-cases/send-due-emails.js';
@@ -85,6 +85,8 @@ await registerAuth(pageApp, {
   logIn: (email, password) => logIn(email, password, login),
   logOut: (token) => logOut(token, login),
   rectorOfSession: (token) => rectorOfSession(token, login),
+  changePassword: (rector, token, currentPassword, newPassword) =>
+    changePassword(rector, token, currentPassword, newPassword, login),
   secureCookie,
 });
 registerLiveRoutes(pageApp, {

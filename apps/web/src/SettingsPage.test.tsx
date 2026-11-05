@@ -10,6 +10,7 @@ const NO_ONE =
 // Keeps the list in memory, and refuses an address without an @ as the server would.
 function fakeSource(start: string[] = []) {
   const emails = [...start];
+  const changes: [string, string][] = [];
   const source: SettingsSource = {
     reportRecipients: () => Promise.resolve([...emails]),
     addReportRecipient: (email) => {
@@ -21,8 +22,14 @@ function fakeSource(start: string[] = []) {
       emails.splice(emails.indexOf(email), 1);
       return Promise.resolve('done');
     },
+    changePassword: (currentPassword, newPassword) => {
+      changes.push([currentPassword, newPassword]);
+      return Promise.resolve(
+        currentPassword === 'the current password' ? 'done' : 'The current password is wrong.',
+      );
+    },
   };
-  return { source, emails };
+  return { source, emails, changes };
 }
 
 const listed = () =>
@@ -34,6 +41,18 @@ function typeAndAdd(email: string) {
   fireEvent.change(screen.getByLabelText('Email address'), { target: { value: email } });
   fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 }
+
+function fillPassword(current: string, first: string, again: string) {
+  fireEvent.change(screen.getByLabelText('Current password'), { target: { value: current } });
+  fireEvent.change(screen.getByLabelText('New password'), { target: { value: first } });
+  fireEvent.change(screen.getByLabelText('New password again'), { target: { value: again } });
+  fireEvent.click(screen.getByRole('button', { name: 'Change password' }));
+}
+
+const passwordBoxes = () =>
+  ['Current password', 'New password', 'New password again'].map(
+    (label) => screen.getByLabelText<HTMLInputElement>(label).value,
+  );
 
 afterEach(cleanup);
 
@@ -112,5 +131,43 @@ describe('Settings page', () => {
     expect(
       await screen.findByText('The Report Recipients could not load. Reload the page.'),
     ).toBeTruthy();
+  });
+});
+
+describe('Change password', () => {
+  it('changes the password, says other logins have ended, and empties the boxes', async () => {
+    const { source, changes } = fakeSource();
+    render(<SettingsPage source={source} />);
+
+    fillPassword('the current password', 'a new long password', 'a new long password');
+
+    expect(
+      await screen.findByText('Password changed. Every other login has been ended.'),
+    ).toBeTruthy();
+    expect(changes).toEqual([['the current password', 'a new long password']]);
+    expect(passwordBoxes()).toEqual(['', '', '']);
+  });
+
+  it('sends nothing when the two new passwords differ', async () => {
+    const { source, changes } = fakeSource();
+    render(<SettingsPage source={source} />);
+
+    fillPassword('the current password', 'a new long password', 'a new long passwrod');
+
+    expect(await screen.findByText('The two new passwords are not the same.')).toBeTruthy();
+    expect(changes).toEqual([]);
+  });
+
+  it('shows why the change was refused, and keeps what was typed', async () => {
+    render(<SettingsPage source={fakeSource().source} />);
+
+    fillPassword('not the password', 'a new long password', 'a new long password');
+
+    expect(await screen.findByText('The current password is wrong.')).toBeTruthy();
+    expect(passwordBoxes()).toEqual([
+      'not the password',
+      'a new long password',
+      'a new long password',
+    ]);
   });
 });

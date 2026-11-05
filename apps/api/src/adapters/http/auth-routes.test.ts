@@ -21,6 +21,7 @@ async function buildApp(more: Partial<AuthRoutesDeps> = {}) {
       return Promise.resolve();
     },
     rectorOfSession: (token) => Promise.resolve(token === 'the-token' ? RECTOR : null),
+    changePassword: () => Promise.resolve('changed'),
     secureCookie: false,
     ...more,
   });
@@ -132,5 +133,65 @@ describe('log out', () => {
     expect(reply.statusCode).toBe(204);
     expect(loggedOut).toEqual(['the-token']);
     expect(reply.cookies[0]).toMatchObject({ name: SESSION_COOKIE, value: '' });
+  });
+});
+
+describe('change password', () => {
+  const changePassword = (
+    app: Awaited<ReturnType<typeof buildApp>>['app'],
+    cookies: Record<string, string> = withSession,
+  ) =>
+    app.inject({
+      method: 'POST',
+      url: '/api/password',
+      cookies,
+      payload: { currentPassword: 'right password', newPassword: 'a new long password' },
+    });
+
+  it('changes the password of the Rector who is logged in, keeping this login', async () => {
+    const asked: unknown[] = [];
+    const { app } = await buildApp({
+      changePassword: (...args) => {
+        asked.push(args);
+        return Promise.resolve('changed');
+      },
+    });
+
+    const reply = await changePassword(app);
+
+    expect(reply.statusCode).toBe(204);
+    expect(asked).toEqual([[RECTOR, 'the-token', 'right password', 'a new long password']]);
+  });
+
+  it.each([
+    ['wrong-password', 403, 'The current password is wrong.'],
+    ['password-too-short', 400, 'The new password needs at least 12 characters.'],
+    ['same-password', 400, 'The new password is the same as the current one.'],
+  ] as const)('answers %s with %i and says why', async (result, code, message) => {
+    const { app } = await buildApp({ changePassword: () => Promise.resolve(result) });
+
+    const reply = await changePassword(app);
+
+    expect(reply.statusCode).toBe(code);
+    expect(reply.json()).toEqual({ message });
+  });
+
+  it('needs a login', async () => {
+    const { app } = await buildApp();
+
+    const reply = await changePassword(app, {});
+
+    expect(reply.statusCode).toBe(401);
+  });
+
+  it('refuses a sixth try within 15 minutes', async () => {
+    const { app } = await buildApp({ changePassword: () => Promise.resolve('wrong-password') });
+    for (let tries = 0; tries < 5; tries++) {
+      await changePassword(app);
+    }
+
+    const reply = await changePassword(app);
+
+    expect(reply.statusCode).toBe(429);
   });
 });

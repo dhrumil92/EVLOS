@@ -61,4 +61,49 @@ describe('PostgresRectorRepository', () => {
 
     expect(await repository.sessionOf('token-hash')).toBeNull();
   });
+
+  describe('changePassword', () => {
+    const AT = Date.UTC(2026, 10, 5, 8, 0, 0);
+
+    // Rector 1 logged in on two devices; Rector 2 once.
+    async function twoRectors() {
+      await repository.add('rector@example.com', 'old-hash');
+      await repository.add('other@example.com', 'other-hash');
+      await repository.addSession('laptop', 1, EXPIRES_AT);
+      await repository.addSession('phone', 1, EXPIRES_AT);
+      await repository.addSession('other-laptop', 2, EXPIRES_AT);
+    }
+
+    it('saves the new password hash', async () => {
+      await twoRectors();
+
+      await repository.changePassword(1, 'new-hash', 'laptop', AT, 'rector@example.com');
+
+      expect((await repository.findByEmail('rector@example.com'))?.passwordHash).toBe('new-hash');
+      expect((await repository.findByEmail('other@example.com'))?.passwordHash).toBe('other-hash');
+    });
+
+    it("ends the Rector's other sessions, keeps this one, and leaves other Rectors alone", async () => {
+      await twoRectors();
+
+      await repository.changePassword(1, 'new-hash', 'laptop', AT, 'rector@example.com');
+
+      expect(await repository.sessionOf('laptop')).not.toBeNull();
+      expect(await repository.sessionOf('phone')).toBeNull();
+      expect(await repository.sessionOf('other-laptop')).not.toBeNull();
+    });
+
+    it('writes who changed the password and when to the audit log', async () => {
+      await twoRectors();
+
+      await repository.changePassword(1, 'new-hash', 'laptop', AT, 'rector@example.com');
+
+      const { rows } = await pool.query<{ action: string; doneBy: string; doneAt: Date }>(
+        'select action, done_by as "doneBy", done_at as "doneAt" from audit_log',
+      );
+      expect(rows).toEqual([
+        { action: 'Change Password', doneBy: 'rector@example.com', doneAt: new Date(AT) },
+      ]);
+    });
+  });
 });

@@ -59,6 +59,37 @@ describe('http Settings source', () => {
     });
   });
 
+  it('changes the password with the current and the new one', async () => {
+    const asked = serverAnswers(204);
+
+    const answer = await httpSettingsSource.changePassword('old password', 'a new long password');
+
+    expect(answer).toBe('done');
+    expect(asked).toEqual([
+      {
+        url: '/api/password',
+        method: 'POST',
+        body: { currentPassword: 'old password', newPassword: 'a new long password' },
+      },
+    ]);
+  });
+
+  it('gives the reason a password change was refused, without ending the login', async () => {
+    serverAnswers(403, { message: 'The current password is wrong.' });
+
+    const answer = await httpSettingsSource.changePassword('wrong', 'a new long password');
+
+    expect(answer).toBe('The current password is wrong.');
+  });
+
+  it('says to wait after too many tries', async () => {
+    serverAnswers(429, { message: 'Rate limit exceeded' });
+
+    const answer = await httpSettingsSource.changePassword('wrong', 'a new long password');
+
+    expect(answer).toBe('Too many tries. Wait 15 minutes, then try again.');
+  });
+
   it('fails when the server breaks', async () => {
     serverAnswers(500);
 
