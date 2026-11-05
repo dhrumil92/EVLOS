@@ -5,6 +5,7 @@ import { registerDeviceRoutes } from './adapters/device/device-routes.js';
 import { smtpNotifier, smtpSettingsFrom } from './adapters/email/smtp-notifier.js';
 import { registerAuth } from './adapters/http/auth-routes.js';
 import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
+import { resetPageUrlFrom } from './adapters/http/public-url.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
 import { registerReportRecipientRoutes } from './adapters/http/report-recipient-routes.js';
 import { registerReportRoutes } from './adapters/http/report-routes.js';
@@ -32,6 +33,7 @@ import { finalizeDay, getReview, sendNotifications } from './use-cases/review.js
 import { cancelLeave, editLeave, recordLeave, returnLeave } from './use-cases/leaves.js';
 import { recordLeaves, returnLeaves } from './use-cases/leaves-for-many.js';
 import { listStudents } from './use-cases/list-students.js';
+import { requestPasswordReset, resetPassword } from './use-cases/password-reset.js';
 import { changePassword, logIn, logOut, rectorOfSession } from './use-cases/rector-login.js';
 import { recordPunches } from './use-cases/record-punches.js';
 import type { UploadedPunch } from './use-cases/record-punches.js';
@@ -55,6 +57,8 @@ const pagePort = Number(process.env.PAGE_PORT ?? '3000');
 const secureCookie = process.env.COOKIE_SECURE === 'true';
 // Read before anything starts, so a wrong email setting stops the server at once.
 const smtp = smtpSettingsFrom(process.env);
+const notifier = smtp && smtpNotifier(smtp);
+const resetPageUrl = resetPageUrlFrom(process.env);
 const ONE_MINUTE_MS = 60 * 1000;
 
 const db = drizzle(new pg.Pool({ connectionString: databaseUrl }));
@@ -87,6 +91,18 @@ await registerAuth(pageApp, {
   rectorOfSession: (token) => rectorOfSession(token, login),
   changePassword: (rector, token, currentPassword, newPassword) =>
     changePassword(rector, token, currentPassword, newPassword, login),
+  // The page never learns the outcome (see auth-routes); only the server log does.
+  requestPasswordReset: async (email) => {
+    if (notifier === null) {
+      pageApp.log.warn('SMTP_HOST is not set, so no password reset link was sent.');
+      return;
+    }
+    const result = await requestPasswordReset(email, { ...login, notifier, resetPageUrl });
+    if (result === 'no-public-url') {
+      pageApp.log.warn('PUBLIC_URL is not set, so no password reset link was sent.');
+    }
+  },
+  resetPassword: (token, newPassword) => resetPassword(token, newPassword, login),
   secureCookie,
 });
 registerLiveRoutes(pageApp, {
@@ -138,13 +154,16 @@ await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
 if (smtp === null) {
   pageApp.log.warn('SMTP_HOST is not set, so emails stay queued. See .env.example.');
 }
+if (resetPageUrl === null) {
+  pageApp.log.warn('PUBLIC_URL is not set, so a forgotten password cannot be reset by email.');
+}
 if ((await listReportRecipients(reportRecipientDeps)).length === 0) {
   pageApp.log.warn(
     'No Report Recipients yet, so no Report emails are queued. Add one in Settings.',
   );
 }
 const outbox = new PostgresOutboxRepository(db);
-const emailDeps = smtp && { outbox, notifier: smtpNotifier(smtp), clock };
+const emailDeps = notifier && { outbox, notifier, clock };
 const reportEmailDeps = {
   students,
   leaves,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSessionExpired, sessionExpiresAt } from './session.js';
+import { isSessionExpired, resetLinkExpiresAt, sessionExpiresAt } from './session.js';
 
 const HOUR = 60 * 60 * 1000;
 const LOGGED_IN_AT = Date.UTC(2026, 10, 3, 3, 0, 0);
@@ -19,5 +19,11 @@ describe('Rector session', () => {
     const session = { expiresAt: sessionExpiresAt(LOGGED_IN_AT) };
 
     expect(isSessionExpired(session, LOGGED_IN_AT + 12 * HOUR)).toBe(true);
+  });
+});
+
+describe('password reset link', () => {
+  it('works for 30 minutes from when it was asked for', () => {
+    expect(resetLinkExpiresAt(LOGGED_IN_AT)).toBe(LOGGED_IN_AT + HOUR / 2);
   });
 });

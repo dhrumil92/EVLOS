@@ -22,6 +22,7 @@ Replace a row if the real refactors turn out different. A decision counts only w
 The Device adapter (`apps/api/src/adapters/device/`, parser at `parse-attlog.ts:37`). It is where the fingerprint terminal's push protocol, serial numbers and timezone-less timestamps stop. Inside the boundary, the core sees only a Punch with a Student ID and an IST time. This protects the core from the Device vendor: changing the Device, its firmware or its protocol touches the adapter only. A second, smaller boundary is the email provider behind `Notifier`.
 
 ## Known limitations
+- Whoever can read the Rector's login inbox can reset the password through "Forgot password?". The login email must be the Rector's own, protected inbox. A reset link is sent once, at the moment it is asked for, and is not retried; if it does not arrive, the Rector asks again.
 - A Student with a short Leave late in the Pooja Window (for example leaving at 17:00 IST) gets Not Applicable even if he was in the hostel most of the window. The Rector accepts this. No Pooja Status can be changed by hand.
 - A Notification cannot be recalled once Send Notifications is clicked.
 - If the server stops while an email is being sent, that email is never sent and stays "Notification queued" on the Review page. It is not retried, because a retry could send it twice (rule 5).

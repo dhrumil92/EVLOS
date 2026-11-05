@@ -138,6 +138,18 @@ export const rectorSessions = pgTable('rector_sessions', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 });
 
+// Password reset links sent to a Rector who forgot the password. Like a session, only a
+// SHA-256 hash of the link's token is kept, so a copy of this table cannot reset anything.
+// A link works once, until expires_at; used_at is set when it is used or closed.
+export const passwordResets = pgTable('password_resets', {
+  tokenHash: text('token_hash').primaryKey(),
+  rectorId: integer('rector_id')
+    .notNull()
+    .references(() => rectors.id),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+});
+
 // Who did what and when (FR-14). Rows are only ever added. done_by stays empty until
 // Rector login exists. student_id is empty for actions about a Day, such as Finalize.
 export const auditLog = pgTable('audit_log', {

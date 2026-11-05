@@ -24,5 +24,5 @@ export type {
   StudentForm,
 } from './student.js';
 export { canFinalize } from './finalize.js';
-export { isSessionExpired, sessionExpiresAt } from './session.js';
+export { isSessionExpired, resetLinkExpiresAt, sessionExpiresAt } from './session.js';
 export { studentsPresent } from './students-present.js';

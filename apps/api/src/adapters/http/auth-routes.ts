@@ -2,6 +2,7 @@ import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { Rector } from '../../ports/rector-repository.js';
+import type { ResetPasswordResult } from '../../use-cases/password-reset.js';
 import type { ChangePasswordResult, LogInResult } from '../../use-cases/rector-login.js';
 
 declare module 'fastify' {
@@ -21,12 +22,20 @@ export interface AuthRoutesDeps {
     currentPassword: string,
     newPassword: string,
   ): Promise<ChangePasswordResult>;
+  // Emails a reset link when the email belongs to a Rector. The answer to the page is the
+  // same either way, so it is not waited for.
+  requestPasswordReset(email: string): Promise<void>;
+  resetPassword(token: string, newPassword: string): Promise<ResetPasswordResult>;
   // True once the site runs on HTTPS, so the browser never sends the cookie in clear.
   secureCookie: boolean;
 }
 
 export const SESSION_COOKIE = 'evlos_session';
 const LOGIN_URL = '/api/login';
+const FORGOT_URL = '/api/forgot-password';
+const RESET_URL = '/api/reset-password';
+// The only page routes reachable without a login: a Rector who is logged out uses them.
+const OPEN_URLS = new Set([LOGIN_URL, FORGOT_URL, RESET_URL]);
 // Five tries in 15 minutes from one address, so a password cannot be guessed by trying.
 const FIVE_TRIES = { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } };
 
@@ -37,6 +46,12 @@ const PASSWORD_REPLIES: Record<ChangePasswordResult, [number, string?]> = {
   'wrong-password': [403, 'The current password is wrong.'],
   'password-too-short': [400, 'The new password needs at least 12 characters.'],
   'same-password': [400, 'The new password is the same as the current one.'],
+};
+
+const RESET_REPLIES: Record<ResetPasswordResult, [number, string?]> = {
+  reset: [204],
+  'password-too-short': [400, 'The new password needs at least 12 characters.'],
+  'link-not-valid': [400, 'This link has expired or was already used. Ask for a new one.'],
 };
 
 const text = (body: unknown, name: string) => {
@@ -54,7 +69,7 @@ export function rectorOf(request: FastifyRequest): Rector {
 
 function requireLogin(deps: AuthRoutesDeps) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    if (request.url.split('?')[0] === LOGIN_URL) return;
+    if (OPEN_URLS.has(request.url.split('?')[0] ?? '')) return;
     const token = request.cookies[SESSION_COOKIE];
     request.rector = token ? await deps.rectorOfSession(token) : null;
     if (request.rector === null) {
@@ -104,6 +119,24 @@ export async function registerAuth(app: FastifyInstance, deps: AuthRoutesDeps): 
       text(request.body, 'newPassword'),
     );
     const [code, message] = PASSWORD_REPLIES[result];
+    return message ? reply.code(code).send({ message }) : reply.code(code).send();
+  });
+
+  // Always the same quick answer, whether or not the email has an account and whether or not
+  // the email could be sent, so nobody can learn which emails have an account.
+  app.post(FORGOT_URL, FIVE_TRIES, (request, reply) => {
+    deps.requestPasswordReset(text(request.body, 'email')).catch((error: unknown) => {
+      request.log.error(error, 'Password reset email not sent');
+    });
+    return reply.code(204).send();
+  });
+
+  app.post(RESET_URL, FIVE_TRIES, async (request, reply) => {
+    const result = await deps.resetPassword(
+      text(request.body, 'token'),
+      text(request.body, 'newPassword'),
+    );
+    const [code, message] = RESET_REPLIES[result];
     return message ? reply.code(code).send({ message }) : reply.code(code).send();
   });
 }

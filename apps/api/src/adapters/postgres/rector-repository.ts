@@ -1,7 +1,7 @@
 import type { Instant } from '@evlos/core';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, gt, isNull, ne } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { auditLog, rectorSessions, rectors } from '../../db/schema.js';
+import { auditLog, passwordResets, rectorSessions, rectors } from '../../db/schema.js';
 import type { Rector, RectorRepository } from '../../ports/rector-repository.js';
 
 export class PostgresRectorRepository implements RectorRepository {
@@ -60,6 +60,46 @@ export class PostgresRectorRepository implements RectorRepository {
           and(eq(rectorSessions.rectorId, rectorId), ne(rectorSessions.tokenHash, keepTokenHash)),
         );
       await tx.insert(auditLog).values({ action: 'Change Password', doneAt: new Date(at), doneBy });
+    });
+  }
+
+  async addPasswordReset(tokenHash: string, rectorId: number, expiresAt: Instant): Promise<void> {
+    await this.db
+      .insert(passwordResets)
+      .values({ tokenHash, rectorId, expiresAt: new Date(expiresAt) });
+  }
+
+  // The link is taken in one update that checks it is unused and not expired, so two clicks
+  // at once can never both use it. The rest happens in the same transaction, or not at all.
+  resetPassword(tokenHash: string, passwordHash: string, at: Instant): Promise<boolean> {
+    const when = new Date(at);
+    return this.db.transaction(async (tx) => {
+      const [link] = await tx
+        .update(passwordResets)
+        .set({ usedAt: when })
+        .where(
+          and(
+            eq(passwordResets.tokenHash, tokenHash),
+            isNull(passwordResets.usedAt),
+            gt(passwordResets.expiresAt, when),
+          ),
+        )
+        .returning({ rectorId: passwordResets.rectorId });
+      if (link === undefined) return false;
+      const [rector] = await tx
+        .update(rectors)
+        .set({ passwordHash })
+        .where(eq(rectors.id, link.rectorId))
+        .returning({ email: rectors.email });
+      await tx
+        .update(passwordResets)
+        .set({ usedAt: when })
+        .where(and(eq(passwordResets.rectorId, link.rectorId), isNull(passwordResets.usedAt)));
+      await tx.delete(rectorSessions).where(eq(rectorSessions.rectorId, link.rectorId));
+      await tx
+        .insert(auditLog)
+        .values({ action: 'Reset Password', doneAt: when, doneBy: rector?.email ?? null });
+      return true;
     });
   }
 }

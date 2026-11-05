@@ -33,6 +33,8 @@ The raw ChatGPT export is not committed: it contains device addresses, serial nu
 | 17 | 30 Oct | Claude | Finalize both locks the Day and releases Notifications. | **Changed** | The author wants two clicks: Finalize, then Send Notifications from the Report's email list, so the Rector can Exclude Students first. |
 | 18 | 30 Oct | Claude | Keep uploads from an unknown Device Serial for inspection. | **Changed** | Only one Device is registered; uploads from any other Device Serial are refused. A future Device for another place is registered with its own purpose and kept apart from Pooja. |
 | 19 | 30 Oct | Claude | Keep the Pooja Window equal to the temple hours (05:30 to 17:30 IST). | **Changed** | The author added 30 minutes for late Punches: the window is 05:30 to 18:00 IST, both ends included. |
+| 20 | 5 Nov | Claude | Add filter buttons to the Excel Report, switching to ExcelJS to get them. | **Rejected** | ExcelJS would bring 193 packages and 46 MB for one feature. The author kept write-excel-file (colours only) and asked instead for downloads that follow the Pooja Status filter on the Reports page, so a file holds only the Absent, Present or Not Applicable Students. |
+| 21 | 5 Nov | Claude | Put Settings in the page menu with the other pages. | **Changed** | The author placed Settings beside Log out, as an account item rather than a page of daily work. |
 
 ## Accepted after discussion (for context)
 | Date | Tool | Suggestion | Note |

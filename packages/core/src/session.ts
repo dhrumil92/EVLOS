@@ -10,3 +10,11 @@ export function sessionExpiresAt(loggedInAt: Instant): Instant {
 export function isSessionExpired(session: { expiresAt: Instant }, now: Instant): boolean {
   return now >= session.expiresAt;
 }
+
+// A password reset link works for 30 minutes: long enough to open the email, short enough
+// that an old email left in an inbox is no use.
+const RESET_LINK_LENGTH_MS = 30 * 60 * 1000;
+
+export function resetLinkExpiresAt(askedAt: Instant): Instant {
+  return askedAt + RESET_LINK_LENGTH_MS;
+}

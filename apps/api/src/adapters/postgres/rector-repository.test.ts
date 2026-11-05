@@ -106,4 +106,90 @@ describe('PostgresRectorRepository', () => {
       ]);
     });
   });
+
+  describe('resetPassword', () => {
+    const LINK_ENDS = Date.UTC(2026, 10, 5, 10, 30, 0);
+    const USED_AT = Date.UTC(2026, 10, 5, 10, 10, 0);
+
+    // Rector 1 has an open link and two logins; Rector 2 has one login.
+    async function withLink() {
+      await repository.add('rector@example.com', 'old-hash');
+      await repository.add('other@example.com', 'other-hash');
+      await repository.addSession('laptop', 1, EXPIRES_AT);
+      await repository.addSession('phone', 1, EXPIRES_AT);
+      await repository.addSession('other-laptop', 2, EXPIRES_AT);
+      await repository.addPasswordReset('link-hash', 1, LINK_ENDS);
+    }
+
+    const hashOf = async (email: string) => (await repository.findByEmail(email))?.passwordHash;
+
+    it('saves the new password and ends every login of that Rector only', async () => {
+      await withLink();
+
+      const isReset = await repository.resetPassword('link-hash', 'new-hash', USED_AT);
+
+      expect(isReset).toBe(true);
+      expect(await hashOf('rector@example.com')).toBe('new-hash');
+      expect(await repository.sessionOf('laptop')).toBeNull();
+      expect(await repository.sessionOf('phone')).toBeNull();
+      expect(await repository.sessionOf('other-laptop')).not.toBeNull();
+    });
+
+    it('writes the reset to the audit log under the Rector', async () => {
+      await withLink();
+
+      await repository.resetPassword('link-hash', 'new-hash', USED_AT);
+
+      const { rows } = await pool.query<{ action: string; doneBy: string; doneAt: Date }>(
+        'select action, done_by as "doneBy", done_at as "doneAt" from audit_log',
+      );
+      expect(rows).toEqual([
+        { action: 'Reset Password', doneBy: 'rector@example.com', doneAt: new Date(USED_AT) },
+      ]);
+    });
+
+    it('works only once', async () => {
+      await withLink();
+      await repository.resetPassword('link-hash', 'new-hash', USED_AT);
+
+      const again = await repository.resetPassword('link-hash', 'third-hash', USED_AT);
+
+      expect(again).toBe(false);
+      expect(await hashOf('rector@example.com')).toBe('new-hash');
+    });
+
+    it('changes nothing once the link has expired', async () => {
+      await withLink();
+
+      const isReset = await repository.resetPassword('link-hash', 'new-hash', LINK_ENDS);
+
+      expect(isReset).toBe(false);
+      expect(await hashOf('rector@example.com')).toBe('old-hash');
+      expect(await repository.sessionOf('laptop')).not.toBeNull();
+    });
+
+    it('closes the other open links of the Rector', async () => {
+      await withLink();
+      await repository.addPasswordReset('older-link-hash', 1, LINK_ENDS);
+
+      await repository.resetPassword('link-hash', 'new-hash', USED_AT);
+
+      expect(await repository.resetPassword('older-link-hash', 'third-hash', USED_AT)).toBe(false);
+    });
+
+    it('refuses a link it never kept', async () => {
+      await withLink();
+
+      expect(await repository.resetPassword('made-up', 'new-hash', USED_AT)).toBe(false);
+    });
+
+    it('keeps only the hash of the link', async () => {
+      await withLink();
+
+      const { rows } = await pool.query<{ tokenHash: string }>(
+        'select token_hash as "tokenHash" from password_resets',
+      );
+      expect(rows).toEqual([{ tokenHash: 'link-hash' }]);
+    });
+  });
 });

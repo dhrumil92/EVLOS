@@ -6,7 +6,12 @@ import { endSession } from './auth-source.js';
 import { LoginGate } from './LoginGate.js';
 
 function fakeAuth(loggedIn: string | null, answer: LogInAnswer = 'logged-in') {
-  const state = { email: loggedIn, tries: [] as [string, string][], loggedOut: 0 };
+  const state = {
+    email: loggedIn,
+    tries: [] as [string, string][],
+    loggedOut: 0,
+    resetsAskedFor: [] as string[],
+  };
   const auth: AuthSource = {
     me: () => Promise.resolve(state.email),
     logIn: (email, password) => {
@@ -19,6 +24,11 @@ function fakeAuth(loggedIn: string | null, answer: LogInAnswer = 'logged-in') {
       state.email = null;
       return Promise.resolve();
     },
+    requestPasswordReset: (email) => {
+      state.resetsAskedFor.push(email);
+      return Promise.resolve('sent');
+    },
+    resetPassword: () => Promise.resolve('done'),
   };
   return { auth, state };
 }
@@ -104,5 +114,34 @@ describe('LoginGate', () => {
     });
 
     expect(await screen.findByText('Your session has ended. Log in again.')).toBeTruthy();
+  });
+});
+
+describe('forgotten password', () => {
+  const SENT =
+    "If this is the Rector's email, a link to set a new password has been sent to it. " +
+    'The link works once, for 30 minutes.';
+
+  it('asks for a link by email from the login page', async () => {
+    const { auth, state } = fakeAuth(null);
+    render(<LoginGate auth={auth}>{page}</LoginGate>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Forgot password?' }));
+    fireEvent.change(screen.getByLabelText('Email'), {
+      target: { value: 'rector@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send link' }));
+
+    expect(await screen.findByText(SENT)).toBeTruthy();
+    expect(state.resetsAskedFor).toEqual(['rector@example.com']);
+  });
+
+  it('goes back to the login form', async () => {
+    render(<LoginGate auth={fakeAuth(null).auth}>{page}</LoginGate>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Forgot password?' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to log in' }));
+
+    expect(screen.getByRole('button', { name: 'Log in' })).toBeTruthy();
   });
 });

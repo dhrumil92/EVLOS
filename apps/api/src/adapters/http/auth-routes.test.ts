@@ -22,6 +22,8 @@ async function buildApp(more: Partial<AuthRoutesDeps> = {}) {
     },
     rectorOfSession: (token) => Promise.resolve(token === 'the-token' ? RECTOR : null),
     changePassword: () => Promise.resolve('changed'),
+    requestPasswordReset: () => Promise.resolve(),
+    resetPassword: () => Promise.resolve('reset'),
     secureCookie: false,
     ...more,
   });
@@ -191,6 +193,98 @@ describe('change password', () => {
     }
 
     const reply = await changePassword(app);
+
+    expect(reply.statusCode).toBe(429);
+  });
+});
+
+describe('forgot password', () => {
+  const askForLink = (app: Awaited<ReturnType<typeof buildApp>>['app']) =>
+    app.inject({
+      method: 'POST',
+      url: '/api/forgot-password',
+      payload: { email: RECTOR.email },
+    });
+
+  it('answers 204 without a login and asks for the link to be emailed', async () => {
+    const asked: string[] = [];
+    const { app } = await buildApp({
+      requestPasswordReset: (email) => {
+        asked.push(email);
+        return Promise.resolve();
+      },
+    });
+
+    const reply = await askForLink(app);
+
+    expect(reply.statusCode).toBe(204);
+    expect(asked).toEqual([RECTOR.email]);
+  });
+
+  it('gives the same answer even when the email cannot be sent', async () => {
+    const { app } = await buildApp({
+      requestPasswordReset: () => Promise.reject(new Error('Gmail is down')),
+    });
+
+    const reply = await askForLink(app);
+
+    expect(reply.statusCode).toBe(204);
+  });
+
+  it('refuses a sixth request within 15 minutes', async () => {
+    const { app } = await buildApp();
+    for (let tries = 0; tries < 5; tries++) {
+      await askForLink(app);
+    }
+
+    const reply = await askForLink(app);
+
+    expect(reply.statusCode).toBe(429);
+  });
+});
+
+describe('reset password', () => {
+  const useLink = (app: Awaited<ReturnType<typeof buildApp>>['app']) =>
+    app.inject({
+      method: 'POST',
+      url: '/api/reset-password',
+      payload: { token: 'the-link-token', newPassword: 'a new long password' },
+    });
+
+  it('sets the new password from the link, without a login', async () => {
+    const asked: [string, string][] = [];
+    const { app } = await buildApp({
+      resetPassword: (token, newPassword) => {
+        asked.push([token, newPassword]);
+        return Promise.resolve('reset');
+      },
+    });
+
+    const reply = await useLink(app);
+
+    expect(reply.statusCode).toBe(204);
+    expect(asked).toEqual([['the-link-token', 'a new long password']]);
+  });
+
+  it.each([
+    ['password-too-short', 'The new password needs at least 12 characters.'],
+    ['link-not-valid', 'This link has expired or was already used. Ask for a new one.'],
+  ] as const)('answers %s with 400 and says why', async (result, message) => {
+    const { app } = await buildApp({ resetPassword: () => Promise.resolve(result) });
+
+    const reply = await useLink(app);
+
+    expect(reply.statusCode).toBe(400);
+    expect(reply.json()).toEqual({ message });
+  });
+
+  it('refuses a sixth try within 15 minutes', async () => {
+    const { app } = await buildApp({ resetPassword: () => Promise.resolve('link-not-valid') });
+    for (let tries = 0; tries < 5; tries++) {
+      await useLink(app);
+    }
+
+    const reply = await useLink(app);
 
     expect(reply.statusCode).toBe(429);
   });

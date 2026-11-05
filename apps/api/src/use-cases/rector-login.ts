@@ -14,9 +14,9 @@ export type CreateRectorResult = 'created' | 'invalid-email' | 'password-too-sho
 export type LogInResult =
   { outcome: 'logged-in'; token: string; expiresAt: Instant } | { outcome: 'refused' };
 
-const MIN_PASSWORD_LENGTH = 12;
+export const MIN_PASSWORD_LENGTH = 12;
 
-const cleanEmail = (email: string) => email.trim().toLowerCase();
+export const cleanEmail = (email: string) => email.trim().toLowerCase();
 
 export async function createRector(
   email: string,

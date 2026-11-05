@@ -71,6 +71,13 @@
       "when": 1793866277438,
       "tag": "0009_add_report_recipients",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793868452036,
+      "tag": "0010_add_password_resets",
+      "breakpoints": true
     }
   ]
 }
