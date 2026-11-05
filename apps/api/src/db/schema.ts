@@ -13,9 +13,11 @@ import {
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
 
 // Registered Devices. An upload from a Device Serial not listed here is refused (FR-2).
+// last_seen_at is the Device's Last Seen: the last time it was in touch. Null until then.
 export const devices = pgTable('devices', {
   deviceSerial: text('device_serial').primaryKey(),
   label: text('label').notNull(),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
 });
 
 // Punches are facts and are never edited. The unique key makes a re-upload harmless.

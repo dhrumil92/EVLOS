@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { Altar } from './Altar.js';
+import { DeviceLastSeen, useDeviceStatus } from './DeviceLastSeen.js';
+import { httpDeviceStatusSource } from './device-status-source.js';
+import type { DeviceStatus, DeviceStatusSource } from './device-status-source.js';
 import { httpReportSource } from './http-report-source.js';
 import { httpReviewSource } from './review-source.js';
 import type { ReviewSource } from './review-source.js';
@@ -104,7 +107,7 @@ function Punches({ live }: { live: LiveViewState }) {
   );
 }
 
-function TodaysCount({ live }: { live: LiveViewState }) {
+function TodaysCount({ live, device }: { live: LiveViewState; device: DeviceStatus | null }) {
   return (
     <section aria-label="Today's count">
       <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
@@ -117,6 +120,9 @@ function TodaysCount({ live }: { live: LiveViewState }) {
         present={live.view?.studentsPresent ?? null}
         active={live.view?.activeStudents ?? null}
       />
+      <div className="mt-4">
+        <DeviceLastSeen status={device} />
+      </div>
     </section>
   );
 }
@@ -149,17 +155,22 @@ export function App(props: {
   reports?: ReportSource;
   review?: ReviewSource;
   settings?: SettingsSource;
+  device?: DeviceStatusSource;
   onLogOut?: () => void;
 }) {
   const { source, students = httpStudentSource, reports = httpReportSource } = props;
   const [page, setPage] = useState(LIVE_VIEW);
   const live = useLiveView(source);
+  const deviceSource = props.device ?? httpDeviceStatusSource;
+  const device = useDeviceStatus(deviceSource);
   const [today] = useState(istToday);
   const widePages: Record<string, ReactNode> = {
     [REPORTS]: <ReportsPage source={reports} today={today} />,
     [STUDENTS]: <StudentsPage source={students} today={today} />,
     [LEAVES]: <LeavesPage source={students} today={today} />,
-    [REVIEW]: <ReviewPage source={props.review ?? httpReviewSource} today={today} />,
+    [REVIEW]: (
+      <ReviewPage source={props.review ?? httpReviewSource} device={deviceSource} today={today} />
+    ),
     [SETTINGS]: <SettingsPage source={props.settings ?? httpSettingsSource} />,
   };
 
@@ -209,7 +220,7 @@ export function App(props: {
           <main className="mx-auto max-w-[70rem] pt-8 pb-2">{widePages[page]}</main>
         ) : (
           <main className="mx-auto grid max-w-[70rem] gap-7 pt-8 pb-2 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] md:gap-10">
-            <TodaysCount live={live} />
+            <TodaysCount live={live} device={device} />
 
             <section className="min-w-0 rounded-2xl border border-line bg-night/60 p-2">
               <LiveLists live={live} reports={reports} today={today} />

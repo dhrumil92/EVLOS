@@ -125,4 +125,29 @@ describe('PostgresPunchRepository', () => {
 
     expect(between.map((one) => one.punchedAt)).toEqual([ist(10, 0), ist(11, 12)]);
   });
+
+  it('gives the Punches of a Day that arrived after a moment, oldest first', async () => {
+    const ist = (date: number, hour: number, minute = 0) =>
+      Date.UTC(2026, 10, date, hour, minute) - 5.5 * 60 * 60 * 1000;
+    const finalizedAt = ist(10, 23);
+    await repository.record(
+      punch({ studentId: '9001', punchedAt: ist(10, 7), receivedAt: ist(10, 7) }),
+    );
+    await repository.record(
+      punch({ studentId: '9002', punchedAt: ist(10, 8), receivedAt: ist(10, 23, 10) }),
+    );
+    await repository.record(
+      punch({ studentId: '9003', punchedAt: ist(10, 6), receivedAt: ist(10, 23, 20) }),
+    );
+    await repository.record(
+      punch({ studentId: '9004', punchedAt: ist(11, 6), receivedAt: ist(11, 6, 5) }),
+    );
+
+    const arrived = await repository.punchesReceivedAfter('2026-11-10', finalizedAt);
+
+    expect(arrived).toEqual([
+      { studentId: '9003', punchedAt: ist(10, 6) },
+      { studentId: '9002', punchedAt: ist(10, 8) },
+    ]);
+  });
 });

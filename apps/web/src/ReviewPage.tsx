@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { DeviceLastSeen, useDeviceStatus } from './DeviceLastSeen.js';
+import { httpDeviceStatusSource } from './device-status-source.js';
+import type { DeviceStatus, DeviceStatusSource } from './device-status-source.js';
 import type { NotificationState, Review, ReviewSource, ReviewStudent } from './review-source.js';
 
 const IST = { timeZone: 'Asia/Kolkata' } as const;
@@ -30,6 +33,8 @@ const NOTIFICATION_TEXT: Record<NotificationState, string> = {
   sent: 'Notification sent',
   failed: 'Notification not sent',
 };
+const QUIET_DEVICE =
+  'The Device has not been in touch for 10 minutes or more, so Punches may still be on it. ';
 // The server failed part way, so the page cannot know what was saved.
 const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
 
@@ -80,8 +85,13 @@ function StudentTable(props: { label: string; students: ReviewStudent[] }) {
   );
 }
 
-// Before Finalize: the Needs Review list and the Finalize button (FR-8).
-function BeforeFinalize(props: { review: Review; onFinalize: () => Promise<void> }) {
+// Before Finalize: the Device's Last Seen, the Needs Review list and the Finalize button
+// (FR-8). A quiet Device is named in the question, as Punches may still be on it.
+function BeforeFinalize(props: {
+  review: Review;
+  device: DeviceStatus | null;
+  onFinalize: () => Promise<void>;
+}) {
   const [asking, setAsking] = useState(false);
   const { review } = props;
   if (!review.canFinalize) {
@@ -94,6 +104,7 @@ function BeforeFinalize(props: { review: Review; onFinalize: () => Promise<void>
         Before you Finalize, check the Leave Notes and both books, and record any missing Leaves and
         Returns. A Student with a Leave is Not Applicable, never Absent.
       </p>
+      <DeviceLastSeen status={props.device} />
       {count === 0 ? (
         <p className="text-mist">
           No Student is on Needs Review. Every Student punched or was Away.
@@ -103,7 +114,7 @@ function BeforeFinalize(props: { review: Review; onFinalize: () => Promise<void>
       )}
       {asking ? (
         <Confirm
-          question={`${plural(count, 'Student')} will be Absent. The Day will be locked.`}
+          question={`${props.device?.isQuiet ? QUIET_DEVICE : ''}${plural(count, 'Student')} will be Absent. The Day will be locked.`}
           yes="Yes, Finalize"
           onYes={() => void props.onFinalize()}
           onNo={() => {
@@ -127,6 +138,20 @@ function BeforeFinalize(props: { review: Review; onFinalize: () => Promise<void>
   );
 }
 
+// The Student's name, with a Punch After Finalize under it when one arrived (FR-2).
+function AbsentName({ student }: { student: Review['absent'][number] }) {
+  return (
+    <span className="grid">
+      <span className="font-semibold">{student.name}</span>
+      {student.punchAfterFinalize !== null && (
+        <span className="text-sm text-note-ink">
+          Punched at {timeWords.format(student.punchAfterFinalize)}, arrived after Finalize
+        </span>
+      )}
+    </span>
+  );
+}
+
 function AbsentRow(props: {
   student: Review['absent'][number];
   isCrossed: boolean;
@@ -141,7 +166,7 @@ function AbsentRow(props: {
   return (
     <li className={`email-row ${isCrossed || student.isExcluded ? 'email-row-excluded' : ''}`}>
       <span className="text-mist">{student.room}</span>
-      <span className="font-semibold">{student.name}</span>
+      <AbsentName student={student} />
       {state ? (
         <span className="text-mist">{state}</span>
       ) : (
@@ -173,8 +198,18 @@ function AfterFinalize(props: { review: Review; onSend: (excluded: string[]) => 
     );
   };
   const button = `Send Notifications to ${plural(toSend, 'Student')}`;
+  // A Punch After Finalize may mean the Student was at Pooja (FR-2); only unsent ones matter.
+  const punchedLater = review.absent.filter(
+    (one) => one.punchAfterFinalize !== null && one.notification === null,
+  ).length;
   return (
     <div className="grid gap-4">
+      {punchedLater > 0 && (
+        <p className="notice" role="status">
+          {plural(punchedLater, 'Student')} punched in the Pooja Window, but the Punch arrived after
+          Finalize. Check before you Send Notifications, and Exclude a Student who was at Pooja.
+        </p>
+      )}
       {review.absent.length === 0 ? (
         <p className="text-mist">No Student is Absent on this Day.</p>
       ) : (
@@ -272,8 +307,13 @@ function DayChooser(props: {
 }
 
 // The Review and Finalize page: Needs Review, Finalize, Exclude, Send Notifications.
-export function ReviewPage(props: { source: ReviewSource; today: string }) {
+export function ReviewPage(props: {
+  source: ReviewSource;
+  today: string;
+  device?: DeviceStatusSource;
+}) {
   const { source } = props;
+  const device = useDeviceStatus(props.device ?? httpDeviceStatusSource);
   const [day, setDay] = useState(props.today);
   const [review, setReview] = useState<Review | null>(null);
   const [note, setNote] = useState('');
@@ -347,7 +387,7 @@ export function ReviewPage(props: { source: ReviewSource; today: string }) {
           {finalization ? (
             <AfterFinalize key={day} review={review} onSend={send} />
           ) : (
-            <BeforeFinalize key={day} review={review} onFinalize={finalize} />
+            <BeforeFinalize key={day} review={review} device={device} onFinalize={finalize} />
           )}
         </section>
       )}

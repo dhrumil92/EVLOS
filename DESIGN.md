@@ -13,7 +13,7 @@
 | # | Decision | Principle | `file:line` | Before | Why changed |
 |---|----------|-----------|-------------|--------|-------------|
 | D1 | Rules are pure functions that receive a `Clock` instead of reading the system time | Dependency inversion | `packages/core/src/clock.ts:5` | TBD | Tests must be able to say "it is 23:30 IST" without waiting; the server runs in UTC. |
-| D2 | Sending email is a `Notifier` port; delivery goes through an outbox with a unique key | Dependency inversion, single responsibility | `apps/api/src/ports/notifier.ts:17`; outbox key: `apps/api/src/db/schema.ts:102` | TBD | Retries must never send a second Notification; tests use a fake notifier. |
+| D2 | Sending email is a `Notifier` port; delivery goes through an outbox with a unique key | Dependency inversion, single responsibility | `apps/api/src/ports/notifier.ts:17`; outbox key: `apps/api/src/db/schema.ts:104` | TBD | Retries must never send a second Notification; tests use a fake notifier. |
 | D3 | Pooja Status is computed from stored facts (Punches, Leaves) and written only at Finalize | Single source of truth | `packages/core/src/pooja-status.ts:33` | TBD | A stored status can go stale when a Leave or Punch arrives late. |
 
 Replace a row if the real refactors turn out different. A decision counts only when its before and after really happened in this repo's history.
@@ -24,7 +24,8 @@ The Device adapter (`apps/api/src/adapters/device/`, parser at `parse-attlog.ts:
 ## Known limitations
 - Whoever can read the Rector's login inbox can reset the password through "Forgot password?". The login email must be the Rector's own, protected inbox. A reset link is sent once, at the moment it is asked for, and is not retried; if it does not arrive, the Rector asks again.
 - A Student with a short Leave late in the Pooja Window (for example leaving at 17:00 IST) gets Not Applicable even if he was in the hostel most of the window. The Rector accepts this. No Pooja Status can be changed by hand.
-- A Notification cannot be recalled once Send Notifications is clicked.
+- A Notification cannot be recalled once Send Notifications is clicked. A Punch After Finalize that arrives after the emails were sent is still shown, but the email has already gone.
+- Last Seen only says when the Device last reached EVLOS. While EVLOS itself is down (for example the laptop is off), Last Seen stops too, for that reason alone.
 - If the server stops while an email is being sent, that email is never sent and stays "Notification queued" on the Review page. It is not retried, because a retry could send it twice (rule 5).
 - An email the email provider refuses three times, 5 minutes apart, is given up and shown as "Notification not sent". It is not sent again. This includes the server being without internet: on 4 Nov the laptop was offline at 23:00 and the Review Reminder went out only on its third attempt. The VM stays online, so this matters mostly while running locally.
 - A scheduled email (Review Reminder, Daily Report, Monthly Report) missed while the server was off is sent when it starts again, but only on the same IST Day. One missed on an earlier Day is never sent; the Report can still be downloaded.

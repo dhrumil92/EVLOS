@@ -27,6 +27,7 @@ import { ScheduleLoop } from './adapters/scheduler/schedule-loop.js';
 import { addStudent } from './use-cases/add-student.js';
 import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-activate.js';
 import { editStudent } from './use-cases/edit-student.js';
+import { getDeviceStatus } from './use-cases/device-status.js';
 import { getLiveView } from './use-cases/get-live-view.js';
 import { getReport } from './use-cases/get-report.js';
 import { finalizeDay, getReview, sendNotifications } from './use-cases/review.js';
@@ -76,9 +77,11 @@ const login = {
   clock,
 };
 
+const devices = new PostgresDeviceRegistry(db);
 const deviceApp = Fastify({ logger: true });
 registerDeviceRoutes(deviceApp, {
-  devices: new PostgresDeviceRegistry(db),
+  devices,
+  clock,
   recordPunches: (deviceSerial: string, uploaded: readonly UploadedPunch[]) =>
     recordPunches(deviceSerial, uploaded, { punches, clock, liveFeed: viewers }),
 });
@@ -108,6 +111,7 @@ await registerAuth(pageApp, {
 registerLiveRoutes(pageApp, {
   viewers,
   getLiveView: () => getLiveView({ punches, students, clock }),
+  getDeviceStatus: () => getDeviceStatus({ devices, clock }),
 });
 registerReportRoutes(pageApp, {
   getReport: (request) => getReport(request, { students, leaves, punches, finalized, clock }),

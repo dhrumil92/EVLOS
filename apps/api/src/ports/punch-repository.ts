@@ -14,4 +14,7 @@ export interface PunchRepository {
   punchesOn(day: Day): Promise<Punch[]>;
   // Every Punch from the first Day to the last (IST Days, both included), oldest first.
   punchesBetween(first: Day, last: Day): Promise<Punch[]>;
+  // Every Punch made on the Day that arrived after the given moment, such as the moment the
+  // Day was Finalized, oldest first.
+  punchesReceivedAfter(day: Day, after: Instant): Promise<Punch[]>;
 }

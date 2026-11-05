@@ -1,6 +1,6 @@
 import { startOfDay } from '@evlos/core';
-import type { Day, Punch } from '@evlos/core';
-import { and, asc, desc, gte, lt } from 'drizzle-orm';
+import type { Day, Instant, Punch } from '@evlos/core';
+import { and, asc, desc, gt, gte, lt } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { punches } from '../../db/schema.js';
 import type { PunchRepository, ReceivedPunch } from '../../ports/punch-repository.js';
@@ -47,6 +47,22 @@ export class PostgresPunchRepository implements PunchRepository {
         and(
           gte(punches.punchedAt, new Date(startOfDay(first))),
           lt(punches.punchedAt, new Date(startOfDay(last) + MS_PER_DAY)),
+        ),
+      )
+      .orderBy(asc(punches.punchedAt));
+    return rows.map((row) => ({ studentId: row.studentId, punchedAt: row.punchedAt.getTime() }));
+  }
+
+  async punchesReceivedAfter(day: Day, after: Instant): Promise<Punch[]> {
+    const start = startOfDay(day);
+    const rows = await this.db
+      .select({ studentId: punches.studentId, punchedAt: punches.punchedAt })
+      .from(punches)
+      .where(
+        and(
+          gte(punches.punchedAt, new Date(start)),
+          lt(punches.punchedAt, new Date(start + MS_PER_DAY)),
+          gt(punches.receivedAt, new Date(after)),
         ),
       )
       .orderBy(asc(punches.punchedAt));

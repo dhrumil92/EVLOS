@@ -1,4 +1,11 @@
-import { canFinalize, dayOf, daysBetween, PoojaStatus, studentsToNotify } from '@evlos/core';
+import {
+  canFinalize,
+  dayOf,
+  daysBetween,
+  isInPoojaWindow,
+  PoojaStatus,
+  studentsToNotify,
+} from '@evlos/core';
 import type { Clock, Day, Instant, Student } from '@evlos/core';
 import type {
   FinalStatus,
@@ -26,8 +33,13 @@ export interface Review {
   finalization: { finalizedBy: string; finalizedAt: Instant } | null;
   // Before Finalize: the Students Finalize will make Absent.
   needsReview: ReviewStudent[];
-  // After Finalize: the email list, each with its Exclude and Notification state.
-  absent: (ReviewStudent & { isExcluded: boolean; notification: NotificationState | null })[];
+  // After Finalize: the email list, each with its Exclude and Notification state, and the
+  // time of a Punch After Finalize when one arrived.
+  absent: (ReviewStudent & {
+    isExcluded: boolean;
+    notification: NotificationState | null;
+    punchAfterFinalize: Instant | null;
+  })[];
   // Days up to now that can be Finalized and are not yet, so none is forgotten.
   notFinalizedDays: Day[];
 }
@@ -59,10 +71,32 @@ async function notFinalizedDays(deps: ReviewDeps): Promise<Day[]> {
   return days.filter((day) => !done.has(day) && canFinalize(day, now));
 }
 
-async function absentList(day: Day, results: PoojaResult[], deps: ReviewDeps) {
-  const [students, notifications] = await Promise.all([
+// A Punch After Finalize: made inside the Pooja Window, but it reached EVLOS after the Day was
+// Finalized, as when the Device was offline and sent it later with its own time (FR-2). The
+// Day stays locked; the Rector sees it before Send Notifications and can Exclude the Student.
+// The earliest one of each Student, by Student ID.
+async function punchesAfterFinalize(day: Day, finalizedAt: Instant, deps: ReviewDeps) {
+  const arrived = await deps.punches.punchesReceivedAfter(day, finalizedAt);
+  const earliest = new Map<string, Instant>();
+  for (const punch of arrived.filter((one) => isInPoojaWindow(one.punchedAt))) {
+    const known = earliest.get(punch.studentId);
+    if (known === undefined || punch.punchedAt < known) {
+      earliest.set(punch.studentId, punch.punchedAt);
+    }
+  }
+  return earliest;
+}
+
+async function absentList(
+  day: Day,
+  finalizedAt: Instant,
+  results: PoojaResult[],
+  deps: ReviewDeps,
+) {
+  const [students, notifications, arrivedLater] = await Promise.all([
     deps.students.list(),
     deps.finalized.notificationStates(day),
+    punchesAfterFinalize(day, finalizedAt, deps),
   ]);
   const byId = new Map(students.map((student) => [student.studentId, student]));
   const stateOf = new Map(notifications.map((one) => [one.studentId, one.state]));
@@ -73,7 +107,8 @@ async function absentList(day: Day, results: PoojaResult[], deps: ReviewDeps) {
       if (student === undefined) return [];
       const isExcluded = result.excludedAt !== null;
       const notification = stateOf.get(student.studentId) ?? null;
-      return [{ ...shortly(student), isExcluded, notification }];
+      const punchAfterFinalize = arrivedLater.get(student.studentId) ?? null;
+      return [{ ...shortly(student), isExcluded, notification, punchAfterFinalize }];
     });
 }
 
@@ -100,7 +135,7 @@ export async function getReview(day: Day, deps: ReviewDeps): Promise<Review | nu
       finalizedAt: finalization.finalizedAt,
     },
     needsReview,
-    absent: finalization ? await absentList(day, results, deps) : [],
+    absent: finalization ? await absentList(day, finalization.finalizedAt, results, deps) : [],
     notFinalizedDays: pastDays,
   };
 }

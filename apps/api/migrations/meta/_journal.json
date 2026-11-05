@@ -78,6 +78,13 @@
       "when": 1793868452036,
       "tag": "0010_add_password_resets",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793876230455,
+      "tag": "0011_add_device_last_seen",
+      "breakpoints": true
     }
   ]
 }

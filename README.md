@@ -13,11 +13,11 @@ Students of a 360-Student hostel must attend Pooja every day between 05:30 and 1
 ## Features
 
 **The Rector's day**
-- **Live view.** Each Punch appears within seconds, with a count of Students Present so far.
+- **Live view.** Each Punch appears within seconds, with a count of Students Present so far and when the Device was last seen.
 - **Students.** Add, edit, Deactivate and Activate Students; list them by floor, room or name.
 - **Leaves and Returns.** For one Student, or for 30 to 40 at once before a holiday, exactly as written in the hostel's books.
-- **Review and Finalize.** After the Pooja Window closes, only the Students on Needs Review are shown. Finalize locks the Day and turns them Absent.
-- **Exclude and Send Notifications.** The Rector leaves out any Student who explained, then sends one email to each remaining Absent Student.
+- **Review and Finalize.** After the Pooja Window closes, only the Students on Needs Review are shown. Finalize locks the Day and turns them Absent; it warns first if the Device has been quiet, as Punches may still be on it.
+- **Exclude and Send Notifications.** The Rector leaves out any Student who explained, then sends one email to each remaining Absent Student. A Punch that arrived after Finalize is shown beside the Student, so no one is emailed by mistake.
 
 **Emails**
 - A **Notification** to each Absent Student, at most once per Day, only after Finalize.
@@ -138,7 +138,7 @@ docs                 requirements, architecture, schedule, AI log
 
 ## Testing
 
-About 740 tests run with `npm test`: the rules as pure functions, the use cases with in-memory fakes, the HTTP routes with Fastify `inject`, and the PostgreSQL repositories against the real `evlos_test` database, which they refuse to run anywhere else. CI runs lint, typecheck, the format check and every test on each push to `main` and each pull request. See `TESTING.md`.
+About 770 tests run with `npm test`: the rules as pure functions, the use cases with in-memory fakes, the HTTP routes with Fastify `inject`, and the PostgreSQL repositories against the real `evlos_test` database, which they refuse to run anywhere else. CI runs lint, typecheck, the format check and every test on each push to `main` and each pull request. See `TESTING.md`.
 
 ## Privacy
 

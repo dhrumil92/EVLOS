@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { DeviceStatusSource } from './device-status-source.js';
 import type { Review, ReviewSource } from './review-source.js';
 import { ReviewPage } from './ReviewPage.js';
 
 const TODAY = '2026-11-03';
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const AT_2305_IST = Date.UTC(2026, 10, 3, 23, 5) - IST_OFFSET_MS;
+const AT_0700_IST = Date.UTC(2026, 10, 3, 7, 0) - IST_OFFSET_MS;
 const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
 
 const student = (studentId: string, name: string, room: string) => ({ studentId, name, room });
@@ -26,8 +28,18 @@ const finalized: Review = {
   finalization: { finalizedBy: 'rector@example.com', finalizedAt: AT_2305_IST },
   needsReview: [],
   absent: [
-    { ...student('9002', 'Bina Rao', '205'), isExcluded: false, notification: null },
-    { ...student('9003', 'Chitra Rao', '310'), isExcluded: false, notification: null },
+    {
+      ...student('9002', 'Bina Rao', '205'),
+      isExcluded: false,
+      notification: null,
+      punchAfterFinalize: null,
+    },
+    {
+      ...student('9003', 'Chitra Rao', '310'),
+      isExcluded: false,
+      notification: null,
+      punchAfterFinalize: null,
+    },
   ],
   notFinalizedDays: [],
 };
@@ -57,6 +69,11 @@ function fakeSource(first: Review) {
   return { source, state };
 }
 
+// A Device last seen at 23:05, quiet or not.
+const deviceSeen = (isQuiet: boolean): DeviceStatusSource => ({
+  load: () => Promise.resolve({ lastSeenAt: AT_2305_IST, isQuiet }),
+});
+
 afterEach(cleanup);
 
 describe('Review and Finalize, before Finalize', () => {
@@ -80,6 +97,27 @@ describe('Review and Finalize, before Finalize', () => {
 
     expect(await screen.findByText(/Finalized at 23:05 by rector@example.com/)).toBeTruthy();
     expect(state.finalized).toEqual([TODAY]);
+  });
+
+  it("shows the Device's Last Seen before Finalize", async () => {
+    render(
+      <ReviewPage source={fakeSource(open).source} device={deviceSeen(false)} today={TODAY} />,
+    );
+
+    expect(await screen.findByText('Device last seen 3 Nov, 23:05.')).toBeTruthy();
+  });
+
+  it('warns in the Finalize question when the Device has gone quiet', async () => {
+    render(<ReviewPage source={fakeSource(open).source} device={deviceSeen(true)} today={TODAY} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Finalize the Day' }));
+
+    expect(
+      screen.getByText(
+        'The Device has not been in touch for 10 minutes or more, so Punches may still be on ' +
+          'it. 2 Students will be Absent. The Day will be locked.',
+      ),
+    ).toBeTruthy();
   });
 
   it('says so when the server cannot finish Finalize, instead of showing nothing', async () => {
@@ -178,14 +216,30 @@ describe('Review and Finalize, after Finalize', () => {
           fakeSource({
             ...finalized,
             absent: [
-              { ...student('9002', 'Bina Rao', '205'), isExcluded: true, notification: null },
+              {
+                ...student('9002', 'Bina Rao', '205'),
+                isExcluded: true,
+                notification: null,
+                punchAfterFinalize: null,
+              },
               {
                 ...student('9003', 'Chitra Rao', '310'),
                 isExcluded: false,
                 notification: 'queued',
+                punchAfterFinalize: null,
               },
-              { ...student('9004', 'Divya Rao', '402'), isExcluded: false, notification: 'sent' },
-              { ...student('9005', 'Esha Rao', '503'), isExcluded: false, notification: 'failed' },
+              {
+                ...student('9004', 'Divya Rao', '402'),
+                isExcluded: false,
+                notification: 'sent',
+                punchAfterFinalize: null,
+              },
+              {
+                ...student('9005', 'Esha Rao', '503'),
+                isExcluded: false,
+                notification: 'failed',
+                punchAfterFinalize: null,
+              },
             ],
           }).source
         }
@@ -202,5 +256,42 @@ describe('Review and Finalize, after Finalize', () => {
       'disabled',
       true,
     );
+  });
+
+  it('labels a Punch After Finalize and asks to check before sending', async () => {
+    render(
+      <ReviewPage
+        source={
+          fakeSource({
+            ...finalized,
+            absent: [
+              {
+                ...student('9002', 'Bina Rao', '205'),
+                isExcluded: false,
+                notification: null,
+                punchAfterFinalize: AT_0700_IST,
+              },
+              {
+                ...student('9003', 'Chitra Rao', '310'),
+                isExcluded: false,
+                notification: null,
+                punchAfterFinalize: null,
+              },
+            ],
+          }).source
+        }
+        today={TODAY}
+      />,
+    );
+
+    const list = await screen.findByRole('list', { name: 'Email list' });
+    expect(within(list).getByText('Punched at 07:00, arrived after Finalize')).toBeTruthy();
+    expect(within(list).getAllByText(/arrived after Finalize/)).toHaveLength(1);
+    expect(
+      screen.getByText(
+        '1 Student punched in the Pooja Window, but the Punch arrived after Finalize. ' +
+          'Check before you Send Notifications, and Exclude a Student who was at Pooja.',
+      ),
+    ).toBeTruthy();
   });
 });

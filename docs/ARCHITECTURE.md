@@ -43,13 +43,14 @@ In production, one small VM runs Caddy and the API. The Device keeps its own Pun
 packages/core      pure rules and types: Day, Pooja Window, Pooja Status, Away,
                    Due Back, Leave and Return checks, Active, Student checks,
                    canFinalize, studentsToNotify, Session and reset link expiry,
+                   when the Device has gone quiet,
                    Report hour slots, email retries, the times of scheduled
                    emails. No I/O, no system clock.
 apps/api
   use cases        recordPunches, addStudent, editStudent, deactivateStudent,
                    activateStudent, recordLeave, editLeave, cancelLeave,
                    returnLeave, recordLeaves and returnLeaves (many Students),
-                   listStudents, getLiveView, getReview, finalizeDay,
+                   listStudents, getLiveView, getDeviceStatus, getReview, finalizeDay,
                    sendNotifications (which also saves each Exclude), getReport,
                    sendDueEmails, queueReviewReminder, queueDailyReport,
                    queueMonthlyReport, listReportRecipients, addReportRecipient,
@@ -78,7 +79,7 @@ Facts are stored; statuses are computed. Only the Rector's decisions are stored 
 |-------|-------------|-------|
 | `students` | `student_id` PK, name, room, email, phone | The Student ID is the number registered on the Device and is never reused. The exact type is decided from real Device data. Students are never deleted. No fingerprint data. |
 | `student_active_periods` | `student_id`, `active_from`, `active_until` null | One open period while a Student is Active. Deactivate closes it with today's date; Activate opens a new one. A Student is Active on a Day if some period covers it, so deactivating and reactivating never rewrites history. |
-| `devices` | `device_serial` PK, label | Registered Devices only; today one row, the Pooja Device. A purpose column is added when a second Device arrives (section 7). |
+| `devices` | `device_serial` PK, label, `last_seen_at` null | `last_seen_at` is the Device's Last Seen, updated on every call it makes (every 30 seconds while online). Registered Devices only; today one row, the Pooja Device. A purpose column is added when a second Device arrives (section 7). |
 | `punches` | device serial, `student_id`, `punched_at` (timestamptz), `received_at`; unique on serial, `student_id`, `punched_at` | Never edited. The unique key makes re-uploads harmless. No foreign key on `student_id` on purpose: Punches from unknown or Deactivated Student IDs are kept but not counted. Uploads from an unregistered Device Serial are refused and not stored. |
 | `leaves` | `id` PK, `student_id`, `out_at`, `expected_return_at`, `returned_at` null, `cancelled_at` null | Open while `returned_at` and `cancelled_at` are null. Away and Due Back are derived. |
 | `day_finalizations` | `day` PK, finalized by, finalized at | Locks a Day. |
@@ -93,7 +94,9 @@ Facts are stored; statuses are computed. Only the Rector's decisions are stored 
 Dates are stored as timestamptz in UTC and converted with an explicit Asia/Kolkata zone for all rules. A Day is an IST calendar date.
 
 ## 4. Key flows
-**Punch.** Device pushes to its endpoints -> the Device adapter parses the upload, refuses an unregistered Device Serial, converts the timestamp to IST -> `recordPunches` stores it once -> the live view is notified over Server-Sent Events. A Punch for a Finalized Day is stored and the Day stays locked. *Not built yet:* the warning the Rector should see for that Student (PRD FR-2).
+**Punch.** Device pushes to its endpoints -> the Device adapter parses the upload, refuses an unregistered Device Serial, converts the timestamp to IST -> `recordPunches` stores it once -> the live view is notified over Server-Sent Events. A Punch for a Finalized Day is stored and the Day stays locked. On the Review page, an Absent Student with a Punch After Finalize (inside the Pooja Window, `received_at` later than the Day's `finalized_at`) is labelled with its time before Send Notifications (PRD FR-2).
+
+**Last Seen.** Every call from a registered Device, including the one every 30 seconds, sets `devices.last_seen_at`. `GET /api/device-status` gives the Last Seen and whether the Device has gone quiet (core `isDeviceQuiet`, 10 minutes); the live view and the Review page ask for it every minute, and a quiet Device is named in the Finalize question.
 
 **Day view.** The Rector's page asks for a Day -> the use case loads Active Students, Punches and Leaves -> the core computes each Pooja Status with the injected Clock -> the UI shows Present, Not Applicable, Pending and Needs Review, with Away in red and Due Back in yellow (always with text).
 

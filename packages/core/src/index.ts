@@ -1,5 +1,6 @@
 export type { Clock, Instant } from './clock.js';
 export { dayOf, daysBetween, istInstant, startOfDay } from './day.js';
+export { isDeviceQuiet } from './device.js';
 export type { Day } from './day.js';
 export { isAway, isDueBack, leaveProblem, returnProblem } from './leave.js';
 export type { Leave, LeaveProblem, ReturnProblem } from './leave.js';

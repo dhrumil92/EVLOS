@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { LiveFeed } from '../../ports/live-feed.js';
+import type { DeviceStatus } from '../../use-cases/device-status.js';
 import type { LiveView } from '../../use-cases/get-live-view.js';
 
 // Keeps the open live view pages and tells each one when Punches change.
@@ -21,10 +22,14 @@ export class LiveViewers implements LiveFeed {
 export interface LiveRoutesDeps {
   viewers: LiveViewers;
   getLiveView(): Promise<LiveView>;
+  getDeviceStatus(): Promise<DeviceStatus>;
 }
 
 export function registerLiveRoutes(app: FastifyInstance, deps: LiveRoutesDeps): void {
   app.get('/api/live-view', () => deps.getLiveView());
+
+  // The Device's Last Seen; the page asks again every minute.
+  app.get('/api/device-status', () => deps.getDeviceStatus());
 
   // Server-Sent Events: the page gets a nudge, then asks for the live view again.
   app.get('/api/live-view/events', (request, reply) => {

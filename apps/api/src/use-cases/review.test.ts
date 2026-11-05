@@ -1,3 +1,4 @@
+import { dayOf } from '@evlos/core';
 import type { Punch } from '@evlos/core';
 import { describe, expect, it } from 'vitest';
 import type { PunchRepository } from '../ports/punch-repository.js';
@@ -14,7 +15,10 @@ const ist = (date: number, hour: number, minute = 0) =>
 const RECTOR = 'rector@example.com';
 const DAY = '2026-11-03';
 
-async function setUp(now = ist(3, 23), punches: Punch[] = []) {
+// A Punch with the moment it reached EVLOS, for Punches that arrive after Finalize.
+type ArrivedPunch = Punch & { receivedAt: number };
+
+async function setUp(now = ist(3, 23), punches: Punch[] = [], arrived: ArrivedPunch[] = []) {
   const { students } = fakeStudentRepository();
   const { leaves } = fakeLeaveRepository();
   const finalizeFake = fakeFinalizeRepository();
@@ -22,6 +26,12 @@ async function setUp(now = ist(3, 23), punches: Punch[] = []) {
     record: () => Promise.resolve(true),
     punchesOn: () => Promise.resolve(punches),
     punchesBetween: () => Promise.resolve(punches),
+    punchesReceivedAfter: (day, after) =>
+      Promise.resolve(
+        arrived
+          .filter((one) => one.receivedAt > after && dayOf(one.punchedAt) === day)
+          .map(({ studentId, punchedAt }) => ({ studentId, punchedAt })),
+      ),
   };
   const deps = {
     students,
@@ -155,6 +165,67 @@ describe('finalizeDay', () => {
       ['9002', false, 'sent'],
       ['9003', false, 'failed'],
     ]);
+  });
+
+  it('marks an Absent Student whose Punch in the Pooja Window arrived after Finalize', async () => {
+    // Asha punched at 07:00, but the Device was offline and sent it at 23:10, after Finalize.
+    const { deps } = await setUp(
+      ist(3, 23),
+      [],
+      [{ studentId: '9001', punchedAt: ist(3, 7), receivedAt: ist(3, 23, 10) }],
+    );
+    await finalizeDay(DAY, RECTOR, deps);
+
+    const review = await getReview(DAY, deps);
+
+    expect(review?.absent.map((one) => [one.studentId, one.punchAfterFinalize])).toEqual([
+      ['9001', ist(3, 7)],
+      ['9002', null],
+      ['9003', null],
+    ]);
+  });
+
+  it('gives the earliest Punch After Finalize when there are several', async () => {
+    const { deps } = await setUp(
+      ist(3, 23),
+      [],
+      [
+        { studentId: '9001', punchedAt: ist(3, 9), receivedAt: ist(3, 23, 10) },
+        { studentId: '9001', punchedAt: ist(3, 7), receivedAt: ist(3, 23, 10) },
+      ],
+    );
+    await finalizeDay(DAY, RECTOR, deps);
+
+    const review = await getReview(DAY, deps);
+
+    expect(review?.absent[0]?.punchAfterFinalize).toBe(ist(3, 7));
+  });
+
+  it('does not mark a Punch outside the Pooja Window that arrived after Finalize', async () => {
+    // A Punch at 20:00 never counts toward a Pooja Status (rule 1), so it changes nothing.
+    const { deps } = await setUp(
+      ist(3, 23),
+      [],
+      [{ studentId: '9001', punchedAt: ist(3, 20), receivedAt: ist(3, 23, 10) }],
+    );
+    await finalizeDay(DAY, RECTOR, deps);
+
+    const review = await getReview(DAY, deps);
+
+    expect(review?.absent[0]?.punchAfterFinalize).toBeNull();
+  });
+
+  it('does not mark a Punch that arrived before Finalize', async () => {
+    const { deps } = await setUp(
+      ist(3, 23),
+      [],
+      [{ studentId: '9001', punchedAt: ist(3, 7), receivedAt: ist(3, 22) }],
+    );
+    await finalizeDay(DAY, RECTOR, deps);
+
+    const review = await getReview(DAY, deps);
+
+    expect(review?.absent[0]?.punchAfterFinalize).toBeNull();
   });
 });
 

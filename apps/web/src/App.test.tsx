@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App.js';
+import type { DeviceStatusSource } from './device-status-source.js';
 import type { LiveView, LiveViewSource } from './live-view-source.js';
 import type { ReportSource } from './report-source.js';
 import type { ReviewSource } from './review-source.js';
@@ -66,6 +67,15 @@ describe('live view', () => {
 
     expect(await screen.findByText('214')).toBeTruthy();
     expect(screen.getByText('Students Present so far')).toBeTruthy();
+  });
+
+  it("shows the Device's Last Seen on the live view", async () => {
+    const device: DeviceStatusSource = {
+      load: () => Promise.resolve({ lastSeenAt: AT_0700_IST, isQuiet: false }),
+    };
+    render(<App reports={reports} device={device} source={fakeSource(view()).source} />);
+
+    expect(await screen.findByText('Device last seen 2 Nov, 07:00.')).toBeTruthy();
   });
 
   it('shows the Day in words', async () => {

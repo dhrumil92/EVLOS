@@ -23,6 +23,7 @@ function fakePunches(punches: Punch[]): PunchRepository {
     record: () => Promise.resolve(true),
     punchesOn: () => Promise.resolve([]),
     punchesBetween: () => Promise.resolve(punches),
+    punchesReceivedAfter: () => Promise.resolve([]),
   };
 }
 

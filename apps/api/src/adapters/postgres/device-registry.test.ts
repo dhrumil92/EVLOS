@@ -11,6 +11,7 @@ assertTestDatabase(testUrl);
 
 const pool = new pg.Pool({ connectionString: testUrl });
 const registry = new PostgresDeviceRegistry(drizzle(pool));
+const SEEN_AT = Date.UTC(2026, 10, 5, 17, 29, 0);
 
 describe('PostgresDeviceRegistry', () => {
   beforeEach(async () => {
@@ -36,5 +37,22 @@ describe('PostgresDeviceRegistry', () => {
 
   it('treats a quote in a Device Serial as plain text', async () => {
     expect(await registry.isRegistered("' or '1'='1")).toBe(false);
+  });
+
+  it('has no Last Seen before the Device is in touch', async () => {
+    expect(await registry.lastSeen()).toBeNull();
+  });
+
+  it('remembers when the Device was Last Seen, the latest time winning', async () => {
+    await registry.markSeen('TEST-DEVICE', SEEN_AT);
+    await registry.markSeen('TEST-DEVICE', SEEN_AT + 30_000);
+
+    expect(await registry.lastSeen()).toBe(SEEN_AT + 30_000);
+  });
+
+  it('marks no Device that is not registered', async () => {
+    await registry.markSeen('UNREGISTERED', SEEN_AT);
+
+    expect(await registry.lastSeen()).toBeNull();
   });
 });

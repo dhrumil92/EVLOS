@@ -20,6 +20,7 @@ const repositoryWith = (punches: Punch[]) => {
       return Promise.resolve(punches);
     },
     punchesBetween: () => Promise.resolve([]),
+    punchesReceivedAfter: () => Promise.resolve([]),
   };
   return { repository, asked };
 };

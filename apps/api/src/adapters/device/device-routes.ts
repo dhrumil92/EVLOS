@@ -1,3 +1,4 @@
+import type { Clock } from '@evlos/core';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DeviceRegistry } from '../../ports/device-registry.js';
 import type { UploadedPunch } from '../../use-cases/record-punches.js';
@@ -5,6 +6,7 @@ import { parseAttlog } from './parse-attlog.js';
 
 export interface DeviceRoutesDeps {
   devices: DeviceRegistry;
+  clock: Clock;
   recordPunches(deviceSerial: string, uploaded: readonly UploadedPunch[]): Promise<number>;
 }
 
@@ -50,6 +52,8 @@ export function registerDeviceRoutes(app: FastifyInstance, deps: DeviceRoutesDep
       request.log.warn({ deviceSerial: SN }, 'refused an unregistered Device Serial');
       return reply.code(403).type('text/plain').send('Forbidden');
     }
+    // Every call, such as the one every 30 seconds, updates the Device's Last Seen.
+    await deps.devices.markSeen(SN, deps.clock.now());
   };
 
   app.get('/iclock/cdata', { preHandler: refuseUnregistered }, (request, reply) => {

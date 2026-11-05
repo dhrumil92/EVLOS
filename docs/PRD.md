@@ -61,9 +61,9 @@ Acceptance criteria:
 - Given the same Punch uploaded again, when it arrives, then no second copy is stored.
 - Given an upload from a Device Serial that is not registered, when it arrives, then it is refused, nothing is stored, and the refusal is logged.
 - Given a Punch from a registered Device for a Student ID that is unknown or Deactivated, when it arrives, then it is stored and not counted toward any Pooja Status.
-- Given a Punch for a Day that is already Finalized, when it arrives, then it is stored, the Day stays locked, and the Rector sees a warning for that Student before Send Notifications.
+- Given a Punch for a Day that is already Finalized, when it arrives, then it is stored, the Day stays locked, and the Rector sees a warning for that Student before Send Notifications. Built 2026-11-05: a Punch After Finalize inside the Pooja Window shows "Punched at 07:00, arrived after Finalize" beside the Absent Student, and the page asks the Rector to check before sending.
 
-**FR-3 Live view.** The Rector's page shows a new Punch within 5 seconds, without reloading, and a count of Students Present so far for the Day. A Punch made outside the Pooja Window is listed with the note "Outside Pooja Window (05:30–18:00)" and is not counted.
+**FR-3 Live view.** The Rector's page shows a new Punch within 5 seconds, without reloading, and a count of Students Present so far for the Day. A Punch made outside the Pooja Window is listed with the note "Outside Pooja Window (05:30–18:00)" and is not counted. The page also shows the Device's Last Seen, refreshed every minute, and warns when the Device has been quiet for 10 minutes or more.
 
 **FR-3b Day history.** The live view page has two lists for today: Latest Punches, shown when the page opens, and Every Student, with every Active Student's Pooja Status and the same sort and filter as the Reports page. A past Day is seen on the Reports page (FR-11), with the Day view and its date; the live view does not repeat it (decided 2026-11-05).
 - Given today, when the page is open, then new Punches and statuses appear live.
@@ -101,6 +101,7 @@ Acceptance criteria:
 - Given a Day with Needs Review Students, when the Rector Finalizes, then each becomes Absent and the Day is locked.
 - Given a Finalized Day, when someone tries to change it, then it is refused.
 - Finalize shows a summary first ("7 Students will be Absent").
+- Before Finalize the page shows the Device's Last Seen. Given the Device has been quiet for 10 minutes or more, when the Rector clicks Finalize, then the question also says that Punches may still be on the Device. Finalize is still allowed.
 
 **FR-9 Exclude and Send Notifications.** After Finalize, the Report shows an email list of the Absent Students, each with a cross. The Rector may Exclude any of them (for example a Student who explained why he missed Pooja) and then clicks Send Notifications.
 - Given a Finalized Day, when the Rector clicks Send Notifications, then each Absent Student who is not Excluded receives exactly one email, and a retry or a second click never sends a second.

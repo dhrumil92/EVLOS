@@ -14,7 +14,12 @@ export interface Review {
   canFinalize: boolean;
   finalization: { finalizedBy: string; finalizedAt: number } | null;
   needsReview: ReviewStudent[];
-  absent: (ReviewStudent & { isExcluded: boolean; notification: NotificationState | null })[];
+  // punchAfterFinalize: the time of a Punch made in the Pooja Window that arrived after Finalize.
+  absent: (ReviewStudent & {
+    isExcluded: boolean;
+    notification: NotificationState | null;
+    punchAfterFinalize: number | null;
+  })[];
   notFinalizedDays: string[];
 }
 
