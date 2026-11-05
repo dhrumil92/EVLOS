@@ -2,7 +2,7 @@
 
 Plan from 2026-10-28 to the 26 Nov end-sem. The viva follows the exam, so the repo is frozen and tagged `project-final` by 25 Nov. Dates are targets; a phase is done only when its exit check passes. Development runs on the author's PC first; deployment comes after Phase 4.
 
-| # | Phase | Target | Exit check | Status (2026-11-04) |
+| # | Phase | Target | Exit check | Status (2026-11-05) |
 |---|-------|--------|-----------|--------------------|
 | 0 | Documents and repo | by 30 Oct | All documents in this repo, consistent with each other; hygiene files in place; first backlog drafted. | Done 30 Oct |
 | 1 | Skeleton and CI | 31 Oct to 2 Nov | Monorepo, lint, typecheck, test, CI on every pull request, `.env.example`, `db:setup`, five-command local run. | Done 2 Nov |

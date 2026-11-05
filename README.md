@@ -72,6 +72,8 @@ The design is hexagonal: the rules in `packages/core` know nothing about the dat
 
 ## Run locally
 
+The full guide, step by step (database, backend, frontend, the Rector's login, email and the Device), is in [`docs/SETUP.md`](docs/SETUP.md). The short version:
+
 **You need** Node 22 (exact version in `.nvmrc`) and PostgreSQL 17. Once, as a PostgreSQL admin (for example in pgAdmin), create a login role `evlos` with a password and no superuser rights, and two databases owned by it: `evlos` for development and `evlos_test` for tests (every test run wipes it).
 
 ```bash
@@ -148,6 +150,7 @@ EVLOS stores only what the Rector needs: Student ID, name, room, email, phone, P
 
 | File | What it is |
 |------|------------|
+| `docs/SETUP.md` | How to set up and run EVLOS locally, step by step. |
 | `docs/PRD.md` | Requirements with acceptance criteria. |
 | `docs/ARCHITECTURE.md` | Tech stack, layers, data model, flows, deployment. |
 | `UBIQUITOUS_LANGUAGE.md` | The domain vocabulary and the ambiguities it settles. |
