@@ -12,8 +12,8 @@ export interface ReportTable {
   rows: {
     // Student ID, name and room: text a person typed.
     student: [string, string, string];
-    // One per Day; empty on a Day the Student was not Active.
-    statuses: string[];
+    // One per Day; null on a Day the Student was not Active.
+    statuses: (PoojaStatusName | null)[];
   }[];
 }
 
@@ -25,6 +25,10 @@ const STATUS_TEXT: Record<PoojaStatusName, string> = {
   Pending: 'Pending',
   'Needs Review': 'Needs Review',
 };
+
+// A Pooja Status as written in a Report file; empty on a Day the Student was not Active.
+export const statusText = (status: PoojaStatusName | null): string =>
+  status === null ? '' : STATUS_TEXT[status];
 
 const byRoomThenName = (first: ReportRow, second: ReportRow) =>
   first.room.localeCompare(second.room) || first.name.localeCompare(second.name);
@@ -42,7 +46,7 @@ export function reportTable(report: Report): ReportTable {
   ];
   const rows = [...report.rows].sort(byRoomThenName).map((row) => ({
     student: [row.studentId, row.name, row.room] as [string, string, string],
-    statuses: row.statuses.map((status) => (status === null ? '' : STATUS_TEXT[status])),
+    statuses: row.statuses,
   }));
   return { heading, rows };
 }

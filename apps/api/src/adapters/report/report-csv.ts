@@ -1,5 +1,5 @@
 import type { Report } from '../../use-cases/get-report.js';
-import { reportTable } from './report-table.js';
+import { reportTable, statusText } from './report-table.js';
 
 // Lets Excel read the file as UTF-8, so names in any script show correctly.
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
@@ -22,7 +22,7 @@ export function reportCsv(report: Report): string {
   const { heading, rows } = reportTable(report);
   const lines = [
     heading.map(cell),
-    ...rows.map((row) => [...row.student.map(typedCell), ...row.statuses]),
+    ...rows.map((row) => [...row.student.map(typedCell), ...row.statuses.map(statusText)]),
   ].map((line) => line.join(','));
   return BYTE_ORDER_MARK + lines.join(LINE_END) + LINE_END;
 }
