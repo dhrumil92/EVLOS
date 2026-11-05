@@ -1,9 +1,9 @@
 # ARCHITECTURE
 
-How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Checked against the code on 2026-11-04 (end of Phase 4); anything not built yet is marked with the phase that brings it.
+How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Checked against the code on 2026-11-05 (end of Phase 5); anything not built yet is marked with the phase that brings it.
 
 ## Tech stack
-Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Gmail with an app password; Mailpit for local tests), write-excel-file for Excel Reports, Vitest, ESLint, Prettier, GitHub Actions CI. Not yet: Playwright; Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
+Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Gmail with an app password; Mailpit for local tests), write-excel-file for Excel Reports, Vitest, ESLint, Prettier, GitHub Actions CI. Dropped on 2026-11-05: Playwright (see the Tests row). Not yet: Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
 
 | Layer | Choice | Why |
 |-------|--------|-----|
@@ -17,7 +17,7 @@ Status: a choice is confirmed once it is used in the repo; versions are pinned e
 | Email | Nodemailer through an SMTP provider on port 587: Gmail with an app password (chosen 4 Nov; about 500 emails a day), Mailpit on this machine for tests. `npm run email:test` checks the settings. | GCP blocks outbound port 25, and mail sent straight from a VM IP usually lands in spam. Any SMTP provider can replace Gmail through `.env` alone. |
 | Reports | CSV by hand; Excel with `write-excel-file` (one dependency; `read-excel-file` only in tests, to read the file back) | Needed for FR-11. ExcelJS was set aside: no release since 2023 and many dependencies. |
 | Auth | Session cookies, Argon2 password hashing | No hand-rolled crypto. |
-| Tests | Vitest, Fastify `inject`, a real PostgreSQL test database for repository tests, Playwright for one or two flows | Rules are pure and fast to test; see `TESTING.md`. |
+| Tests | Vitest, Fastify `inject`, a real PostgreSQL test database for repository tests, React Testing Library for the pages | Rules are pure and fast to test; see `TESTING.md`. Playwright browser tests were planned for one or two flows and dropped on 2026-11-05 to keep time for deployment: the whole flow was instead run by hand on a real Day (4 Nov). One may be added in Phase 7 if time allows. |
 | Quality | ESLint with the `complexity` rule on, Prettier, strict TypeScript | The course measures complexity. |
 | Delivery | GitHub Actions (lint, typecheck, test with a Postgres service container, deploy); Docker Compose and Caddy (HTTPS) on the VM only | Repeatable deploys to one small VM. |
 | Operations | Pino logs, `/health`, an uptime check, nightly database backup | NFR-9. |
@@ -42,9 +42,9 @@ In production, one small VM runs Caddy and the API. The Device keeps its own Pun
 ```
 packages/core      pure rules and types: Day, Pooja Window, Pooja Status, Away,
                    Due Back, Leave and Return checks, Active, Student checks,
-                   canFinalize, studentsToNotify, Session expiry, Report hour
-                   slots, email retries, the times of scheduled emails. No I/O,
-                   no system clock.
+                   canFinalize, studentsToNotify, Session and reset link expiry,
+                   Report hour slots, email retries, the times of scheduled
+                   emails. No I/O, no system clock.
 apps/api
   use cases        recordPunches, addStudent, editStudent, deactivateStudent,
                    activateStudent, recordLeave, editLeave, cancelLeave,
@@ -52,16 +52,22 @@ apps/api
                    listStudents, getLiveView, getReview, finalizeDay,
                    sendNotifications (which also saves each Exclude), getReport,
                    sendDueEmails, queueReviewReminder, queueDailyReport,
-                   queueMonthlyReport, loadRoster, createRector, logIn, logOut
+                   queueMonthlyReport, listReportRecipients, addReportRecipient,
+                   removeReportRecipient, loadRoster, createRector, logIn,
+                   logOut, changePassword, requestPasswordReset, resetPassword
   ports            Clock (in core), DeviceRegistry, PunchRepository,
                    StudentRepository, LeaveRepository, FinalizeRepository,
-                   RectorRepository, LiveFeed, Passwords, SessionTokens,
-                   Notifier, OutboxRepository
+                   RectorRepository, ReportRecipientRepository, LiveFeed,
+                   Passwords, SessionTokens, Notifier, OutboxRepository
   adapters         device (Device protocol parser and routes), postgres (Drizzle),
-                   http routes, login (Argon2 and session tokens), roster (CSV
-                   reader for the first load), email (Nodemailer over SMTP),
-                   scheduler (the schedule loop), report (CSV file)
-apps/web           React UI for the Rector
+                   http routes (and PUBLIC_URL for reset links), login (Argon2
+                   and session tokens), roster (CSV reader for the first load),
+                   email (Nodemailer over SMTP), scheduler (the schedule loop),
+                   report (one shared table, written as CSV or coloured Excel)
+apps/web           React UI for the Rector: login (with forgot password), live
+                   view, Students, Leaves, Review and Finalize, Reports,
+                   Settings (Report Recipients, change password), and the
+                   reset password page
 ```
 Dependencies point inward: adapters know about the core, the core knows nothing about adapters. Reports are put together in the `getReport` use case from core rules; the core holds no Report builder of its own.
 

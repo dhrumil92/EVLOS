@@ -150,8 +150,9 @@ export const passwordResets = pgTable('password_resets', {
   usedAt: timestamp('used_at', { withTimezone: true }),
 });
 
-// Who did what and when (FR-14). Rows are only ever added. done_by stays empty until
-// Rector login exists. student_id is empty for actions about a Day, such as Finalize.
+// Who did what and when (FR-14). Rows are only ever added. done_by is the email of the Rector
+// who did it; it is empty only in rows written before Rector login existed. student_id is empty
+// for actions about a Day, such as Finalize.
 export const auditLog = pgTable('audit_log', {
   id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   action: text('action').notNull(),

@@ -2,7 +2,7 @@
 
 Technology choices are not listed here. This document says what the product must do; the stack is in `docs/ARCHITECTURE.md` (section Tech stack) and the rules for AI agents are in `AGENTS.md`.
 
-Status: draft, 2026-10-28. Vocabulary follows `UBIQUITOUS_LANGUAGE.md`. Requirement IDs (FR-n, NFR-n) are stable so tests and `TESTING.md` can cite them. This document also serves as the project's requirements specification; no separate SRS is kept.
+Status: written 2026-10-28, updated to match the code on 2026-11-05 (end of Phase 5). Vocabulary follows `UBIQUITOUS_LANGUAGE.md`. Requirement IDs (FR-n, NFR-n) are stable so tests and `TESTING.md` can cite them. This document also serves as the project's requirements specification; no separate SRS is kept.
 
 ## 1. Problem
 Students must attend Pooja during the Pooja Window (05:30 to 18:00 IST). Today the Rector walks every room at 22:00, writes the result on paper, then retypes it into a local Excel file. Leaves are recorded on paper (a Leave Note plus two reception books) and copied by hand. The existing biometric software is paid and run by a vendor, and its records do not always match the Device. The Rector's work is slow and error-prone, and Students are not told when they miss Pooja. The hostel has 360 Students.
@@ -31,7 +31,7 @@ Students must attend Pooja during the Pooja Window (05:30 to 18:00 IST). Today t
 ## 4. Scope
 | In the MVP | Later |
 |------------|-------|
-| Student form with settings panel (add, Leave, Return, Deactivate, Activate), Leave and Return for many Students, one-time first load, Punch ingestion, live view, Pooja Status, Needs Review, Finalize, Exclude, Send Notifications, Notification, Review Reminder, Reports, Rector login | Roster upload with sample file (built last, optional), Parent emails, other Devices and activities, Student view, Leave requests by Students |
+| Student form with settings panel (add, Leave, Return, Deactivate, Activate), Leave and Return for many Students, one-time first load, Punch ingestion, live view, Pooja Status, Needs Review, Finalize, Exclude, Send Notifications, Notification, Review Reminder, Daily and Monthly Report, Reports as CSV and coloured Excel, Rector login with change and forgotten password, Settings with the Report Recipients | Roster upload with sample file (built last, optional), Parent emails, other Devices and activities, Student view, Leave requests by Students |
 
 ## 5. Functional requirements
 Each has acceptance criteria in Given / When / Then form.
@@ -65,9 +65,9 @@ Acceptance criteria:
 
 **FR-3 Live view.** The Rector's page shows a new Punch within 5 seconds, without reloading, and a count of Students Present so far for the Day. A Punch made outside the Pooja Window is listed with the note "Outside Pooja Window (05:30–18:00)" and is not counted.
 
-**FR-3b Day history.** The live view page has two lists: Latest Punches, shown when the page opens, and Every Student, with every Active Student's Pooja Status for the Day and the same sort and filter as the Reports page. The Rector can pick any past Day to see Every Student for that Day.
+**FR-3b Day history.** The live view page has two lists for today: Latest Punches, shown when the page opens, and Every Student, with every Active Student's Pooja Status and the same sort and filter as the Reports page. A past Day is seen on the Reports page (FR-11), with the Day view and its date; the live view does not repeat it (decided 2026-11-05).
 - Given today, when the page is open, then new Punches and statuses appear live.
-- Given a past Day, when the Rector picks it, then the page shows that Day's Pooja Statuses and Punches and says whether it is Finalized. A Finalized Day shows its stored results; a Day not Finalized shows Needs Review, never Absent.
+- Given a past Day, when the Rector picks it on the Reports page, then the page shows that Day's Pooja Statuses and says whether it is Finalized. A Finalized Day shows its stored results; a Day not Finalized shows Needs Review, never Absent.
 - A Day in the future cannot be picked.
 
 **FR-4 Record Leave.** The Rector records a Leave for one Student (gear icon, Leave status tab) or for many at once (FR-4b): Out date and time, Expected Return date and time. The Out Time may be in the past, because the Rector often enters Leaves after the Students have left.
