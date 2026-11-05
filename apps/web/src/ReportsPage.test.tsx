@@ -29,6 +29,7 @@ function fakeSource(answer: (request: ReportRequest) => Report = () => report())
       return Promise.resolve(answer(request));
     },
     csvUrl: (request) => `/csv/${request.view}`,
+    xlsxUrl: (request) => `/xlsx/${request.view}`,
   };
   return { source, asked };
 }
@@ -59,6 +60,16 @@ describe('Reports page', () => {
 
     const link = await screen.findByRole('link', { name: 'Download CSV' });
     expect(link.getAttribute('href')).toBe('/csv/Month');
+  });
+
+  it('offers the Report shown as an Excel download', async () => {
+    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
+    await screen.findByText('Bina Rao');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
+
+    const link = await screen.findByRole('link', { name: 'Download Excel' });
+    expect(link.getAttribute('href')).toBe('/xlsx/Month');
   });
 
   it('lists Students by room in ascending order first', async () => {

@@ -40,6 +40,7 @@ function fakeSource(first: LiveView) {
 
 const reports: ReportSource = {
   csvUrl: () => '/csv',
+  xlsxUrl: () => '/xlsx',
   load: () =>
     Promise.resolve({
       title: 'Monday 2 November 2026',

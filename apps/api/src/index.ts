@@ -18,7 +18,8 @@ import { PostgresOutboxRepository } from './adapters/postgres/outbox-repository.
 import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js';
 import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
 import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
-import { csvFileName, reportCsv } from './adapters/report/report-csv.js';
+import { reportCsv } from './adapters/report/report-csv.js';
+import { reportFileName } from './adapters/report/report-table.js';
 import { ScheduleLoop } from './adapters/scheduler/schedule-loop.js';
 import { addStudent } from './use-cases/add-student.js';
 import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-activate.js';
@@ -134,7 +135,7 @@ const reportEmailDeps = {
   outbox,
   reportEmailAddresses,
   attachmentOf: (request: ReportRequest, report: Report) => ({
-    filename: csvFileName(request),
+    filename: reportFileName(request, 'csv'),
     content: reportCsv(report),
   }),
 };

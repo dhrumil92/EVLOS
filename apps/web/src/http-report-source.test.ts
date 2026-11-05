@@ -26,4 +26,10 @@ describe('http Report source', () => {
       '/api/reports/csv?view=Month&month=2026-11',
     );
   });
+
+  it('downloads the Excel file of a Report from the same query', () => {
+    expect(httpReportSource.xlsxUrl({ view: 'Day', day: '2026-11-03' })).toBe(
+      '/api/reports/xlsx?view=Day&day=2026-11-03',
+    );
+  });
 });

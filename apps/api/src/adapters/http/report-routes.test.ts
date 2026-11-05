@@ -1,9 +1,11 @@
 import Fastify from 'fastify';
+import { readSheet } from 'read-excel-file/node';
 import { describe, expect, it } from 'vitest';
 import type { Report, ReportRequest } from '../../use-cases/get-report.js';
 import { registerReportRoutes } from './report-routes.js';
 
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
+const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const REPORT: Report = { isFinalized: false, rows: [], hours: null, days: null, reportDays: [] };
 
 function buildApp(answer: Report | null = REPORT) {
@@ -82,6 +84,37 @@ describe('Report CSV route', () => {
     const reply = await app.inject({
       method: 'GET',
       url: '/api/reports/csv?view=Day&day=2030-01-01',
+    });
+
+    expect(reply.statusCode).toBe(400);
+    expect(reply.headers['content-disposition']).toBeUndefined();
+  });
+});
+
+describe('Report Excel route', () => {
+  it('downloads the Report as an Excel file named after its month', async () => {
+    const { app, asked } = buildApp();
+
+    const reply = await app.inject({
+      method: 'GET',
+      url: '/api/reports/xlsx?view=Month&month=2026-11',
+    });
+
+    expect(reply.statusCode).toBe(200);
+    expect(reply.headers['content-type']).toBe(XLSX_TYPE);
+    expect(reply.headers['content-disposition']).toBe(
+      'attachment; filename="EVLOS Report 2026-11.xlsx"',
+    );
+    expect(await readSheet(reply.rawPayload)).toEqual([['Student ID', 'Name', 'Room']]);
+    expect(asked).toEqual([{ view: 'Month', month: '2026-11' }]);
+  });
+
+  it('answers 400 and sends no file when the Report cannot be made', async () => {
+    const { app } = buildApp(null);
+
+    const reply = await app.inject({
+      method: 'GET',
+      url: '/api/reports/xlsx?view=Day&day=2030-01-01',
     });
 
     expect(reply.statusCode).toBe(400);

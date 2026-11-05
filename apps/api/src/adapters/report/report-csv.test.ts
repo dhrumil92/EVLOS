@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Report, ReportRow } from '../../use-cases/get-report.js';
-import { csvFileName, reportCsv } from './report-csv.js';
+import { reportCsv } from './report-csv.js';
 
 const BYTE_ORDER_MARK = String.fromCharCode(0xfeff);
 
@@ -92,18 +92,5 @@ describe('reportCsv', () => {
     expect(csv.startsWith(BYTE_ORDER_MARK)).toBe(true);
     expect(csv.endsWith('Present\r\n')).toBe(true);
     expect(csv.split('\r\n')).toHaveLength(3);
-  });
-});
-
-describe('csvFileName', () => {
-  it.each([
-    [{ view: 'Day', day: '2026-11-03' }, 'EVLOS Report 2026-11-03.csv'],
-    [{ view: 'Month', month: '2026-11' }, 'EVLOS Report 2026-11.csv'],
-    [
-      { view: 'Date range', from: '2026-11-01', to: '2026-11-03' },
-      'EVLOS Report 2026-11-01 to 2026-11-03.csv',
-    ],
-  ] as const)('names the file for %o', (request, name) => {
-    expect(csvFileName(request)).toBe(name);
   });
 });

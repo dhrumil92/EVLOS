@@ -34,4 +34,6 @@ export interface ReportSource {
   load(request: ReportRequest): Promise<Report>;
   // Where the browser downloads the same Report as a CSV file.
   csvUrl(request: ReportRequest): string;
+  // Where the browser downloads the same Report as an Excel file.
+  xlsxUrl(request: ReportRequest): string;
 }

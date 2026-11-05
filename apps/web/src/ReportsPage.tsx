@@ -288,9 +288,14 @@ export function ReportsPage({ source, today }: { source: ReportSource; today: st
           />
           <Segments label="Report period" options={VIEWS} value={view} onChange={setView} />
           {report && (
-            <a className="btn" href={source.csvUrl(request)} download>
-              Download CSV
-            </a>
+            <>
+              <a className="btn" href={source.csvUrl(request)} download>
+                Download CSV
+              </a>
+              <a className="btn" href={source.xlsxUrl(request)} download>
+                Download Excel
+              </a>
+            </>
           )}
         </div>
       </div>
