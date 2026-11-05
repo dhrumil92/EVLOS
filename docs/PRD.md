@@ -155,7 +155,7 @@ Acceptance criteria:
 
 ## 10. Open questions
 1. Answered 2026-11-03: the Device holds only Student IDs and fingerprints, no names. The first load therefore cannot match the Device's list to the Excel by name, as the First load paragraph in FR-1 first assumed (it now describes the CSV load). Instead, the Rector holds a list of Student IDs with names and will provide it. Until then, development uses test Students enrolled by the author and friends, who have agreed to this.
-2. Which email provider and sender address will be used? Deferred to Phase 5; a Gmail app password is enough for testing.
+2. Answered 2026-11-04: Gmail, through an app password (SMTP `smtp.gmail.com`, port 587), sent from the author's Gmail address. Gmail allows about 500 emails a day, which covers 360 Students. Tested on 4 Nov with real emails to the author and friends who agreed (Review Reminder, Notifications, Daily Report). Another SMTP provider can replace it by changing `.env` only.
 3. Has the Rector agreed in writing to emails going to Students?
 4. Should the Rector be able to unlock (reopen) a Finalized Day to correct a mistake? Set aside on 2026-10-30; until decided, a Finalized Day cannot be changed.
 5. Decided 2026-11-02 from captured payloads: when the Device uploads late, it sends the original punch time (Punches made while the server was down arrived later with their own times, in one batch). The upload-time case does not occur, so no purple Punch is needed.

@@ -25,7 +25,7 @@ The Device adapter (`apps/api/src/adapters/device/`, parser at `parse-attlog.ts:
 - A Student with a short Leave late in the Pooja Window (for example leaving at 17:00 IST) gets Not Applicable even if he was in the hostel most of the window. The Rector accepts this. No Pooja Status can be changed by hand.
 - A Notification cannot be recalled once Send Notifications is clicked.
 - If the server stops while an email is being sent, that email is never sent and stays "Notification queued" on the Review page. It is not retried, because a retry could send it twice (rule 5).
-- An email the email provider refuses three times, 5 minutes apart, is given up and shown as "Notification not sent". It is not sent again.
+- An email the email provider refuses three times, 5 minutes apart, is given up and shown as "Notification not sent". It is not sent again. This includes the server being without internet: on 4 Nov the laptop was offline at 23:00 and the Review Reminder went out only on its third attempt. The VM stays online, so this matters mostly while running locally.
 - A scheduled email (Review Reminder, Daily Report, Monthly Report) missed while the server was off is sent when it starts again, but only on the same IST Day. One missed on an earlier Day is never sent; the Report can still be downloaded.
 - A forgotten Return keeps a Student Away. The Rector is responsible for recording Returns.
 - The Device sends plain HTTP, so Punch uploads are not encrypted in transit. Access is limited to known Device serial numbers.

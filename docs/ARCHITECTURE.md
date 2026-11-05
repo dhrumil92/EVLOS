@@ -3,7 +3,7 @@
 How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Checked against the code on 2026-11-04 (end of Phase 4); anything not built yet is marked with the phase that brings it.
 
 ## Tech stack
-Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Mailpit on this machine), Vitest, ESLint, Prettier, GitHub Actions CI. Not yet: Excel and a real email provider (Phase 5); Playwright; Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
+Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Gmail with an app password; Mailpit for local tests), Vitest, ESLint, Prettier, GitHub Actions CI. Not yet: Excel (Phase 5); Playwright; Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
 
 | Layer | Choice | Why |
 |-------|--------|-----|
@@ -14,7 +14,7 @@ Status: a choice is confirmed once it is used in the repo; versions are pinned e
 | Database | PostgreSQL 17 with Drizzle ORM and SQL migrations | Constraints for uniqueness and idempotency; light on a 1 GB VM. |
 | Live updates | Server-Sent Events | One-way push of new Punches; simpler than WebSockets. |
 | Scheduler | In-process loop in Asia/Kolkata plus the `outbox_emails` table | Enough at this scale and easy to explain. |
-| Email | Nodemailer through an SMTP provider on port 587 (local mail catcher in development; Gmail app password for early testing; a provider such as Brevo chosen in Phase 5) | GCP blocks outbound port 25, and mail sent straight from a VM IP usually lands in spam. |
+| Email | Nodemailer through an SMTP provider on port 587: Gmail with an app password (chosen 4 Nov; about 500 emails a day), Mailpit on this machine for tests. `npm run email:test` checks the settings. | GCP blocks outbound port 25, and mail sent straight from a VM IP usually lands in spam. Any SMTP provider can replace Gmail through `.env` alone. |
 | Reports | CSV by hand; Excel with a library such as ExcelJS | Needed for FR-11. |
 | Auth | Session cookies, Argon2 password hashing | No hand-rolled crypto. |
 | Tests | Vitest, Fastify `inject`, a real PostgreSQL test database for repository tests, Playwright for one or two flows | Rules are pure and fast to test; see `TESTING.md`. |
@@ -24,7 +24,7 @@ Status: a choice is confirmed once it is used in the repo; versions are pinned e
 | Hosting | Google Cloud free-tier VM (e2-micro, 1 GB RAM), after Phase 4 | The Device speaks plain HTTP on its own port; the scheduler needs a long-running process. |
 
 ## Environments
-- **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit). The Device pushes to the PC over the same Wi-Fi. The page's API listens on `127.0.0.1` only and needs a Rector login; on the VM it is reached only through Caddy over HTTPS.
+- **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit) for tests, or to real inboxes through Gmail when `.env` has the Gmail settings. The Device pushes to the PC over the same Wi-Fi. The page's API listens on `127.0.0.1` only and needs a Rector login; on the VM it is reached only through Caddy over HTTPS.
 - **CI (GitHub Actions):** a Postgres service container; no Docker on the author's PC is involved.
 - **Production (GCP VM, from Phase 6):** Docker Compose with `api` and `caddy`; PostgreSQL on the VM or a free managed tier, with its own database and user for EVLOS.
 

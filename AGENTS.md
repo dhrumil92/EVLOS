@@ -36,6 +36,7 @@ Run from the repo root.
 | `npm run db:setup` | Build, then apply all migrations to `evlos` and `evlos_test` (reads `.env`). Safe to run again. |
 | `npm run rector:create -- <email>` | Create the Rector's login in `evlos` (reads `.env`). Asks for the password at a hidden prompt; it needs at least 12 characters. |
 | `npm run students:load -- <file.csv> [--save]` | First load of the Rector's list into `evlos` (reads `.env`). Without `--save` it only checks; with it, all Students are saved or none. Columns as in `sample-roster.csv`. |
+| `npm run email:test -- <email>` | Send one test email through the SMTP settings in `.env`, to check them. Touches no database. On failure it prints the error code and reason, never the password. |
 | `npm test` | Run every test once. Database tests use `evlos_test` only and empty it first. |
 | `npm run lint` | ESLint, including the complexity limit (10) and the pure-core rules. |
 | `npm run typecheck` | Strict TypeScript for all workspaces. |
