@@ -31,7 +31,7 @@ export interface ReportEmail {
   attachments: Attachment[];
 }
 
-// One copy of an email for each address in REPORT_EMAIL. The dedupe key is the kind, what
+// One copy of an email for each Report Recipient. The dedupe key is the kind, what
 // it is about and the address, so each copy is queued once however often it is asked for.
 export function toEachAddress(
   addresses: readonly string[],

@@ -2,11 +2,11 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import Fastify from 'fastify';
 import pg from 'pg';
 import { registerDeviceRoutes } from './adapters/device/device-routes.js';
-import { reportEmailAddressesFrom } from './adapters/email/report-email-setting.js';
 import { smtpNotifier, smtpSettingsFrom } from './adapters/email/smtp-notifier.js';
 import { registerAuth } from './adapters/http/auth-routes.js';
 import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
+import { registerReportRecipientRoutes } from './adapters/http/report-recipient-routes.js';
 import { registerReportRoutes } from './adapters/http/report-routes.js';
 import { registerReviewRoutes } from './adapters/http/review-routes.js';
 import { registerStudentRoutes } from './adapters/http/student-routes.js';
@@ -17,6 +17,7 @@ import { PostgresLeaveRepository } from './adapters/postgres/leave-repository.js
 import { PostgresOutboxRepository } from './adapters/postgres/outbox-repository.js';
 import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js';
 import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
+import { PostgresReportRecipientRepository } from './adapters/postgres/report-recipient-repository.js';
 import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
 import { reportCsv } from './adapters/report/report-csv.js';
 import { reportFileName } from './adapters/report/report-table.js';
@@ -38,6 +39,11 @@ import { sendDueEmails } from './use-cases/send-due-emails.js';
 import { queueDailyReport } from './use-cases/daily-report.js';
 import { queueMonthlyReport } from './use-cases/monthly-report.js';
 import { queueReviewReminder } from './use-cases/review-reminder.js';
+import {
+  addReportRecipient,
+  listReportRecipients,
+  removeReportRecipient,
+} from './use-cases/report-recipients.js';
 import type { Report, ReportRequest } from './use-cases/get-report.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -49,7 +55,6 @@ const pagePort = Number(process.env.PAGE_PORT ?? '3000');
 const secureCookie = process.env.COOKIE_SECURE === 'true';
 // Read before anything starts, so a wrong email setting stops the server at once.
 const smtp = smtpSettingsFrom(process.env);
-const reportEmailAddresses = reportEmailAddressesFrom(process.env);
 const ONE_MINUTE_MS = 60 * 1000;
 
 const db = drizzle(new pg.Pool({ connectionString: databaseUrl }));
@@ -57,6 +62,7 @@ const punches = new PostgresPunchRepository(db);
 const students = new PostgresStudentRepository(db);
 const leaves = new PostgresLeaveRepository(db);
 const finalized = new PostgresFinalizeRepository(db);
+const reportRecipientRepository = new PostgresReportRecipientRepository(db);
 const clock = { now: () => Date.now() };
 const viewers = new LiveViewers();
 const login = {
@@ -104,6 +110,14 @@ registerStudentRoutes(pageApp, {
   activateStudent: (studentId, doneBy) => activateStudent(studentId, doneBy, { students, clock }),
 });
 
+const reportRecipientDeps = { reportRecipients: reportRecipientRepository, clock };
+registerReportRecipientRoutes(pageApp, {
+  listReportRecipients: () => listReportRecipients(reportRecipientDeps),
+  addReportRecipient: (email, doneBy) => addReportRecipient(email, doneBy, reportRecipientDeps),
+  removeReportRecipient: (email, doneBy) =>
+    removeReportRecipient(email, doneBy, reportRecipientDeps),
+});
+
 const leaveDeps = { students, leaves, clock };
 registerLeaveRoutes(pageApp, {
   recordLeave: (studentId, form, doneBy) => recordLeave(studentId, form, doneBy, leaveDeps),
@@ -122,8 +136,10 @@ await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
 if (smtp === null) {
   pageApp.log.warn('SMTP_HOST is not set, so emails stay queued. See .env.example.');
 }
-if (reportEmailAddresses.length === 0) {
-  pageApp.log.warn('REPORT_EMAIL is not set, so no Report emails are queued. See .env.example.');
+if ((await listReportRecipients(reportRecipientDeps)).length === 0) {
+  pageApp.log.warn(
+    'No Report Recipients yet, so no Report emails are queued. Add one in Settings.',
+  );
 }
 const outbox = new PostgresOutboxRepository(db);
 const emailDeps = smtp && { outbox, notifier: smtpNotifier(smtp), clock };
@@ -134,7 +150,6 @@ const reportEmailDeps = {
   finalized,
   clock,
   outbox,
-  reportEmailAddresses,
   // The full Report, as the coloured Excel file first, then the plain CSV.
   attachmentsOf: async (request: ReportRequest, report: Report) => [
     { filename: reportFileName(request, 'xlsx', null), content: await reportXlsx(report) },
@@ -146,15 +161,20 @@ const reportEmailDeps = {
 new ScheduleLoop({
   clock,
   queue: async (email) => {
+    // Read when each email falls due, so a change on the Settings page needs no restart.
+    const deps = {
+      ...reportEmailDeps,
+      reportRecipients: await listReportRecipients(reportRecipientDeps),
+    };
     switch (email.kind) {
       case 'Review Reminder':
-        await queueReviewReminder(email.day, reportEmailDeps);
+        await queueReviewReminder(email.day, deps);
         break;
       case 'Daily Report':
-        await queueDailyReport(email.day, reportEmailDeps);
+        await queueDailyReport(email.day, deps);
         break;
       case 'Monthly Report':
-        await queueMonthlyReport(email.month, reportEmailDeps);
+        await queueMonthlyReport(email.month, deps);
         break;
     }
   },

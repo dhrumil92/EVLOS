@@ -107,17 +107,19 @@ Acceptance criteria:
 - Given an Excluded Student, then he receives no Notification and stays Absent in Reports.
 - Given a Day not Finalized, or a Finalized Day where Send Notifications was not clicked, then no Notification is sent.
 
-**FR-10 Review Reminder.** At 23:00 IST, if the Day is not Finalized and Needs Review Students exist, the Rector gets one email listing them. If the Day is Finalized, nothing is sent.
+**FR-10 Review Reminder.** At 23:00 IST, if the Day is not Finalized and Needs Review Students exist, each Report Recipient gets one email listing them. If the Day is Finalized, nothing is sent.
 
-**FR-11 Reports.** The Rector can download a Report for a Day, a month, or a date range as CSV or Excel at any time. The Daily Report is also emailed to the Rector at 23:30 IST whether or not the Day is Finalized. A Day that is not Finalized is marked Not Finalized and shows Needs Review, never Absent. The Reports page has two cards. The first lists the Students with a scrollbar, sorts them by room (ascending) or by name, and filters them by Present, Absent (Needs Review on a Day not Finalized) and Not Applicable. A download holds the same Students as the filter shown: with a Pooja Status chosen, only the Students who had it on at least one Day, each with every Day of the Report, and the status in the file name. The second holds the graph:
+**FR-11 Reports.** The Rector can download a Report for a Day, a month, or a date range as CSV or Excel at any time. The Daily Report is also emailed to the Report Recipients at 23:30 IST whether or not the Day is Finalized, with the Report attached as a coloured Excel file and as a CSV. A Day that is not Finalized is marked Not Finalized and shows Needs Review, never Absent. The Reports page has two cards. The first lists the Students with a scrollbar, sorts them by room (ascending) or by name, and filters them by Present, Absent (Needs Review on a Day not Finalized) and Not Applicable. A download holds the same Students as the filter shown: with a Pooja Status chosen, only the Students who had it on at least one Day, each with every Day of the Report, and the status in the file name. The second holds the graph:
 - A Day Report shows a graph of how many Students made their first Punch in each hour of the Pooja Window.
 - A month Report shows a graph with three bars for each Day: Present, Absent and Not Applicable.
 
-**FR-12 Monthly Report.** At 09:00 IST on the 1st, the Monthly Report for the previous month is emailed to the Rector. The last day of the month still gets its usual Daily Report.
+**FR-12 Monthly Report.** At 09:00 IST on the 1st, the Monthly Report for the previous month is emailed to the Report Recipients, attached the same way. The last day of the month still gets its usual Daily Report.
 
 **FR-13 Rector login.** Every page and API except the Device endpoints requires a login. Sessions expire.
 
-**FR-14 Audit.** Leave (record, edit, cancel), Return, Finalize, Exclude, Send Notifications, Deactivate and Activate record who did it and when.
+**FR-14 Audit.** Leave (record, edit, cancel), Return, Finalize, Exclude, Send Notifications, Deactivate, Activate, and Add and Remove Report Recipient record who did it and when.
+
+**FR-15 Settings.** A Settings page, opened beside Log out, holds the Report Recipients: the Rector adds an email address or removes one (after a confirmation). An address is checked like a Student's email and kept in lower case; the same address cannot be added twice. When the list is empty, the page warns that no one receives the Review Reminder, Daily Report or Monthly Report. A change applies to the next email without a restart.
 
 ## 6. Non-functional requirements
 - **NFR-1 Time correctness.** All rules use IST. The server's timezone must not change results. Schedules run in Asia/Kolkata.

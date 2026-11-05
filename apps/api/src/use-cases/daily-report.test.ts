@@ -15,7 +15,7 @@ const DAY = '2026-11-04';
 // 23:30 IST on Wednesday 4 November, when the Daily Report falls due.
 const NOW = ist(4, 23, 30);
 const RECTOR = 'rector@example.com';
-const ADDRESSES = ['rector@example.com', 'office@example.com'];
+const REPORT_RECIPIENTS = ['rector@example.com', 'office@example.com'];
 
 function fakePunches(punches: Punch[]): PunchRepository {
   return {
@@ -26,7 +26,7 @@ function fakePunches(punches: Punch[]): PunchRepository {
 }
 
 // Asha punched at 07:00 IST; Bina did not punch and was in the hostel.
-async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
+async function setUp(reportRecipients: string[] = REPORT_RECIPIENTS) {
   const { students } = fakeStudentRepository();
   const { leaves } = fakeLeaveRepository();
   const { finalized } = fakeFinalizeRepository();
@@ -38,7 +38,7 @@ async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
     punches: fakePunches([{ studentId: '9001', punchedAt: ist(4, 7) }]),
     clock: { now: () => NOW },
     outbox,
-    reportEmailAddresses,
+    reportRecipients,
     attachmentsOf: (request: { view: string }, report: { rows: unknown[] }) =>
       Promise.resolve([
         { filename: `${request.view} Report.xlsx`, content: Buffer.from('xlsx') },
@@ -61,7 +61,7 @@ async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
 }
 
 describe('queueDailyReport', () => {
-  it('queues the Daily Report for each address in REPORT_EMAIL, with the Report attached as Excel and CSV', async () => {
+  it('queues the Daily Report for each Report Recipient, with the Report attached as Excel and CSV', async () => {
     const { deps, queued } = await setUp();
 
     const count = await queueDailyReport(DAY, deps);
@@ -124,7 +124,7 @@ describe('queueDailyReport', () => {
     expect(queued).toHaveLength(2);
   });
 
-  it('queues nothing when REPORT_EMAIL has no address', async () => {
+  it('queues nothing when there is no Report Recipient', async () => {
     const { deps, queued } = await setUp([]);
 
     const count = await queueDailyReport(DAY, deps);

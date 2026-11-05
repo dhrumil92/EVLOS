@@ -7,7 +7,7 @@ import type { ReviewDeps, ReviewStudent } from './review.js';
 
 export type ReviewReminderDeps = ReviewDeps & {
   outbox: Pick<OutboxRepository, 'queue'>;
-  reportEmailAddresses: readonly string[];
+  reportRecipients: readonly string[];
 };
 
 const byRoomThenName = (first: ReviewStudent, second: ReviewStudent) =>
@@ -30,11 +30,11 @@ function bodyOf(day: Day, needsReview: readonly ReviewStudent[]): string {
   ].join('\n\n');
 }
 
-// The Review Reminder (FR-10): at 23:00 IST, the Students on Needs Review, for each address
-// in REPORT_EMAIL. Queued only when the Day is not Finalized and some Student is on Needs
+// The Review Reminder (FR-10): at 23:00 IST, the Students on Needs Review, for each Report
+// Recipient. Queued only when the Day is not Finalized and some Student is on Needs
 // Review, and once per Day and address. Returns how many were queued.
 export async function queueReviewReminder(day: Day, deps: ReviewReminderDeps): Promise<number> {
-  if (deps.reportEmailAddresses.length === 0) return 0;
+  if (deps.reportRecipients.length === 0) return 0;
   const review = await getReview(day, deps);
   if (review === null || review.finalization !== null || review.needsReview.length === 0) {
     return 0;
@@ -46,5 +46,5 @@ export async function queueReviewReminder(day: Day, deps: ReviewReminderDeps): P
     body: bodyOf(day, review.needsReview),
     attachments: [],
   };
-  return deps.outbox.queue(toEachAddress(deps.reportEmailAddresses, email, deps.clock.now()));
+  return deps.outbox.queue(toEachAddress(deps.reportRecipients, email, deps.clock.now()));
 }

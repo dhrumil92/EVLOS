@@ -8,7 +8,7 @@ import { statusCounts, toEachAddress } from './report-email.js';
 
 export type DailyReportDeps = GetReportDeps & {
   outbox: Pick<OutboxRepository, 'queue'>;
-  reportEmailAddresses: readonly string[];
+  reportRecipients: readonly string[];
   // The Report as files to attach: the coloured Excel file first, then the plain CSV.
   attachmentsOf(request: ReportRequest, report: Report): Promise<Attachment[]>;
 };
@@ -31,11 +31,11 @@ function bodyOf(day: Day, report: Report): string {
   ].join('\n\n');
 }
 
-// The Daily Report (FR-11): queued at 23:30 IST for each address in REPORT_EMAIL, whether or
+// The Daily Report (FR-11): queued at 23:30 IST for each Report Recipient, whether or
 // not the Day is Finalized, with the Day's Report attached as Excel and CSV. Queued once per
 // Day and address, so running it again queues nothing. Returns how many were queued.
 export async function queueDailyReport(day: Day, deps: DailyReportDeps): Promise<number> {
-  if (deps.reportEmailAddresses.length === 0) return 0;
+  if (deps.reportRecipients.length === 0) return 0;
   const request: ReportRequest = { view: 'Day', day };
   const report = await getReport(request, deps);
   if (report === null) return 0;
@@ -46,5 +46,5 @@ export async function queueDailyReport(day: Day, deps: DailyReportDeps): Promise
     body: bodyOf(day, report),
     attachments: await deps.attachmentsOf(request, report),
   };
-  return deps.outbox.queue(toEachAddress(deps.reportEmailAddresses, email, deps.clock.now()));
+  return deps.outbox.queue(toEachAddress(deps.reportRecipients, email, deps.clock.now()));
 }

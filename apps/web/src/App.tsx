@@ -10,6 +10,9 @@ import type { LiveViewPunch, LiveViewSource, NotCountedBecause } from './live-vi
 import { PoojaRing } from './PoojaRing.js';
 import type { ReportSource } from './report-source.js';
 import { EveryStudent, ReportsPage, Segments } from './ReportsPage.js';
+import { httpSettingsSource } from './settings-source.js';
+import type { SettingsSource } from './settings-source.js';
+import { SettingsPage } from './SettingsPage.js';
 import { httpStudentSource } from './student-source.js';
 import type { StudentSource } from './student-source.js';
 import { StudentsPage } from './StudentsPage.js';
@@ -29,6 +32,8 @@ const STUDENTS = 'Students';
 const LEAVES = 'Leaves';
 const REVIEW = 'Review and Finalize';
 const PAGES = [LIVE_VIEW, STUDENTS, LEAVES, REVIEW, REPORTS];
+// Not in the page menu: it sits beside Log out.
+const SETTINGS = 'Settings';
 
 const istToday = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(Date.now());
@@ -143,6 +148,7 @@ export function App(props: {
   students?: StudentSource;
   reports?: ReportSource;
   review?: ReviewSource;
+  settings?: SettingsSource;
   onLogOut?: () => void;
 }) {
   const { source, students = httpStudentSource, reports = httpReportSource } = props;
@@ -154,6 +160,7 @@ export function App(props: {
     [STUDENTS]: <StudentsPage source={students} today={today} />,
     [LEAVES]: <LeavesPage source={students} today={today} />,
     [REVIEW]: <ReviewPage source={props.review ?? httpReviewSource} today={today} />,
+    [SETTINGS]: <SettingsPage source={props.settings ?? httpSettingsSource} />,
   };
 
   return (
@@ -179,8 +186,18 @@ export function App(props: {
               </button>
             ))}
           </nav>
+          <button
+            type="button"
+            aria-current={page === SETTINGS ? 'page' : undefined}
+            onClick={() => {
+              setPage(SETTINGS);
+            }}
+            className="menu-item ml-auto"
+          >
+            {SETTINGS}
+          </button>
           {props.onLogOut && (
-            <button type="button" className="menu-item ml-auto" onClick={props.onLogOut}>
+            <button type="button" className="menu-item" onClick={props.onLogOut}>
               Log out
             </button>
           )}

@@ -42,10 +42,11 @@
 | **Finalize** | The Rector's act of confirming a Day's Pooja Statuses, available only after the Pooja Window closes: every Needs Review becomes Absent and the Day is locked. It sends no email (see Send Notifications). | send, submit, approve, close | `apps/api/src/use-cases/review.ts:110` |
 | **Send Notifications** | The Rector's click, after Finalize, that emails every Absent Student who is not Excluded. Done from the Report's email list, usually around 23:00 IST. | finalize, mail all, submit | `apps/api/src/use-cases/review.ts:147` |
 | **Notification** | The email to a Student about an Absent. Sent only after Finalize and Send Notifications, never to an Excluded Student, at most once per Student per Day. | alert, message | `apps/api/src/ports/finalize-repository.ts:19` |
-| **Review Reminder** | The 23:00 IST email to the Rector listing Students on Needs Review, sent only if the Day is not Finalized and such Students exist. | alert, nag | `apps/api/src/use-cases/review-reminder.ts:36` |
+| **Review Reminder** | The 23:00 IST email to the Report Recipients listing Students on Needs Review, sent only if the Day is not Finalized and such Students exist. | alert, nag | `apps/api/src/use-cases/review-reminder.ts:36` |
 | **Report** | A table of Pooja Statuses for a Day, a month, or a date range, downloadable as CSV or Excel. A Day that is not Finalized is marked Not Finalized and shows Needs Review, never Absent. | export, sheet, register | `apps/api/src/use-cases/get-report.ts:29` |
-| **Daily Report** | The Report for one Day, emailed to the Rector at 23:30 IST whether or not the Day is Finalized. | night mail | `apps/api/src/use-cases/daily-report.ts:37` |
-| **Monthly Report** | The Report for the previous month, emailed to the Rector at 09:00 IST on the 1st. | month-end mail | `apps/api/src/use-cases/monthly-report.ts:48` |
+| **Daily Report** | The Report for one Day, emailed to the Report Recipients at 23:30 IST whether or not the Day is Finalized. | night mail | `apps/api/src/use-cases/daily-report.ts:37` |
+| **Monthly Report** | The Report for the previous month, emailed to the Report Recipients at 09:00 IST on the 1st. | month-end mail | `apps/api/src/use-cases/monthly-report.ts:48` |
+| **Report Recipient** | An email address that receives the Review Reminder, Daily Report and Monthly Report. The Rector keeps the list on the Settings page; it may hold the Rector's own address or others, and may be empty. | report email, subscriber, mailing list | `apps/api/src/ports/report-recipient-repository.ts:6`, `apps/api/src/use-cases/report-recipients.ts:23` |
 
 ## Flagged ambiguities
 

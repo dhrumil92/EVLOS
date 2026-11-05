@@ -5,6 +5,7 @@ import { App } from './App.js';
 import type { LiveView, LiveViewSource } from './live-view-source.js';
 import type { ReportSource } from './report-source.js';
 import type { ReviewSource } from './review-source.js';
+import type { SettingsSource } from './settings-source.js';
 
 const NOTE = 'Outside Pooja Window (05:30–18:00)';
 const AT_0700_IST = Date.UTC(2026, 10, 2, 1, 30, 0);
@@ -248,6 +249,36 @@ describe('menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
 
     expect(loggedOut).toBe(1);
+  });
+
+  it('shows Settings just before Log out, apart from the page menu', async () => {
+    render(<App source={fakeSource(view()).source} onLogOut={() => undefined} />);
+    await screen.findByText(/No Punches yet/);
+
+    const header = screen.getByRole('banner');
+    const outsideMenu = within(header)
+      .getAllByRole('button')
+      .filter((button) => !button.closest('nav'))
+      .map((button) => button.textContent);
+
+    expect(outsideMenu).toEqual(['Settings', 'Log out']);
+  });
+
+  it('opens the Settings page with the Report Recipients', async () => {
+    const settings: SettingsSource = {
+      reportRecipients: () => Promise.resolve(['office@example.com']),
+      addReportRecipient: () => Promise.resolve('done'),
+      removeReportRecipient: () => Promise.resolve('done'),
+    };
+    render(<App settings={settings} source={fakeSource(view()).source} />);
+    await screen.findByText(/No Punches yet/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+
+    expect(await screen.findByText('office@example.com')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Settings' }).getAttribute('aria-current')).toBe(
+      'page',
+    );
   });
 
   it('opens the Reports page with its two cards', async () => {

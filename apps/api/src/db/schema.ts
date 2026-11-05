@@ -146,4 +146,14 @@ export const auditLog = pgTable('audit_log', {
   studentId: text('student_id').references(() => students.studentId),
   doneAt: timestamp('done_at', { withTimezone: true }).notNull(),
   doneBy: text('done_by'),
+  // What the action was about when it is not a Student, such as the address of a Report
+  // Recipient. Null otherwise.
+  detail: text('detail'),
+});
+
+// The Report Recipients: the addresses that receive the Review Reminder, Daily Report and
+// Monthly Report, kept in lower case. Who added or removed each one is in audit_log.
+export const reportRecipients = pgTable('report_recipients', {
+  email: text('email').primaryKey(),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull(),
 });

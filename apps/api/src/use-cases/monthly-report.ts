@@ -5,7 +5,7 @@ import { getReport } from './get-report.js';
 import type { Report, ReportRequest } from './get-report.js';
 import { statusCounts, toEachAddress } from './report-email.js';
 
-// The same addresses, outbox and attachments as the Daily Report.
+// The same Report Recipients, outbox and attachments as the Daily Report.
 export type MonthlyReportDeps = DailyReportDeps;
 
 // The Days of the month not Finalized on which some Student was Active. A Day before any
@@ -43,10 +43,10 @@ function bodyOf(month: string, report: Report): string {
 }
 
 // The Monthly Report (FR-12): queued at 09:00 IST on the 1st for the previous month, for each
-// address in REPORT_EMAIL, with the month's Report attached as Excel and CSV. Queued once per
+// Report Recipient, with the month's Report attached as Excel and CSV. Queued once per
 // month and address, so running it again queues nothing. Returns how many were queued.
 export async function queueMonthlyReport(month: string, deps: MonthlyReportDeps): Promise<number> {
-  if (deps.reportEmailAddresses.length === 0) return 0;
+  if (deps.reportRecipients.length === 0) return 0;
   const request: ReportRequest = { view: 'Month', month };
   const report = await getReport(request, deps);
   if (report === null) return 0;
@@ -57,5 +57,5 @@ export async function queueMonthlyReport(month: string, deps: MonthlyReportDeps)
     body: bodyOf(month, report),
     attachments: await deps.attachmentsOf(request, report),
   };
-  return deps.outbox.queue(toEachAddress(deps.reportEmailAddresses, email, deps.clock.now()));
+  return deps.outbox.queue(toEachAddress(deps.reportRecipients, email, deps.clock.now()));
 }

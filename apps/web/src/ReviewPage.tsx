@@ -33,7 +33,13 @@ const NOTIFICATION_TEXT: Record<NotificationState, string> = {
 // The server failed part way, so the page cannot know what was saved.
 const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
 
-function Confirm(props: { question: string; yes: string; onYes: () => void; onNo: () => void }) {
+// Asks before a change that cannot be undone from the page. Also used on the Settings page.
+export function Confirm(props: {
+  question: string;
+  yes: string;
+  onYes: () => void;
+  onNo: () => void;
+}) {
   return (
     <div className="danger-zone grid gap-3" role="group" aria-label="Confirm">
       <p className="font-display text-xl font-semibold">{props.question}</p>

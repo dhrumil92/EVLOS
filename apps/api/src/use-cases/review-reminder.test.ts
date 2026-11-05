@@ -16,7 +16,7 @@ const DAY = '2026-11-04';
 // 23:00 IST on Wednesday 4 November, when the Review Reminder falls due.
 const NOW = ist(4, 23);
 const RECTOR = 'rector@example.com';
-const ADDRESSES = ['rector@example.com', 'office@example.com'];
+const REPORT_RECIPIENTS = ['rector@example.com', 'office@example.com'];
 
 function fakePunches(punches: Punch[]): PunchRepository {
   return {
@@ -30,7 +30,7 @@ function fakePunches(punches: Punch[]): PunchRepository {
 // in the hostel, so they are on Needs Review once the Pooja Window closes.
 async function setUp(
   punches: Punch[] = [{ studentId: '9001', punchedAt: ist(4, 7) }],
-  reportEmailAddresses: string[] = ADDRESSES,
+  reportRecipients: string[] = REPORT_RECIPIENTS,
 ) {
   const { students } = fakeStudentRepository();
   const { leaves } = fakeLeaveRepository();
@@ -43,7 +43,7 @@ async function setUp(
     punches: fakePunches(punches),
     clock: { now: () => NOW },
     outbox,
-    reportEmailAddresses,
+    reportRecipients,
   };
   for (const [studentId, name, room] of [
     ['9001', 'Asha Rao', '101'],
@@ -59,7 +59,7 @@ async function setUp(
 }
 
 describe('queueReviewReminder', () => {
-  it('lists the Needs Review Students, by room, to each address in REPORT_EMAIL', async () => {
+  it('lists the Needs Review Students, by room, to each Report Recipient', async () => {
     const { deps, queued } = await setUp();
 
     const count = await queueReviewReminder(DAY, deps);
@@ -131,7 +131,7 @@ describe('queueReviewReminder', () => {
     expect(queued).toHaveLength(2);
   });
 
-  it('queues nothing when REPORT_EMAIL has no address', async () => {
+  it('queues nothing when there is no Report Recipient', async () => {
     const { deps, queued } = await setUp(undefined, []);
 
     const count = await queueReviewReminder(DAY, deps);

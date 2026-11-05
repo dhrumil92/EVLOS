@@ -16,7 +16,7 @@ const MONTH = '2026-11';
 // 09:00 IST on 1 December, when the Monthly Report for November falls due.
 const NOW = ist(12, 1, 9);
 const RECTOR = 'rector@example.com';
-const ADDRESSES = ['rector@example.com', 'office@example.com'];
+const REPORT_RECIPIENTS = ['rector@example.com', 'office@example.com'];
 
 function fakePunches(punches: Punch[]): PunchRepository {
   return {
@@ -28,7 +28,7 @@ function fakePunches(punches: Punch[]): PunchRepository {
 
 // Asha and Bina are Active from 29 November. Asha punched on both Days; Bina never did and
 // was in the hostel. 29 November is Finalized, 30 November is not.
-async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
+async function setUp(reportRecipients: string[] = REPORT_RECIPIENTS) {
   const { students } = fakeStudentRepository();
   const { leaves } = fakeLeaveRepository();
   const { finalized } = fakeFinalizeRepository();
@@ -43,7 +43,7 @@ async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
     ]),
     clock: { now: () => NOW },
     outbox,
-    reportEmailAddresses,
+    reportRecipients,
     attachmentsOf: (request: object) =>
       Promise.resolve([
         { filename: `${JSON.stringify(request)}.xlsx`, content: Buffer.from('xlsx') },
@@ -72,7 +72,7 @@ async function setUp(reportEmailAddresses: string[] = ADDRESSES) {
 }
 
 describe('queueMonthlyReport', () => {
-  it('queues the month for each address in REPORT_EMAIL, with its Report attached as Excel and CSV', async () => {
+  it('queues the month for each Report Recipient, with its Report attached as Excel and CSV', async () => {
     const { deps, queued } = await setUp();
 
     const count = await queueMonthlyReport(MONTH, deps);
@@ -137,7 +137,7 @@ describe('queueMonthlyReport', () => {
     expect(queued).toHaveLength(2);
   });
 
-  it('queues nothing when REPORT_EMAIL has no address', async () => {
+  it('queues nothing when there is no Report Recipient', async () => {
     const { deps, queued } = await setUp([]);
 
     const count = await queueMonthlyReport(MONTH, deps);
