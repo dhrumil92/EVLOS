@@ -154,6 +154,19 @@ There is no command to remove a Rector or change their email. Ask the developer 
 
 - **Known password:** log in, open *Settings* (beside *Log out*), and use *Change password*.
 - **Forgotten password:** on the login page click *Forgot password?* and type the login email. A link that works once, for 30 minutes, is emailed to it. This needs working email (step 9) and `PUBLIC_URL`.
+- **Locked out, and the link cannot help** (email is not working, or the Rector no longer reads that inbox): whoever runs the server sets a new password from the command line:
+
+  ```bash
+  npm run rector:password -- rector@example.com
+  ```
+
+  ```
+  Password (at least 12 characters):
+  Type it again:
+  The password is changed. Every login of this Rector has ended.
+  ```
+
+  The new password is typed twice at a hidden prompt, with the same rules as when the login was created. Every login of that Rector ends, any reset link still open stops working, and the audit log records a Reset Password done from the command line. It refuses, changing nothing, when no Rector logs in with that email, the password is too short or the two differ. Tell the Rector the new password in person, and ask them to change it on the *Settings* page.
 
 ## 8. Start the backend and the frontend
 
@@ -228,6 +241,7 @@ The Device pushes Punches to the backend over plain HTTP on port 8081.
 | `npm run dev:web` | Start the frontend at http://localhost:5173. |
 | `npm run db:setup` | Apply new migrations to both databases. |
 | `npm run rector:create -- <email>` | Create a Rector's login. |
+| `npm run rector:password -- <email>` | Set a new password for a locked-out Rector. |
 | `npm run students:load -- <file.csv> [--save]` | First load of Students. |
 | `npm run email:test -- <email>` | Check the email settings. |
 | `npm test` | Run every test. |
@@ -245,4 +259,4 @@ The Device pushes Punches to the backend over plain HTTP on port 8081.
 | A column or table is missing after `git pull` | Run `npm run db:setup`. |
 | No email arrives | Check `SMTP_HOST` (and run `npm run email:test`), make sure Mailpit or Gmail is set up, and for Reports that a Report Recipient is added in Settings. Look in spam. |
 | The live view says the Device was never seen | Check its Cloud server address, that it is registered (step 11), the firewall rule, and that both are on the same Wi-Fi. |
-| A password reset link does not arrive | Email must work (step 9), `PUBLIC_URL` must be set, and the email typed must be the Rector's login. The page answers the same for any email, on purpose. |
+| A password reset link does not arrive | Email must work (step 9), `PUBLIC_URL` must be set, and the email typed must be the Rector's login. The page answers the same for any email, on purpose. If email cannot be fixed quickly, use `npm run rector:password -- <email>` (step 7). |

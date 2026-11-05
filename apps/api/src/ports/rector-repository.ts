@@ -30,4 +30,8 @@ export interface RectorRepository {
   // writes a Reset Password row to the audit log, all at once. Returns false, changing
   // nothing, for any other link.
   resetPassword(tokenHash: string, passwordHash: string, at: Instant): Promise<boolean>;
+  // Sets a new password hash from the command line, for a Rector who is locked out: closes
+  // every open link of the Rector, ends all the Rector's sessions and writes a Reset Password
+  // row to the audit log, all at once. The row has no done_by, since the developer ran it.
+  setPassword(rectorId: number, passwordHash: string, at: Instant): Promise<void>;
 }

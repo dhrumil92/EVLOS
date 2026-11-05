@@ -8,7 +8,7 @@ export function fakeLogin() {
   const accounts: { rector: Rector; passwordHash: string }[] = [];
   const sessions = new Map<string, { rectorId: number; expiresAt: Instant }>();
   const checked: (string | null)[] = [];
-  const audit: { action: string; doneAt: Instant; doneBy: string }[] = [];
+  const audit: { action: string; doneAt: Instant; doneBy: string | null; detail?: string }[] = [];
   const resets = new Map<string, { rectorId: number; expiresAt: Instant; isUsed: boolean }>();
   let nextToken = 1;
 
@@ -66,6 +66,16 @@ export function fakeLogin() {
       endSessions(reset.rectorId, null);
       audit.push({ action: 'Reset Password', doneAt: at, doneBy: account.rector.email });
       return Promise.resolve(true);
+    },
+    setPassword: (rectorId, passwordHash, at) => {
+      const account = accounts.find((one) => one.rector.id === rectorId);
+      if (account) account.passwordHash = passwordHash;
+      for (const reset of resets.values()) {
+        if (reset.rectorId === rectorId) reset.isUsed = true;
+      }
+      endSessions(rectorId, null);
+      audit.push({ action: 'Reset Password', doneAt: at, doneBy: null, detail: 'command line' });
+      return Promise.resolve();
     },
   };
   const passwords: Passwords = {

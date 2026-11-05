@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { fakeLogin } from './fake-rector-repository.js';
-import { changePassword, createRector, logIn, logOut, rectorOfSession } from './rector-login.js';
+import {
+  changePassword,
+  createRector,
+  logIn,
+  logOut,
+  rectorOfSession,
+  setRectorPassword,
+} from './rector-login.js';
 
 const HOUR = 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 10, 3, 3, 0, 0);
@@ -201,5 +208,71 @@ describe('changePassword', () => {
     expect(result).toBe('same-password');
     expect(await rectorOfSession('token-2', deps)).toEqual(RECTOR);
     expect(audit).toEqual([]);
+  });
+});
+
+describe('setRectorPassword', () => {
+  const NEW_PASSWORD = 'another long password';
+
+  it('sets the new password from the command line, so only it logs in', async () => {
+    const { deps } = await withRector();
+
+    const result = await setRectorPassword(EMAIL, NEW_PASSWORD, deps);
+
+    expect(result).toBe('set');
+    expect((await logIn(EMAIL, NEW_PASSWORD, deps)).outcome).toBe('logged-in');
+    expect((await logIn(EMAIL, PASSWORD, deps)).outcome).toBe('refused');
+  });
+
+  it('ends every login of the Rector', async () => {
+    const { deps } = await withRector();
+    await logIn(EMAIL, PASSWORD, deps);
+
+    await setRectorPassword(EMAIL, NEW_PASSWORD, deps);
+
+    expect(await rectorOfSession('token-1', deps)).toBeNull();
+  });
+
+  it('closes an emailed reset link that was still open', async () => {
+    const { deps, resets } = await withRector();
+    await deps.rectors.addPasswordReset('hash-of-link', 1, NOW + HOUR);
+
+    await setRectorPassword(EMAIL, NEW_PASSWORD, deps);
+
+    expect(resets.get('hash-of-link')?.isUsed).toBe(true);
+  });
+
+  it('records the reset as done from the command line, never the password', async () => {
+    const { deps, audit } = await withRector();
+
+    await setRectorPassword(EMAIL, NEW_PASSWORD, deps);
+
+    expect(audit).toEqual([
+      { action: 'Reset Password', doneAt: NOW, doneBy: null, detail: 'command line' },
+    ]);
+  });
+
+  it('finds the Rector by the email in any case and with spaces around it', async () => {
+    const { deps } = await withRector();
+
+    expect(await setRectorPassword('  Rector@Example.COM ', NEW_PASSWORD, deps)).toBe('set');
+  });
+
+  it('refuses an email with no login and changes nothing', async () => {
+    const { deps, audit } = await withRector();
+
+    const result = await setRectorPassword('stranger@example.com', NEW_PASSWORD, deps);
+
+    expect(result).toBe('no-account');
+    expect(audit).toEqual([]);
+  });
+
+  it('refuses a new password shorter than 12 characters', async () => {
+    const { deps, accounts } = await withRector();
+
+    const result = await setRectorPassword(EMAIL, 'short', deps);
+
+    expect(result).toBe('password-too-short');
+    expect(accounts[0]?.passwordHash).toBe(`hashed:${PASSWORD}`);
   });
 });

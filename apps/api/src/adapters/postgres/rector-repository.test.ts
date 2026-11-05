@@ -192,4 +192,48 @@ describe('PostgresRectorRepository', () => {
       expect(rows).toEqual([{ tokenHash: 'link-hash' }]);
     });
   });
+
+  describe('setPassword', () => {
+    const AT = Date.UTC(2026, 10, 5, 12, 0, 0);
+
+    // Rector 1 has two logins and an open reset link; Rector 2 has one login.
+    async function lockedOut() {
+      await repository.add('rector@example.com', 'old-hash');
+      await repository.add('other@example.com', 'other-hash');
+      await repository.addSession('laptop', 1, EXPIRES_AT);
+      await repository.addSession('phone', 1, EXPIRES_AT);
+      await repository.addSession('other-laptop', 2, EXPIRES_AT);
+      await repository.addPasswordReset('link-hash', 1, AT + 30 * 60 * 1000);
+    }
+
+    it('saves the new password and ends every login of that Rector only', async () => {
+      await lockedOut();
+
+      await repository.setPassword(1, 'new-hash', AT);
+
+      expect((await repository.findByEmail('rector@example.com'))?.passwordHash).toBe('new-hash');
+      expect(await repository.sessionOf('laptop')).toBeNull();
+      expect(await repository.sessionOf('phone')).toBeNull();
+      expect(await repository.sessionOf('other-laptop')).not.toBeNull();
+    });
+
+    it('closes the open reset link of the Rector', async () => {
+      await lockedOut();
+
+      await repository.setPassword(1, 'new-hash', AT);
+
+      expect(await repository.resetPassword('link-hash', 'third-hash', AT)).toBe(false);
+    });
+
+    it('writes a Reset Password row done from the command line', async () => {
+      await lockedOut();
+
+      await repository.setPassword(1, 'new-hash', AT);
+
+      const { rows } = await pool.query<{ action: string; doneBy: string | null; detail: string }>(
+        'select action, done_by as "doneBy", detail from audit_log',
+      );
+      expect(rows).toEqual([{ action: 'Reset Password', doneBy: null, detail: 'command line' }]);
+    });
+  });
 });

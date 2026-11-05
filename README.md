@@ -105,7 +105,8 @@ Run from the repository root.
 | `npm run dev` | Build and start the server: Device endpoints on `DEVICE_PORT`, page API on `PAGE_PORT`. |
 | `npm run dev:web` | Start the page at http://localhost:5173. |
 | `npm run db:setup` | Apply every migration to `evlos` and `evlos_test`. Safe to run again. |
-| `npm run rector:create -- <email>` | Create the Rector's login; the password (12 characters or more) is asked at a hidden prompt. |
+| `npm run rector:create -- <email>` | Create a Rector's login; the password (12 characters or more) is asked at a hidden prompt. Run it once per Rector. |
+| `npm run rector:password -- <email>` | Set a new password for a Rector who is locked out and cannot use the emailed reset link; every login of that Rector ends. |
 | `npm run students:load -- <file.csv> [--save]` | First load of the Rector's list of Students. Checks only, unless `--save`; then all are saved or none. Columns as in `sample-roster.csv`. |
 | `npm run email:test -- <email>` | Send one test email through the SMTP settings in `.env`. |
 | `npm test` | Run every test once. |

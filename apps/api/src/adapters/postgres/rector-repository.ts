@@ -102,4 +102,20 @@ export class PostgresRectorRepository implements RectorRepository {
       return true;
     });
   }
+
+  // All in one transaction, or nothing.
+  async setPassword(rectorId: number, passwordHash: string, at: Instant): Promise<void> {
+    const when = new Date(at);
+    await this.db.transaction(async (tx) => {
+      await tx.update(rectors).set({ passwordHash }).where(eq(rectors.id, rectorId));
+      await tx
+        .update(passwordResets)
+        .set({ usedAt: when })
+        .where(and(eq(passwordResets.rectorId, rectorId), isNull(passwordResets.usedAt)));
+      await tx.delete(rectorSessions).where(eq(rectorSessions.rectorId, rectorId));
+      await tx
+        .insert(auditLog)
+        .values({ action: 'Reset Password', doneAt: when, doneBy: null, detail: 'command line' });
+    });
+  }
 }

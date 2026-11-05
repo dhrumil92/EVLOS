@@ -92,3 +92,24 @@ export async function changePassword(
   );
   return 'changed';
 }
+
+export type SetPasswordResult = 'set' | 'no-account' | 'password-too-short';
+
+// For the developer, on the command line, when a Rector is locked out and the emailed link
+// cannot help (email not working, or the login inbox lost). Every login of the Rector ends and
+// any open reset link stops working, as after a reset by link.
+export async function setRectorPassword(
+  email: string,
+  newPassword: string,
+  deps: RectorLoginDeps,
+): Promise<SetPasswordResult> {
+  const account = await deps.rectors.findByEmail(cleanEmail(email));
+  if (account === null) return 'no-account';
+  if (newPassword.length < MIN_PASSWORD_LENGTH) return 'password-too-short';
+  await deps.rectors.setPassword(
+    account.rector.id,
+    await deps.passwords.hash(newPassword),
+    deps.clock.now(),
+  );
+  return 'set';
+}

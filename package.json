@@ -17,6 +17,7 @@
     "dev:web": "vite apps/web",
     "db:setup": "tsc -b && node --env-file-if-exists=.env apps/api/dist/db/setup.js",
     "rector:create": "tsc -b && node --env-file-if-exists=.env apps/api/dist/create-rector.js",
+    "rector:password": "tsc -b && node --env-file-if-exists=.env apps/api/dist/set-rector-password.js",
     "students:load": "tsc -b && node --env-file-if-exists=.env apps/api/dist/load-students.js",
     "email:test": "tsc -b && node --env-file-if-exists=.env apps/api/dist/send-test-email.js"
   },
