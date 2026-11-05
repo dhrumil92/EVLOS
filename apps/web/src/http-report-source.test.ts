@@ -22,14 +22,20 @@ describe('http Report source', () => {
   });
 
   it('downloads the CSV of a Report from the same query', () => {
-    expect(httpReportSource.csvUrl({ view: 'Month', month: '2026-11' })).toBe(
+    expect(httpReportSource.csvUrl({ view: 'Month', month: '2026-11' }, 'All')).toBe(
       '/api/reports/csv?view=Month&month=2026-11',
     );
   });
 
   it('downloads the Excel file of a Report from the same query', () => {
-    expect(httpReportSource.xlsxUrl({ view: 'Day', day: '2026-11-03' })).toBe(
+    expect(httpReportSource.xlsxUrl({ view: 'Day', day: '2026-11-03' }, 'All')).toBe(
       '/api/reports/xlsx?view=Day&day=2026-11-03',
+    );
+  });
+
+  it('asks for only the Students of a chosen Pooja Status', () => {
+    expect(httpReportSource.xlsxUrl({ view: 'Month', month: '2026-11' }, 'Not Applicable')).toBe(
+      '/api/reports/xlsx?view=Month&month=2026-11&status=Not+Applicable',
     );
   });
 });

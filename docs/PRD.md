@@ -109,7 +109,7 @@ Acceptance criteria:
 
 **FR-10 Review Reminder.** At 23:00 IST, if the Day is not Finalized and Needs Review Students exist, the Rector gets one email listing them. If the Day is Finalized, nothing is sent.
 
-**FR-11 Reports.** The Rector can download a Report for a Day, a month, or a date range as CSV or Excel at any time. The Daily Report is also emailed to the Rector at 23:30 IST whether or not the Day is Finalized. A Day that is not Finalized is marked Not Finalized and shows Needs Review, never Absent. The Reports page has two cards. The first lists the Students with a scrollbar, sorts them by room (ascending) or by name, and filters them by Present, Absent (Needs Review on a Day not Finalized) and Not Applicable. The second holds the graph:
+**FR-11 Reports.** The Rector can download a Report for a Day, a month, or a date range as CSV or Excel at any time. The Daily Report is also emailed to the Rector at 23:30 IST whether or not the Day is Finalized. A Day that is not Finalized is marked Not Finalized and shows Needs Review, never Absent. The Reports page has two cards. The first lists the Students with a scrollbar, sorts them by room (ascending) or by name, and filters them by Present, Absent (Needs Review on a Day not Finalized) and Not Applicable. A download holds the same Students as the filter shown: with a Pooja Status chosen, only the Students who had it on at least one Day, each with every Day of the Report, and the status in the file name. The second holds the graph:
 - A Day Report shows a graph of how many Students made their first Punch in each hour of the Pooja Window.
 - A month Report shows a graph with three bars for each Day: Present, Absent and Not Applicable.
 

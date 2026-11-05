@@ -51,6 +51,11 @@ function filterOptions(report: Report): StatusFilter[] {
   return ['All', 'Present', ...absent, ...review, 'Not Applicable'];
 }
 
+// The filter in use: the one chosen, or All when this Report does not offer it.
+function shownStatus(report: Report, chosen: StatusFilter): StatusFilter {
+  return filterOptions(report).includes(chosen) ? chosen : 'All';
+}
+
 function StudentRow({ row, isDay }: { row: ReportRow; isDay: boolean }) {
   const status = row.statuses[0];
   return (
@@ -71,12 +76,18 @@ function StudentRow({ row, isDay }: { row: ReportRow; isDay: boolean }) {
   );
 }
 
-function StudentCard(props: { report: Report; isDay: boolean; insideCard?: boolean }) {
-  const { report, isDay, insideCard = false } = props;
+// The chosen filter is kept by the page, so the downloads can follow it.
+function StudentCard(props: {
+  report: Report;
+  isDay: boolean;
+  chosen: StatusFilter;
+  onChoose: (status: StatusFilter) => void;
+  insideCard?: boolean;
+}) {
+  const { report, isDay, chosen, onChoose, insideCard = false } = props;
   const [sortBy, setSortBy] = useState<SortBy>('Room');
-  const [chosen, setChosen] = useState<StatusFilter>('All');
   const options = filterOptions(report);
-  const status = options.includes(chosen) ? chosen : 'All';
+  const status = shownStatus(report, chosen);
   const rows = useMemo(
     () => visibleRows(report.rows, sortBy, status),
     [report.rows, sortBy, status],
@@ -105,7 +116,7 @@ function StudentCard(props: { report: Report; isDay: boolean; insideCard?: boole
               <option value="Name">Name</option>
             </select>
           </label>
-          <Segments label="Pooja Status" options={options} value={status} onChange={setChosen} />
+          <Segments label="Pooja Status" options={options} value={status} onChange={onChoose} />
         </div>
       </div>
       {rows.length === 0 ? (
@@ -229,6 +240,7 @@ function ReportNotices({ report, isDay }: { report: Report; isDay: boolean }) {
 // Every Student's Pooja Status for a Day, for the live view page.
 export function EveryStudent({ source, today }: { source: ReportSource; today: string }) {
   const { report, failed } = useReport(source, JSON.stringify({ view: 'Day', day: today }));
+  const [chosen, setChosen] = useState<StatusFilter>('All');
   if (failed) return <p className="px-3 pb-4 text-mist">The Student list could not load.</p>;
   if (!report) return <p className="px-3 pb-4 text-mist">Loading the Student list.</p>;
   return (
@@ -236,7 +248,7 @@ export function EveryStudent({ source, today }: { source: ReportSource; today: s
       <div className="grid gap-2 px-3">
         <ReportNotices report={report} isDay />
       </div>
-      <StudentCard report={report} isDay insideCard />
+      <StudentCard report={report} isDay chosen={chosen} onChoose={setChosen} insideCard />
     </div>
   );
 }
@@ -267,8 +279,11 @@ export function ReportsPage({ source, today }: { source: ReportSource; today: st
     from: `${today.slice(0, 7)}-01`,
     to: today,
   });
+  const [chosen, setChosen] = useState<StatusFilter>('All');
   const request = requestFor(view, dates);
   const { report, failed } = useReport(source, JSON.stringify(request));
+  // The downloads hold the same Students as the list below.
+  const status = report ? shownStatus(report, chosen) : 'All';
 
   return (
     <div className="grid gap-5">
@@ -289,10 +304,10 @@ export function ReportsPage({ source, today }: { source: ReportSource; today: st
           <Segments label="Report period" options={VIEWS} value={view} onChange={setView} />
           {report && (
             <>
-              <a className="btn" href={source.csvUrl(request)} download>
+              <a className="btn" href={source.csvUrl(request, status)} download>
                 Download CSV
               </a>
-              <a className="btn" href={source.xlsxUrl(request)} download>
+              <a className="btn" href={source.xlsxUrl(request, status)} download>
                 Download Excel
               </a>
             </>
@@ -306,7 +321,12 @@ export function ReportsPage({ source, today }: { source: ReportSource; today: st
       {report && (
         <>
           <ReportNotices report={report} isDay={view === 'Day'} />
-          <StudentCard report={report} isDay={view === 'Day'} />
+          <StudentCard
+            report={report}
+            isDay={view === 'Day'}
+            chosen={chosen}
+            onChoose={setChosen}
+          />
           <GraphCard report={report} />
         </>
       )}

@@ -1,5 +1,5 @@
 import { fetchPage } from './auth-source.js';
-import type { Report, ReportRequest, ReportSource } from './report-source.js';
+import type { PoojaStatusName, Report, ReportRequest, ReportSource } from './report-source.js';
 
 const IST = { timeZone: 'Asia/Kolkata' } as const;
 const dayInWords = new Intl.DateTimeFormat('en-GB', {
@@ -32,6 +32,12 @@ export function reportQuery(request: ReportRequest): string {
   return new URLSearchParams(fields).toString();
 }
 
+// The Report's query, plus the Pooja Status when only those Students are wanted.
+function downloadQuery(request: ReportRequest, status: PoojaStatusName | 'All'): string {
+  const query = reportQuery(request);
+  return status === 'All' ? query : `${query}&${new URLSearchParams({ status }).toString()}`;
+}
+
 export const httpReportSource: ReportSource = {
   async load(request) {
     const reply = await fetchPage(`/api/reports?${reportQuery(request)}`);
@@ -40,6 +46,6 @@ export const httpReportSource: ReportSource = {
     }
     return { title: titleOf(request), ...((await reply.json()) as Omit<Report, 'title'>) };
   },
-  csvUrl: (request) => `/api/reports/csv?${reportQuery(request)}`,
-  xlsxUrl: (request) => `/api/reports/xlsx?${reportQuery(request)}`,
+  csvUrl: (request, status) => `/api/reports/csv?${downloadQuery(request, status)}`,
+  xlsxUrl: (request, status) => `/api/reports/xlsx?${downloadQuery(request, status)}`,
 };

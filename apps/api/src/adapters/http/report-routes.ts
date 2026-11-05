@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import type { Report, ReportRequest } from '../../use-cases/get-report.js';
+import type { PoojaStatusName, Report, ReportRequest } from '../../use-cases/get-report.js';
 import { reportCsv } from '../report/report-csv.js';
-import { reportFileName } from '../report/report-table.js';
+import { reportFileName, withStatus } from '../report/report-table.js';
 import { reportXlsx } from '../report/report-xlsx.js';
 
 export interface ReportRoutesDeps {
@@ -34,6 +34,20 @@ function requestFrom(query: Query): ReportRequest | null {
   return null;
 }
 
+const POOJA_STATUSES: readonly PoojaStatusName[] = [
+  'Present',
+  'Absent',
+  'Needs Review',
+  'Not Applicable',
+  'Pending',
+];
+
+// The Pooja Status asked for: null for every Student, undefined for one that does not exist.
+function statusFrom(query: Query): PoojaStatusName | null | undefined {
+  if (query.status === undefined || query.status === '') return null;
+  return POOJA_STATUSES.find((status) => status === query.status);
+}
+
 export function registerReportRoutes(app: FastifyInstance, deps: ReportRoutesDeps): void {
   app.get<{ Querystring: Query }>('/api/reports', async (request, reply) => {
     const asked = requestFrom(request.query);
@@ -44,21 +58,25 @@ export function registerReportRoutes(app: FastifyInstance, deps: ReportRoutesDep
     return report;
   });
 
-  // The same Report as a CSV or Excel file to download (FR-11).
+  // The same Report as a CSV or Excel file to download (FR-11), with every Student or only
+  // those with the Pooja Status chosen on the page.
   for (const download of DOWNLOADS) {
     app.get<{ Querystring: Query }>(
       `/api/reports/${download.extension}`,
       async (request, reply) => {
         const asked = requestFrom(request.query);
-        const report = asked && (await deps.getReport(asked));
-        if (!asked || !report) {
-          return reply.code(400).send({ message: 'This Report cannot be made. Check the dates.' });
+        const status = statusFrom(request.query);
+        const report = asked && status !== undefined && (await deps.getReport(asked));
+        if (!asked || status === undefined || !report) {
+          return reply
+            .code(400)
+            .send({ message: 'This Report cannot be made. Check the dates and the Pooja Status.' });
         }
-        const fileName = reportFileName(asked, download.extension);
+        const fileName = reportFileName(asked, download.extension, status);
         return reply
           .type(download.contentType)
           .header('Content-Disposition', `attachment; filename="${fileName}"`)
-          .send(await download.fileOf(report));
+          .send(await download.fileOf(withStatus(report, status)));
       },
     );
   }

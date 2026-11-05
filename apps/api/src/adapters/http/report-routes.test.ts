@@ -91,6 +91,62 @@ describe('Report CSV route', () => {
   });
 });
 
+describe('Report download for one Pooja Status', () => {
+  const MIXED: Report = {
+    ...REPORT,
+    rows: [
+      { studentId: '9001', name: 'Asha Rao', room: '101', statuses: ['Absent'] },
+      { studentId: '9002', name: 'Bina Rao', room: '102', statuses: ['Present'] },
+      { studentId: '9003', name: 'Chitra Rao', room: '103', statuses: ['Not Applicable'] },
+    ],
+    reportDays: [{ day: '2026-11-03', isFinalized: true }],
+  };
+
+  it('downloads only the Absent Students as Excel, named for them', async () => {
+    const { app } = buildApp(MIXED);
+
+    const reply = await app.inject({
+      method: 'GET',
+      url: '/api/reports/xlsx?view=Day&day=2026-11-03&status=Absent',
+    });
+
+    expect(reply.statusCode).toBe(200);
+    expect(reply.headers['content-disposition']).toBe(
+      'attachment; filename="EVLOS Report 2026-11-03 Absent.xlsx"',
+    );
+    expect(await readSheet(reply.rawPayload)).toEqual([
+      ['Student ID', 'Name', 'Room', '2026-11-03'],
+      ['9001', 'Asha Rao', '101', 'Absent'],
+    ]);
+  });
+
+  it('downloads only the Not Applicable Students as CSV', async () => {
+    const { app } = buildApp(MIXED);
+
+    const reply = await app.inject({
+      method: 'GET',
+      url: '/api/reports/csv?view=Day&day=2026-11-03&status=Not+Applicable',
+    });
+
+    expect(reply.statusCode).toBe(200);
+    expect(reply.body).toBe(
+      `${BYTE_ORDER_MARK}Student ID,Name,Room,2026-11-03\r\n9003,Chitra Rao,103,-\r\n`,
+    );
+  });
+
+  it('answers 400 for a status that is not a Pooja Status, and asks for nothing', async () => {
+    const { app, asked } = buildApp(MIXED);
+
+    const reply = await app.inject({
+      method: 'GET',
+      url: '/api/reports/xlsx?view=Day&day=2026-11-03&status=Late',
+    });
+
+    expect(reply.statusCode).toBe(400);
+    expect(asked).toEqual([]);
+  });
+});
+
 describe('Report Excel route', () => {
   it('downloads the Report as an Excel file named after its month', async () => {
     const { app, asked } = buildApp();

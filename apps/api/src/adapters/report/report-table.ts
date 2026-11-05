@@ -51,9 +51,26 @@ export function reportTable(report: Report): ReportTable {
   return { heading, rows };
 }
 
-// Only called for a Report that could be made, so the dates in it are real dates.
-export function reportFileName(request: ReportRequest, extension: 'csv' | 'xlsx'): string {
-  if (request.view === 'Day') return `EVLOS Report ${request.day}.${extension}`;
-  if (request.view === 'Month') return `EVLOS Report ${request.month}.${extension}`;
-  return `EVLOS Report ${request.from} to ${request.to}.${extension}`;
+// The Report with only the Students who had that Pooja Status on at least one Day, the same
+// rule as the filter on the Reports page. Each row keeps every Day. null keeps every Student.
+export function withStatus(report: Report, status: PoojaStatusName | null): Report {
+  if (status === null) return report;
+  return { ...report, rows: report.rows.filter((row) => row.statuses.includes(status)) };
+}
+
+const periodOf = (request: ReportRequest): string => {
+  if (request.view === 'Day') return request.day;
+  if (request.view === 'Month') return request.month;
+  return `${request.from} to ${request.to}`;
+};
+
+// Only called for a Report that could be made, so the dates in it are real dates. A file that
+// holds only one Pooja Status says so in its name.
+export function reportFileName(
+  request: ReportRequest,
+  extension: 'csv' | 'xlsx',
+  status: PoojaStatusName | null,
+): string {
+  const only = status === null ? '' : ` ${status}`;
+  return `EVLOS Report ${periodOf(request)}${only}.${extension}`;
 }

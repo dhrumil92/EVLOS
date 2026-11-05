@@ -28,8 +28,8 @@ function fakeSource(answer: (request: ReportRequest) => Report = () => report())
       asked.push(request);
       return Promise.resolve(answer(request));
     },
-    csvUrl: (request) => `/csv/${request.view}`,
-    xlsxUrl: (request) => `/xlsx/${request.view}`,
+    csvUrl: (request, status) => `/csv/${request.view}/${status}`,
+    xlsxUrl: (request, status) => `/xlsx/${request.view}/${status}`,
   };
   return { source, asked };
 }
@@ -59,7 +59,7 @@ describe('Reports page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Month' }));
 
     const link = await screen.findByRole('link', { name: 'Download CSV' });
-    expect(link.getAttribute('href')).toBe('/csv/Month');
+    expect(link.getAttribute('href')).toBe('/csv/Month/All');
   });
 
   it('offers the Report shown as an Excel download', async () => {
@@ -69,7 +69,21 @@ describe('Reports page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Month' }));
 
     const link = await screen.findByRole('link', { name: 'Download Excel' });
-    expect(link.getAttribute('href')).toBe('/xlsx/Month');
+    expect(link.getAttribute('href')).toBe('/xlsx/Month/All');
+  });
+
+  it('downloads only the Students of the Pooja Status chosen on the page', async () => {
+    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
+    await screen.findByText('Bina Rao');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
+
+    expect(screen.getByRole('link', { name: 'Download CSV' }).getAttribute('href')).toBe(
+      '/csv/Day/Absent',
+    );
+    expect(screen.getByRole('link', { name: 'Download Excel' }).getAttribute('href')).toBe(
+      '/xlsx/Day/Absent',
+    );
   });
 
   it('lists Students by room in ascending order first', async () => {

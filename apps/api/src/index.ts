@@ -135,7 +135,7 @@ const reportEmailDeps = {
   outbox,
   reportEmailAddresses,
   attachmentOf: (request: ReportRequest, report: Report) => ({
-    filename: reportFileName(request, 'csv'),
+    filename: reportFileName(request, 'csv', null),
     content: reportCsv(report),
   }),
 };
