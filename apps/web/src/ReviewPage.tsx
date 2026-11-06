@@ -3,26 +3,12 @@ import { dayAfter, dayBefore } from './calendar-day.js';
 import { useDeviceStatus } from './DeviceLastSeen.js';
 import { httpDeviceStatusSource } from './device-status-source.js';
 import type { DeviceStatus, DeviceStatusSource } from './device-status-source.js';
+import { ExcludeAndSend } from './ExcludeAndSend.js';
+import { dayInWords as inWords, timeOfDay } from './ist-words.js';
 import { NeedsReview, WINDOW_OPEN } from './NeedsReview.js';
 import type { PoojaStatusName, ReportSource } from './report-source.js';
-import type { NotificationState, Review, ReviewSource } from './review-source.js';
+import type { Review, ReviewSource } from './review-source.js';
 import { ReviewSteps } from './ReviewSteps.js';
-
-const IST = { timeZone: 'Asia/Kolkata' } as const;
-const dayWords = new Intl.DateTimeFormat('en-GB', {
-  ...IST,
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-});
-const timeWords = new Intl.DateTimeFormat('en-GB', {
-  ...IST,
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
-const inWords = (day: string) =>
-  dayWords.format(new Date(`${day}T12:00:00+05:30`)).replace(',', '');
 
 const plural = (count: number, word: string) => `${String(count)} ${word}${count === 1 ? '' : 's'}`;
 
@@ -32,161 +18,8 @@ const REFUSALS: Record<string, string> = {
   'not-finalized': 'Finalize the Day before sending Notifications.',
 };
 const refusalText = (reason: string) => REFUSALS[reason] ?? 'Nothing changed. Reload the page.';
-const NOTIFICATION_TEXT: Record<NotificationState, string> = {
-  queued: 'Notification queued',
-  sent: 'Notification sent',
-  failed: 'Notification not sent',
-};
 // The server failed part way, so the page cannot know what was saved.
 const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
-
-// Asks before a change that cannot be undone from the page. Also used on the Settings page.
-export function Confirm(props: {
-  question: string;
-  yes: string;
-  onYes: () => void;
-  onNo: () => void;
-}) {
-  return (
-    <div className="danger-zone grid gap-3" role="group" aria-label="Confirm">
-      <p className="font-display text-xl font-semibold">{props.question}</p>
-      <div className="flex flex-wrap gap-3">
-        <button className="btn" type="button" onClick={props.onYes}>
-          {props.yes}
-        </button>
-        <button className="btn-quiet" type="button" onClick={props.onNo}>
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// The Student's name, with a Punch After Finalize under it when one arrived (FR-2).
-function AbsentName({ student }: { student: Review['absent'][number] }) {
-  return (
-    <span className="grid">
-      <span className="font-semibold">{student.name}</span>
-      {student.punchAfterFinalize !== null && (
-        <span className="text-sm font-bold text-after-finalize">
-          Punched at {timeWords.format(student.punchAfterFinalize)}, arrived after Finalize
-        </span>
-      )}
-    </span>
-  );
-}
-
-function AbsentRow(props: {
-  student: Review['absent'][number];
-  isCrossed: boolean;
-  onToggle: () => void;
-}) {
-  const { student, isCrossed } = props;
-  const state = student.notification
-    ? NOTIFICATION_TEXT[student.notification]
-    : student.isExcluded
-      ? 'Excluded'
-      : null;
-  return (
-    <li className={`email-row ${isCrossed || student.isExcluded ? 'email-row-excluded' : ''}`}>
-      <span className="text-muted">{student.room}</span>
-      <AbsentName student={student} />
-      {state ? (
-        <span className="text-muted">{state}</span>
-      ) : (
-        <button
-          className={isCrossed ? 'link-button' : 'cross'}
-          type="button"
-          aria-label={isCrossed ? `Include ${student.name} again` : `Exclude ${student.name}`}
-          title={isCrossed ? 'Include again' : 'Exclude from the email'}
-          onClick={props.onToggle}
-        >
-          {isCrossed ? 'Undo' : '×'}
-        </button>
-      )}
-    </li>
-  );
-}
-
-// After Finalize: the email list with a cross for each Absent Student (FR-9).
-function AfterFinalize(props: { review: Review; onSend: (excluded: string[]) => Promise<void> }) {
-  const { review } = props;
-  const [crossed, setCrossed] = useState<string[]>([]);
-  const [asking, setAsking] = useState(false);
-  const toSend = review.absent.filter(
-    (one) => one.notification === null && !one.isExcluded && !crossed.includes(one.studentId),
-  ).length;
-  const toggle = (studentId: string) => {
-    setCrossed((old) =>
-      old.includes(studentId) ? old.filter((id) => id !== studentId) : [...old, studentId],
-    );
-  };
-  const button = `Send Notifications to ${plural(toSend, 'Student')}`;
-  // A Punch After Finalize may mean the Student was at Pooja (FR-2); only unsent ones matter.
-  const punchedLater = review.absent.filter(
-    (one) => one.punchAfterFinalize !== null && one.notification === null,
-  ).length;
-  return (
-    <div className="grid gap-4">
-      {punchedLater > 0 && (
-        <p className="notice" role="status">
-          {plural(punchedLater, 'Student')} punched in the Pooja Window, but the Punch arrived after
-          Finalize. Check before you Send Notifications, and Exclude a Student who was at Pooja.
-        </p>
-      )}
-      {review.absent.length === 0 ? (
-        <p className="text-muted">No Student is Absent on this Day.</p>
-      ) : (
-        <>
-          <p className="text-muted">
-            Absent Students get one email each. Press the cross to Exclude a Student who explained
-            why he missed Pooja. He stays Absent in Reports.
-          </p>
-          <ul className="grid" aria-label="Email list">
-            {review.absent.map((student) => (
-              <AbsentRow
-                key={student.studentId}
-                student={student}
-                isCrossed={crossed.includes(student.studentId)}
-                onToggle={() => {
-                  toggle(student.studentId);
-                }}
-              />
-            ))}
-          </ul>
-        </>
-      )}
-      {asking ? (
-        <Confirm
-          question={`${button}?`}
-          yes="Yes, send"
-          onYes={() => {
-            setAsking(false);
-            void props.onSend(crossed).then(() => {
-              setCrossed([]);
-            });
-          }}
-          onNo={() => {
-            setAsking(false);
-          }}
-        />
-      ) : (
-        <div>
-          <button
-            className="btn"
-            type="button"
-            disabled={toSend === 0}
-            onClick={() => {
-              setAsking(true);
-            }}
-          >
-            {button}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function Arrow(props: { label: string; disabled: boolean; path: string; onClick: () => void }) {
   return (
@@ -258,7 +91,7 @@ function DaySwitcher(props: {
       >
         {props.finalizedAt === null
           ? 'Not Finalized'
-          : `Finalized at ${timeWords.format(props.finalizedAt)}`}
+          : `Finalized at ${timeOfDay(props.finalizedAt)}`}
       </p>
     </div>
   );
@@ -402,15 +235,12 @@ function DayBody(props: {
     <>
       {props.statuses && <DayCounts review={review} statuses={props.statuses} />}
       {finalization ? (
-        <section className="report-card grid gap-4" aria-label={inWords(day)}>
-          <div>
-            <h2 className="font-display text-2xl font-bold">{inWords(day)}</h2>
-            <p className="text-muted">
-              {`Finalized at ${timeWords.format(finalization.finalizedAt)} by ${finalization.finalizedBy}.`}
-            </p>
-          </div>
-          <AfterFinalize key={day} review={review} onSend={props.onSend} />
-        </section>
+        <ExcludeAndSend
+          key={day}
+          review={review}
+          finalizedLine={`Finalized at ${timeOfDay(finalization.finalizedAt)} by ${finalization.finalizedBy}.`}
+          onSend={props.onSend}
+        />
       ) : (
         <NeedsReview
           key={day}

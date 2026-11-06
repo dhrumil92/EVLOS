@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { SyntheticEvent } from 'react';
-import { Confirm } from './ReviewPage.js';
+import { Confirm } from './Confirm.js';
 import type { SettingsSource } from './settings-source.js';
 
 const NO_ONE =

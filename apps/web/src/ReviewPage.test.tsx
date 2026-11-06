@@ -273,13 +273,47 @@ describe('Review and Finalize, after Finalize', () => {
     expect(current?.textContent).toContain('Exclude if needed');
   });
 
-  it('Excludes a Student with his cross, and the cross can be undone', async () => {
+  it('Excludes a Student, and Include again undoes it', async () => {
     render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Exclude Bina Rao' }));
     expect(screen.getByRole('button', { name: 'Send Notifications to 1 Student' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Include Bina Rao again' }));
+    expect(screen.getByRole('button', { name: 'Send Notifications to 2 Students' })).toBeTruthy();
+  });
+
+  it('the Email column says who will get the email and who is Excluded', async () => {
+    render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
+    const list = await screen.findByRole('table', { name: 'Email list' });
+
+    fireEvent.click(within(list).getByRole('button', { name: 'Exclude Bina Rao' }));
+
+    const row = (name: string) => within(list).getByText(name).closest('tr') as HTMLElement;
+    expect(within(row('Bina Rao')).getByText('Excluded')).toBeTruthy();
+    expect(within(row('Chitra Rao')).getByText('Will get the email')).toBeTruthy();
+  });
+
+  it('the bottom bar counts who will get the email and who is Excluded', async () => {
+    render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
+    expect(await screen.findByText('2 Students will get the email.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exclude Bina Rao' }));
+
+    expect(screen.getByText('1 Student will get the email. 1 is Excluded.')).toBeTruthy();
+  });
+
+  it('Go back leaves the Notifications unsent', async () => {
+    const { source, state } = fakeSource(finalized);
+    render(<ReviewPage source={source} today={TODAY} />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Send Notifications to 2 Students' }),
+    );
+    expect(screen.getByText('Send 2 emails now?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+
+    expect(state.sent).toEqual([]);
     expect(screen.getByRole('button', { name: 'Send Notifications to 2 Students' })).toBeTruthy();
   });
 
@@ -324,7 +358,7 @@ describe('Review and Finalize, after Finalize', () => {
     expect(await screen.findByText(SERVER_FAILED)).toBeTruthy();
   });
 
-  it('shows how far each Notification has got, or Excluded, and offers no cross for them', async () => {
+  it('shows how far each Notification has got, or Excluded, and offers no Exclude for them', async () => {
     render(
       <ReviewPage
         source={
@@ -373,40 +407,49 @@ describe('Review and Finalize, after Finalize', () => {
     );
   });
 
-  it('labels a Punch After Finalize and asks to check before sending', async () => {
-    render(
-      <ReviewPage
-        source={
-          fakeSource({
-            ...finalized,
-            absent: [
-              {
-                ...student('9002', 'Bina Rao', '205'),
-                isExcluded: false,
-                notification: null,
-                punchAfterFinalize: AT_0700_IST,
-              },
-              {
-                ...student('9003', 'Chitra Rao', '310'),
-                isExcluded: false,
-                notification: null,
-                punchAfterFinalize: null,
-              },
-            ],
-          }).source
-        }
-        today={TODAY}
-      />,
-    );
+  const punchedLate: Review = {
+    ...finalized,
+    absent: [
+      {
+        ...student('9002', 'Bina Rao', '205'),
+        isExcluded: false,
+        notification: null,
+        punchAfterFinalize: AT_0700_IST,
+      },
+      {
+        ...student('9003', 'Chitra Rao', '310'),
+        isExcluded: false,
+        notification: null,
+        punchAfterFinalize: null,
+      },
+    ],
+  };
 
-    const list = await screen.findByRole('list', { name: 'Email list' });
+  it('labels a Punch After Finalize in the list and in a banner above it', async () => {
+    render(<ReviewPage source={fakeSource(punchedLate).source} today={TODAY} />);
+
+    const list = await screen.findByRole('table', { name: 'Email list' });
     expect(within(list).getByText('Punched at 07:00, arrived after Finalize')).toBeTruthy();
     expect(within(list).getAllByText(/arrived after Finalize/)).toHaveLength(1);
+    const banner = screen.getByRole('region', { name: 'Punch After Finalize' });
     expect(
-      screen.getByText(
-        '1 Student punched in the Pooja Window, but the Punch arrived after Finalize. ' +
-          'Check before you Send Notifications, and Exclude a Student who was at Pooja.',
+      within(banner).getByText(
+        'Bina Rao punched at 07:00 in the Pooja Window, but the Punch reached EVLOS after you Finalized. The Student stays Absent in Reports.',
       ),
     ).toBeTruthy();
+  });
+
+  it('the Punch After Finalize banner Excludes that Student in one click', async () => {
+    render(<ReviewPage source={fakeSource(punchedLate).source} today={TODAY} />);
+    const banner = await screen.findByRole('region', { name: 'Punch After Finalize' });
+
+    fireEvent.click(
+      within(banner).getByRole('button', {
+        name: 'Exclude Bina Rao, whose Punch arrived after Finalize',
+      }),
+    );
+
+    expect(within(banner).getByText('Excluded. No email will go out.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Send Notifications to 1 Student' })).toBeTruthy();
   });
 });

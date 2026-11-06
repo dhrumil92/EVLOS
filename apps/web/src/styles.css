@@ -53,6 +53,10 @@
   --color-warn-line: #e9b44c;
   --color-overlay: rgb(27 31 59 / 50%);
   --color-after-finalize: #5b2a9a;
+  --color-after-finalize-ink: #45207a;
+  --color-after-finalize-wash: #f4eefc;
+  --color-after-finalize-line: #b9a0e0;
+  --color-after-finalize-row: #faf7fe;
   --font-display: 'Bricolage Grotesque', 'Segoe UI', sans-serif;
   --font-sans: 'Atkinson Hyperlegible', 'Segoe UI', sans-serif;
 }
@@ -557,39 +561,6 @@ body {
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-}
-
-/* Review and Finalize: the email list, one Absent Student per row with a cross. */
-.email-row {
-  display: grid;
-  grid-template-columns: 4rem minmax(8rem, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 10px;
-  border-bottom: 1px solid var(--color-line);
-}
-
-.email-row-excluded > :nth-child(-n + 2) {
-  color: var(--color-muted);
-  text-decoration: line-through;
-}
-
-.cross {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 1.5px solid var(--color-danger);
-  border-radius: 12px;
-  background: var(--color-surface);
-  color: var(--color-danger);
-  font-size: 1.3rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.cross:hover {
-  background: #fbeaea;
 }
 
 .status-not-applicable {
