@@ -1,7 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode, SyntheticEvent } from 'react';
 import { LeaveStateLabel } from './LeaveStatus.js';
-import { ManyStudentsTools } from './ManyStudentsPanels.js';
 import { byName, byRoom } from './report-rows.js';
 import { StudentFilter } from './StudentFilter.js';
 import type { StudentSort } from './StudentFilter.js';
@@ -289,7 +288,6 @@ export function StudentsPage({
   const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
-  const [forMany, setForMany] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -336,38 +334,16 @@ export function StudentsPage({
             Add Students, edit their details, and open the gear for more.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            className="gear gear-common"
-            type="button"
-            aria-label="Leave or Return for many Students"
-            title="Leave or Return for many Students"
-            aria-expanded={forMany}
-            onClick={() => {
-              setForMany((old) => !old);
-            }}
-          >
-            <GearIcon />
-          </button>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => {
-              setAdding((old) => !old);
-            }}
-          >
-            {adding ? 'Close the form' : 'Add a Student'}
-          </button>
-        </div>
+        <button
+          className="btn"
+          type="button"
+          onClick={() => {
+            setAdding((old) => !old);
+          }}
+        >
+          {adding ? 'Close the form' : 'Add a Student'}
+        </button>
       </div>
-      {forMany && (
-        <ManyStudentsTools
-          students={students ?? []}
-          source={source}
-          today={today}
-          onDone={() => void refresh()}
-        />
-      )}
       {adding && (
         <AddStudentForm
           source={source}

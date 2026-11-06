@@ -83,7 +83,7 @@ function fakeSource(answer?: AddResult, failing = false) {
     editLeave: () => Promise.resolve('done'),
     cancelLeave: () => Promise.resolve('done'),
     returnLeave: () => Promise.resolve('done'),
-    // Many-Students panels have their own tests in ManyStudentsPanels.test.tsx.
+    // Leaves and Returns for many Students are on the Leaves page, with their own tests.
     recordLeaves: () => Promise.resolve([]),
     returnLeaves: () => Promise.resolve([]),
   };
@@ -446,17 +446,5 @@ describe('filter and sort', () => {
     fireEvent.keyDown(panel, { key: 'Escape' });
 
     expect(screen.queryByRole('dialog', { name: 'Filter and sort' })).toBeNull();
-  });
-});
-
-describe('the common gear for many Students', () => {
-  it('opens Leave for many Students and Return for many Students', async () => {
-    render(<StudentsPage source={fakeSource().source} today="2026-11-03" />);
-    await screen.findByText('Bina Rao');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Leave or Return for many Students' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Leave for many Students' }));
-
-    expect(screen.getByRole('form', { name: 'Leave for many Students' })).toBeTruthy();
   });
 });

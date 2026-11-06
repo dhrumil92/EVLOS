@@ -41,6 +41,10 @@
   --color-focus: #e58a1f;
   --color-danger: #a12a2a;
   --color-danger-wash: #fff6f6;
+  --color-danger-line: #e3a3a3;
+  --color-ok: #17532d;
+  --color-ok-wash: #eaf6ee;
+  --color-ok-line: #bfe0cb;
   --color-after-finalize: #5b2a9a;
   --font-display: 'Bricolage Grotesque', 'Segoe UI', sans-serif;
   --font-sans: 'Atkinson Hyperlegible', 'Segoe UI', sans-serif;
@@ -150,7 +154,7 @@ body {
 
 .btn:disabled {
   opacity: 0.6;
-  cursor: wait;
+  cursor: not-allowed;
 }
 
 /* Reports: the bar colours passed the dataviz colour-blindness checks. */
@@ -518,11 +522,7 @@ body {
   color: #6b4e00;
 }
 
-/* Many Students: the common gear, the search results and one row per chosen Student. */
-.gear-common {
-  border: 1.5px solid var(--color-line-strong);
-}
-
+/* Many Students: the search results and one row per chosen Student. */
 .picker-results {
   display: grid;
   max-height: 16rem;
@@ -561,19 +561,6 @@ body {
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-}
-
-.away-row {
-  display: grid;
-  grid-template-columns: 4rem minmax(8rem, 1fr) auto;
-  align-items: center;
-  gap: 4px 12px;
-  padding: 10px;
-  border-bottom: 1px solid var(--color-line);
-}
-
-.away-row > :last-child {
-  grid-column: 2 / -1;
 }
 
 /* Review and Finalize: the email list, one Absent Student per row with a cross. */
