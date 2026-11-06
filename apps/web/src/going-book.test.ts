@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   blankLine,
-  dayBefore,
   isAlreadyAway,
   isReady,
   newLineFrom,
@@ -104,10 +103,6 @@ describe('a ready line', () => {
 });
 
 describe('sending the lines', () => {
-  it('Yesterday sends the day before today', () => {
-    expect(dayBefore('2026-11-01')).toBe('2026-10-31');
-  });
-
   it('sends each ready line with its own day and times, and leaves the rest out', () => {
     const lines = [
       filled(),

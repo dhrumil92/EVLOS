@@ -9,10 +9,11 @@ import {
   studentsInRooms,
   toLeaveRows,
 } from './going-book.js';
-import type { BookLine, OutDay } from './going-book.js';
+import type { BookLine } from './going-book.js';
+import { BOOK_DAYS } from './book-day.js';
+import type { BookDay } from './book-day.js';
 import type { ListedStudent, RowAnswer, StudentSource } from './student-source.js';
 
-const OUT_DAYS: OutDay[] = ['Today', 'Yesterday', 'Pick a date'];
 const plural = (count: number, word: string) => `${String(count)} ${word}${count === 1 ? '' : 's'}`;
 const inputClass = 'field w-full';
 // Fixed widths, so date and time boxes never stretch a line past its card.
@@ -115,7 +116,7 @@ function Suggestions(props: {
       {found.map((student) => {
         const away = student.leaveState !== 'In hostel';
         return (
-          <li key={student.studentId} className="p-0!">
+          <li key={student.studentId}>
             <button
               type="button"
               className="flex min-h-11 w-full items-center gap-3 px-3 text-left hover:bg-tint"
@@ -188,10 +189,10 @@ function OutCell(props: {
           aria-label={`Out day, ${label}`}
           value={line.outDay}
           onChange={(event) => {
-            props.onChange({ outDay: event.target.value as OutDay, copiedFrom: null });
+            props.onChange({ outDay: event.target.value as BookDay, copiedFrom: null });
           }}
         >
-          {OUT_DAYS.map((day) => (
+          {BOOK_DAYS.map((day) => (
             <option key={day}>{day}</option>
           ))}
         </select>
@@ -421,7 +422,7 @@ export function GoingToHomeBook(props: {
   };
 
   return (
-    <section aria-label="Lines from the Going-to-Home Book" className="report-card grid gap-0 p-0!">
+    <section aria-label="Lines from the Going-to-Home Book" className="book-card grid">
       <div className="grid gap-1 px-4 pt-5 pb-3 md:px-6">
         <h2 className="font-display text-2xl font-bold">One line for each Student in the book</h2>
         <p className="text-muted">

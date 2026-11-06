@@ -1,13 +1,13 @@
+import { dayOf } from './book-day.js';
+import type { BookDay } from './book-day.js';
 import type { ListedStudent, ManyLeaveRow } from './student-source.js';
 
 // One line copied from the Going-to-Home Book. Dates are YYYY-MM-DD and times HH:MM, in IST.
-export type OutDay = 'Today' | 'Yesterday' | 'Pick a date';
-
 export interface BookLine {
   key: number;
   room: string;
   student: ListedStudent | null;
-  outDay: OutDay;
+  outDay: BookDay;
   pickedOutDay: string;
   outTime: string;
   expectedReturnDay: string;
@@ -65,22 +65,10 @@ export function isReady(line: BookLine) {
   );
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-// Calendar arithmetic on the date alone, so the computer's own time zone never matters.
-export const dayBefore = (day: string) =>
-  new Date(Date.parse(`${day}T00:00:00Z`) - DAY_MS).toISOString().slice(0, 10);
-
-function outDayOf(line: BookLine, today: string) {
-  if (line.outDay === 'Today') return today;
-  if (line.outDay === 'Yesterday') return dayBefore(today);
-  return line.pickedOutDay;
-}
-
 export function toLeaveRows(lines: readonly BookLine[], today: string): ManyLeaveRow[] {
   return lines.filter(isReady).map((line) => ({
     studentId: line.student?.studentId ?? '',
-    outDay: outDayOf(line, today),
+    outDay: dayOf({ day: line.outDay, pickedDay: line.pickedOutDay }, today),
     outTime: line.outTime,
     expectedReturnDay: line.expectedReturnDay,
     expectedReturnTime: line.expectedReturnTime,

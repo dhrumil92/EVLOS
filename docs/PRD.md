@@ -78,9 +78,24 @@ Acceptance criteria:
 - The calendar disables future dates for the Out date. The Expected Return date may be in the future.
 - A Leave entered by mistake can be cancelled or edited, and the change is audited. The Rector may edit the Expected Return, for example when a Student stays longer; a Finalized Day never changes because of such an edit.
 
-**FR-4b Leave for many Students at once.** The Student list has a common gear icon that opens a Leave entry for several Students. The Rector finds Students by typing a name (also Student ID or room), adds each to the selection, and enters the Out Time and Expected Return of each Student as written on that Student's own Leave Note (the times differ: one Student leaves in the morning, another in the evening). The panel has one Out date and one Expected Return date at the top, both defaulting to today; each Student row asks only for the Out time and the Expected Return time. A Student whose date differs gets a small date field on his own row, so the Rector never picks a date for every Student. The Out date may be in the past, because the Rector sometimes enters the Leave Notes the next day. The Rector sees a summary ("35 Students will be Away") and confirms. Students who already have an open Leave are listed and skipped. This is for vacations and holidays, when 30 to 40 Students leave on the same day.
+**FR-4b Leave for many Students at once.** The Leaves page has a Going-to-Home Book tab that copies the reception book line by line. On each line the Rector:
+- types the room;
+- picks the Student from the Active Students in rooms starting with those digits;
+- enters the Out day (Today, Yesterday or a picked date, never in the future), the Out Time, and the Expected Return date and time, as written on that Student's own Leave Note.
 
-**FR-5 Record Return.** The Rector records a Return Time for one Student (Leave status tab) or for many at once, using the same search-and-select panel as FR-4b. In the panel the Rector sets one Return date at the top (default today) and enters only a Return time on each Student's row, as written in the Back-from-Home Book; a Student whose date differs gets a small date field on his own row. Students with no open Leave are listed and skipped.
+The Out day may be in the past, because the Rector sometimes copies the book the next day. The times differ between Students: one leaves in the morning, another in the evening.
+
+A new line starts with the day and times of the line above, so a group that left together needs no retyping, and any line can still be changed on its own.
+
+A Student who already has an open Leave is marked on the line, with a link that opens the Back-from-Home Book with that Student ticked; that line is not sent. The Save button counts only the ready lines ("Save 35 Leaves"). Saved lines leave the list. A line the server refuses stays, with the reason in plain words, while the other lines are saved.
+
+This is for vacations and holidays, when 30 to 40 Students leave on the same day.
+
+**FR-5 Record Return.** The Rector records a Return Time for one Student (Leave status tab) or for many at once on the Leaves page's Back-from-Home Book tab. That tab lists only the Students who are Away, Due Back first, so the Rector ticks the names written in the book; a Find box narrows a long list by room or name.
+
+One Return day (Today, Yesterday or a picked date) and Return Time at the top, with a Use now button, fills every ticked line. A line whose time differs in the book is changed on that line, and it then keeps its own time.
+
+The Record button counts only the ticked lines that have a time. A refused line stays ticked, with its reason. Each line also offers Edit Leave and Cancel Leave.
 - Given a Student with an open Leave, when the Return Time is recorded, then the Leave is closed and the Student is no longer Away.
 - Expected Return and Return Time are stored separately, each with date and time. Recording the Return Time never overwrites the Expected Return, and it may differ from it (traffic, a longer vacation).
 - Given a Return Time later than now, when it is recorded, then it is refused with a reason. The calendar disables future dates, and the server refuses them as well.
@@ -163,4 +178,4 @@ Acceptance criteria:
 4. Should the Rector be able to unlock (reopen) a Finalized Day to correct a mistake? Set aside on 2026-10-30; until decided, a Finalized Day cannot be changed.
 5. Decided 2026-11-02 from captured payloads: when the Device uploads late, it sends the original punch time (Punches made while the server was down arrived later with their own times, in one batch). The upload-time case does not occur, so no purple Punch is needed.
 6. Should the Rector be reminded when a Day is Finalized but Send Notifications was not clicked? Not for now (decided 2026-10-30); revisit after the pilot if needed.
-7. Decided 2026-11-02: the many-Students Leave panel (FR-4b) uses one default Out date and Expected Return date with a per-row date override, and a future Out Time is refused (FR-4).
+7. Decided 2026-11-02: the many-Students Leave panel (FR-4b) uses one default Out date and Expected Return date with a per-row date override, and a future Out Time is refused (FR-4). Changed 2026-11-06: the panel became the Going-to-Home Book and Back-from-Home Book tabs on the Leaves page. Each line has its own day and times, and a new line copies the line above; Returns are ticked from the list of Away Students.

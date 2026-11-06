@@ -100,7 +100,7 @@ Dates are stored as timestamptz in UTC and converted with an explicit Asia/Kolka
 
 **Day view.** The Rector's page asks for a Day -> the use case loads Active Students, Punches and Leaves -> the core computes each Pooja Status with the injected Clock -> the UI shows Present, Not Applicable, Pending and Needs Review, with Away in red and Due Back in yellow (always with text).
 
-**Settings panel.** The gear icon on a row opens three tabs: Details (edit name, room, email and phone; the Student ID never changes), Leave status (record Leave or Return) and Danger zone (Deactivate or Activate). The common gear icon opens search-and-select for Leave or Return for many Students; the use case reports which Students were skipped because a Leave was already open.
+**Settings panel.** The gear icon on a row opens three tabs: Details (edit name, room, email and phone; the Student ID never changes), Leave status (record Leave or Return) and Danger zone (Deactivate or Activate). Leaves and Returns for many Students are recorded on the Leaves page, one tab per paper book: the Going-to-Home Book (one line per Student, room first; the line rules are in `apps/web/src/going-book.ts`) and the Back-from-Home Book (tick the Away Students; `apps/web/src/back-book.ts`). The use case answers per line, so a refused line keeps its reason and the others are saved.
 
 **Finalize.** Available only after the Pooja Window closes (18:00 IST). The Rector reviews Needs Review and clicks Finalize -> in one transaction: write `pooja_results` (each Needs Review becomes Absent), write `day_finalizations`, write the audit row. No email is queued. A Finalized Day cannot be reopened (PRD open question 4).
 

@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { awayInOrder } from './back-book.js';
+import { BackFromHomeBook } from './BackFromHomeBook.js';
 import { GoingToHomeBook } from './GoingToHomeBook.js';
 import { inWords, LeaveStateLabel } from './LeaveStatus.js';
-import { ManyReturnsPanel } from './ManyStudentsPanels.js';
 import type { ListedStudent, StudentSource } from './student-source.js';
 
 type Book = 'Going-to-Home Book' | 'Back-from-Home Book';
-
-// Soonest Expected Return first. Due Back means expected by tomorrow, so Due Back Students
-// always come before the other Away Students.
-const byWhoIsExpected = (a: ListedStudent, b: ListedStudent) =>
-  (a.openLeave?.expectedReturnAt ?? 0) - (b.openLeave?.expectedReturnAt ?? 0);
 
 function countText(away: ListedStudent[]) {
   const dueBack = away.filter((student) => student.leaveState === 'Due Back').length;
@@ -129,6 +125,8 @@ export function LeavesPage(props: { source: StudentSource; today: string }) {
   const [students, setStudents] = useState<ListedStudent[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [book, setBook] = useState<Book>('Going-to-Home Book');
+  // The Student sent from a Going-to-Home line who is already Away starts ticked.
+  const [startTicked, setStartTicked] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -143,10 +141,9 @@ export function LeavesPage(props: { source: StudentSource; today: string }) {
     void refresh();
   }, [refresh]);
 
-  const away = (students ?? [])
-    .filter((student) => student.isActive && student.leaveState !== 'In hostel')
-    .sort(byWhoIsExpected);
-  const openReturns = () => {
+  const away = awayInOrder(students ?? []);
+  const openReturns = (studentId: string | null = null) => {
+    setStartTicked(studentId);
     setBook('Back-from-Home Book');
   };
 
@@ -191,16 +188,24 @@ export function LeavesPage(props: { source: StudentSource; today: string }) {
               onOpenReturns={openReturns}
             />
           ) : (
-            <ManyReturnsPanel
+            <BackFromHomeBook
               students={students ?? []}
               source={source}
               today={props.today}
-              onDone={() => void refresh()}
+              startTicked={startTicked}
+              onSaved={() => void refresh()}
             />
           )}
         </div>
         <aside className="grid min-w-0 flex-[1_1_18rem] gap-5">
-          {students && <AwayNow away={away} onOpenReturns={openReturns} />}
+          {students && (
+            <AwayNow
+              away={away}
+              onOpenReturns={() => {
+                openReturns();
+              }}
+            />
+          )}
           <GoodToKnow />
         </aside>
       </div>

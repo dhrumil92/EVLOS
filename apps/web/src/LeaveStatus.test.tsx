@@ -173,4 +173,21 @@ describe('Leave status for an Away Student', () => {
 
     expect(screen.getByText('Due Back')).toBeTruthy();
   });
+
+  it('offers only Edit Leave and Cancel Leave when the Return is recorded elsewhere', () => {
+    render(
+      <LeaveStatus
+        student={away}
+        source={fakeSource().source}
+        today={TODAY}
+        onChanged={() => undefined}
+        offerReturn={false}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Record Return' })).toBeNull();
+    expect(screen.queryByLabelText('Return time')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Edit Leave' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cancel Leave' })).toBeTruthy();
+  });
 });
