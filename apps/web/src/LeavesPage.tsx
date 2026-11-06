@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { awayInOrder } from './back-book.js';
 import { BackFromHomeBook } from './BackFromHomeBook.js';
 import { GoingToHomeBook } from './GoingToHomeBook.js';
 import { inWords, LeaveStateLabel } from './LeaveStatus.js';
 import type { ListedStudent, StudentSource } from './student-source.js';
+import { useStudents } from './use-students.js';
 
-type Book = 'Going-to-Home Book' | 'Back-from-Home Book';
+export type Book = 'Going-to-Home Book' | 'Back-from-Home Book';
 
 function countText(away: ListedStudent[]) {
   const dueBack = away.filter((student) => student.leaveState === 'Due Back').length;
@@ -40,7 +41,7 @@ function BookTab(props: {
       </span>
       <span className="grid">
         <span className="font-display text-xl font-bold">{props.book}</span>
-        <span className={`text-sm ${isChosen ? 'text-[#dde0f7]' : 'text-muted'}`}>
+        <span className={`text-sm ${isChosen ? 'text-on-primary-muted' : 'text-muted'}`}>
           {props.line}
         </span>
       </span>
@@ -118,32 +119,62 @@ function GoodToKnow() {
   );
 }
 
+// The open book. Lines for Students sent from another page need their rooms, so the
+// Going-to-Home Book waits for the Student list before it starts.
+function OpenBook(props: {
+  book: Book;
+  students: ListedStudent[] | null;
+  source: StudentSource;
+  today: string;
+  goingStart: readonly string[];
+  startTicked: readonly string[];
+  onSaved: () => void;
+  onOpenReturns: (studentId: string) => void;
+}) {
+  if (props.book === 'Back-from-Home Book') {
+    return (
+      <BackFromHomeBook
+        students={props.students ?? []}
+        source={props.source}
+        today={props.today}
+        startTicked={props.startTicked}
+        onSaved={props.onSaved}
+      />
+    );
+  }
+  if (props.students === null && props.goingStart.length > 0) return null;
+  return (
+    <GoingToHomeBook
+      students={props.students ?? []}
+      source={props.source}
+      today={props.today}
+      startStudents={props.goingStart}
+      onSaved={props.onSaved}
+      onOpenReturns={props.onOpenReturns}
+    />
+  );
+}
+
 // The Leaves page: one tab for each paper book, copied line by line (FR-4b, FR-5), and who
-// is Away now.
-export function LeavesPage(props: { source: StudentSource; today: string }) {
+// is Away now. startBook and startStudents let another page open a book already filled in: a
+// line for each Student in the Going-to-Home Book, or each Student ticked in the other book.
+export function LeavesPage(props: {
+  source: StudentSource;
+  today: string;
+  startBook?: Book;
+  startStudents?: readonly string[];
+}) {
   const { source } = props;
-  const [students, setStudents] = useState<ListedStudent[] | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [book, setBook] = useState<Book>('Going-to-Home Book');
-  // The Student sent from a Going-to-Home line who is already Away starts ticked.
-  const [startTicked, setStartTicked] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      setStudents(await source.list());
-      setFailed(false);
-    } catch {
-      setFailed(true);
-    }
-  }, [source]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
+  const { students, failed, refresh } = useStudents(source);
+  const [book, setBook] = useState<Book>(props.startBook ?? 'Going-to-Home Book');
+  const sent = props.startStudents ?? [];
+  // A Student sent from a Going-to-Home line who is already Away starts ticked.
+  const [startTicked, setStartTicked] = useState<readonly string[]>(
+    props.startBook === 'Back-from-Home Book' ? sent : [],
+  );
   const away = awayInOrder(students ?? []);
   const openReturns = (studentId: string | null = null) => {
-    setStartTicked(studentId);
+    setStartTicked(studentId === null ? [] : [studentId]);
     setBook('Back-from-Home Book');
   };
 
@@ -179,23 +210,16 @@ export function LeavesPage(props: { source: StudentSource; today: string }) {
       </div>
       <div className="flex flex-wrap items-start gap-5">
         <div className="min-w-0 flex-[3_1_40rem]">
-          {book === 'Going-to-Home Book' ? (
-            <GoingToHomeBook
-              students={students ?? []}
-              source={source}
-              today={props.today}
-              onSaved={() => void refresh()}
-              onOpenReturns={openReturns}
-            />
-          ) : (
-            <BackFromHomeBook
-              students={students ?? []}
-              source={source}
-              today={props.today}
-              startTicked={startTicked}
-              onSaved={() => void refresh()}
-            />
-          )}
+          <OpenBook
+            book={book}
+            students={students}
+            source={source}
+            today={props.today}
+            goingStart={book === props.startBook ? sent : []}
+            startTicked={startTicked}
+            onSaved={() => void refresh()}
+            onOpenReturns={openReturns}
+          />
         </div>
         <aside className="grid min-w-0 flex-[1_1_18rem] gap-5">
           {students && (

@@ -1,33 +1,24 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { DeviceLastSeen, useDeviceStatus } from './DeviceLastSeen.js';
 import { httpDeviceStatusSource } from './device-status-source.js';
-import type { DeviceStatus, DeviceStatusSource } from './device-status-source.js';
+import type { DeviceStatusSource } from './device-status-source.js';
 import { httpReportSource } from './http-report-source.js';
+import { LeavesPage } from './LeavesPage.js';
+import type { Book } from './LeavesPage.js';
+import type { LiveViewSource } from './live-view-source.js';
+import { LiveViewPage } from './LiveView.js';
+import type { ReportSource } from './report-source.js';
+import { ReportsPage } from './ReportsPage.js';
 import { httpReviewSource } from './review-source.js';
 import type { ReviewSource } from './review-source.js';
 import { ReviewPage } from './ReviewPage.js';
-import { LeavesPage } from './LeavesPage.js';
-import type { LiveViewPunch, LiveViewSource, NotCountedBecause } from './live-view-source.js';
-import { PoojaRing } from './PoojaRing.js';
-import type { ReportSource } from './report-source.js';
-import { EveryStudent, ReportsPage, Segments } from './ReportsPage.js';
 import { httpSettingsSource } from './settings-source.js';
 import type { SettingsSource } from './settings-source.js';
 import { SettingsPage } from './SettingsPage.js';
 import { httpStudentSource } from './student-source.js';
 import type { StudentSource } from './student-source.js';
 import { StudentsPage } from './StudentsPage.js';
-import { punchKey, useLiveView } from './use-live-view.js';
-import type { LiveViewState } from './use-live-view.js';
 
-const NOTE = 'Outside Pooja Window (05:30–18:00)';
-// Why a Punch is shown but not counted (FR-2).
-const NOT_COUNTED: Record<NotCountedBecause, string> = {
-  'outside-pooja-window': NOTE,
-  'unknown-student': 'Not a Student',
-  'not-active': 'Not Active',
-};
 const LIVE_VIEW = 'Live view';
 const REPORTS = 'Reports';
 const STUDENTS = 'Students';
@@ -40,111 +31,60 @@ const SETTINGS = 'Settings';
 const istToday = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(Date.now());
 
-const istTime = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Kolkata',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hourCycle: 'h23',
-});
-const istDate = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Kolkata',
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-const dayInWords = (day: string) =>
-  istDate.format(new Date(`${day}T12:00:00+05:30`)).replace(',', '');
-
-function PunchRow({ punch, isNew }: { punch: LiveViewPunch; isNew: boolean }) {
-  return (
-    <li
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-t border-line px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] ${isNew ? 'just-arrived' : ''}`}
-    >
-      <span className="grid">
-        <span className="text-lg font-semibold">
-          {punch.name ?? `Student ID ${punch.studentId}`}
-        </span>
-        {punch.name && <span className="text-sm text-muted">Student ID {punch.studentId}</span>}
-      </span>
-      <span className="font-semibold">{istTime.format(punch.punchedAt)}</span>
-      <span
-        className={`col-span-2 justify-self-start rounded-full px-3 py-0.5 text-sm font-bold sm:col-span-1 ${punch.isCounted ? 'status-present' : 'bg-quiet text-quiet-ink'}`}
-      >
-        {punch.notCountedBecause ? NOT_COUNTED[punch.notCountedBecause] : 'Present'}
-      </span>
-    </li>
-  );
+// Which book the Leaves page opens on, and the Students it starts with. "times" remounts the
+// page, so pressing Return twice for different Students opens the book fresh each time.
+interface LeavesOpening {
+  book: Book;
+  students: readonly string[];
+  times: number;
 }
 
-function Punches({ live }: { live: LiveViewState }) {
-  if (live.failed) {
-    return (
-      <p className="px-3 pb-4 text-muted">
-        The live view cannot reach the EVLOS server. Start it with npm run dev, then reload this
-        page.
-      </p>
-    );
-  }
-  if (live.view === null) {
-    return <p className="px-3 pb-4 text-muted">Loading today's Punches.</p>;
-  }
-  if (live.view.punches.length === 0) {
-    return (
-      <p className="px-3 pb-4 text-muted">
-        No Punches yet today. Each Punch appears here as soon as the Device sends it.
-      </p>
-    );
-  }
+function Menu(props: {
+  page: string;
+  onPage: (page: string) => void;
+  onLogOut?: (() => void) | undefined;
+}) {
   return (
-    <ol className="max-h-[27rem] overflow-y-auto">
-      {live.view.punches.map((punch) => (
-        <PunchRow key={punchKey(punch)} punch={punch} isNew={punchKey(punch) === live.newestKey} />
-      ))}
-    </ol>
-  );
-}
-
-function TodaysCount({ live, device }: { live: LiveViewState; device: DeviceStatus | null }) {
-  return (
-    <section aria-label="Today's count">
-      <h1 className="font-display text-[2.5rem] leading-tight font-bold text-primary">
-        Today's Pooja
-      </h1>
-      <p className="mt-1 mb-5 text-muted">
-        {live.view ? `${dayInWords(live.view.day)}. Pooja Window 05:30 to 18:00.` : ' '}
-      </p>
-      <PoojaRing
-        present={live.view?.studentsPresent ?? null}
-        active={live.view?.activeStudents ?? null}
-      />
-      <div className="mt-4">
-        <DeviceLastSeen status={device} />
-      </div>
-    </section>
-  );
-}
-
-const LATEST_PUNCHES = 'Latest Punches';
-const LIVE_LISTS = [LATEST_PUNCHES, 'Every Student'] as const;
-
-function LiveLists(props: { live: LiveViewState; reports: ReportSource; today: string }) {
-  const [list, setList] = useState<(typeof LIVE_LISTS)[number]>(LATEST_PUNCHES);
-  return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2">
-        <h2 className="font-display text-2xl font-semibold">{list}</h2>
-        <Segments label="List" options={LIVE_LISTS} value={list} onChange={setList} />
-      </div>
-      {list === LATEST_PUNCHES ? (
-        <div aria-live="polite">
-          <Punches live={props.live} />
+    <header className="gutter border-b border-line bg-surface">
+      <div className="mx-auto flex max-w-[80rem] flex-wrap items-center gap-x-8 pt-2 md:flex-nowrap md:pt-0">
+        <div className="font-display text-[1.65rem] font-extrabold tracking-tight text-primary lowercase">
+          EVLOS
         </div>
-      ) : (
-        <EveryStudent source={props.reports} today={props.today} />
-      )}
-    </>
+        <nav
+          aria-label="Main menu"
+          className="flex min-w-0 basis-full gap-6 overflow-x-auto md:basis-auto"
+        >
+          {PAGES.map((name) => (
+            <button
+              key={name}
+              type="button"
+              aria-current={name === props.page ? 'page' : undefined}
+              onClick={() => {
+                props.onPage(name);
+              }}
+              className="menu-item"
+            >
+              {name}
+            </button>
+          ))}
+        </nav>
+        <button
+          type="button"
+          aria-current={props.page === SETTINGS ? 'page' : undefined}
+          onClick={() => {
+            props.onPage(SETTINGS);
+          }}
+          className="menu-item ml-auto"
+        >
+          {SETTINGS}
+        </button>
+        {props.onLogOut && (
+          <button type="button" className="menu-item" onClick={props.onLogOut}>
+            Log out
+          </button>
+        )}
+      </div>
+    </header>
   );
 }
 
@@ -159,14 +99,38 @@ export function App(props: {
 }) {
   const { source, students = httpStudentSource, reports = httpReportSource } = props;
   const [page, setPage] = useState(LIVE_VIEW);
-  const live = useLiveView(source);
+  const [leaves, setLeaves] = useState<LeavesOpening>({
+    book: 'Going-to-Home Book',
+    students: [],
+    times: 0,
+  });
   const deviceSource = props.device ?? httpDeviceStatusSource;
-  const device = useDeviceStatus(deviceSource);
   const [today] = useState(istToday);
-  const widePages: Record<string, ReactNode> = {
+  const openLeaves = (book: Book, students: readonly string[] = []) => {
+    setLeaves((old) => ({ book, students, times: old.times + 1 }));
+    setPage(LEAVES);
+  };
+  const pages: Record<string, ReactNode> = {
+    [LIVE_VIEW]: (
+      <LiveViewPage
+        source={source}
+        reports={reports}
+        students={students}
+        device={deviceSource}
+        onOpenLeaves={openLeaves}
+      />
+    ),
     [REPORTS]: <ReportsPage source={reports} today={today} />,
-    [STUDENTS]: <StudentsPage source={students} today={today} />,
-    [LEAVES]: <LeavesPage source={students} today={today} />,
+    [STUDENTS]: <StudentsPage source={students} today={today} onOpenLeaves={openLeaves} />,
+    [LEAVES]: (
+      <LeavesPage
+        key={leaves.times}
+        source={students}
+        today={today}
+        startBook={leaves.book}
+        startStudents={leaves.students}
+      />
+    ),
     [REVIEW]: (
       <ReviewPage
         source={props.review ?? httpReviewSource}
@@ -174,7 +138,7 @@ export function App(props: {
         reports={reports}
         today={today}
         onOpenLeaves={() => {
-          setPage(LEAVES);
+          openLeaves('Going-to-Home Book');
         }}
       />
     ),
@@ -183,59 +147,9 @@ export function App(props: {
 
   return (
     <div className="screen">
-      <header className="gutter border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-[70rem] flex-wrap items-center gap-x-8 pt-2 md:flex-nowrap md:pt-0">
-          <div className="font-display text-[1.65rem] font-extrabold tracking-tight text-primary lowercase">
-            EVLOS
-          </div>
-          <nav
-            aria-label="Main menu"
-            className="flex min-w-0 basis-full gap-6 overflow-x-auto md:basis-auto"
-          >
-            {PAGES.map((name) => (
-              <button
-                key={name}
-                type="button"
-                aria-current={name === page ? 'page' : undefined}
-                onClick={() => {
-                  setPage(name);
-                }}
-                className="menu-item"
-              >
-                {name}
-              </button>
-            ))}
-          </nav>
-          <button
-            type="button"
-            aria-current={page === SETTINGS ? 'page' : undefined}
-            onClick={() => {
-              setPage(SETTINGS);
-            }}
-            className="menu-item ml-auto"
-          >
-            {SETTINGS}
-          </button>
-          {props.onLogOut && (
-            <button type="button" className="menu-item" onClick={props.onLogOut}>
-              Log out
-            </button>
-          )}
-        </div>
-      </header>
-
+      <Menu page={page} onPage={setPage} onLogOut={props.onLogOut} />
       <div className="gutter">
-        {widePages[page] ? (
-          <main className="mx-auto max-w-[70rem] pt-8 pb-2">{widePages[page]}</main>
-        ) : (
-          <main className="mx-auto grid max-w-[70rem] gap-7 pt-8 pb-2 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] md:gap-10">
-            <TodaysCount live={live} device={device} />
-
-            <section className="min-w-0 rounded-[20px] border border-line bg-surface p-2">
-              <LiveLists live={live} reports={reports} today={today} />
-            </section>
-          </main>
-        )}
+        <main className="mx-auto max-w-[80rem] pt-8 pb-2">{pages[page]}</main>
       </div>
     </div>
   );

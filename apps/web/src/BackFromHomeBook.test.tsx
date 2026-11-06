@@ -54,7 +54,7 @@ function fakeSource(refuse: Record<string, string> = {}) {
 }
 
 function showBook(
-  options: { students?: ListedStudent[]; refuse?: Record<string, string>; ticked?: string } = {},
+  options: { students?: ListedStudent[]; refuse?: Record<string, string>; ticked?: string[] } = {},
 ) {
   const fake = fakeSource(options.refuse);
   const calls = { saved: 0 };
@@ -64,7 +64,7 @@ function showBook(
       source={fake.source}
       today={TODAY}
       now={() => ist(6, 17, 15)}
-      startTicked={options.ticked ?? null}
+      startTicked={options.ticked ?? []}
       onSaved={() => {
         calls.saved++;
       }}
@@ -195,10 +195,14 @@ describe('the Back-from-Home Book', () => {
     expect(screen.queryByRole('checkbox', { name: 'Asha Rao came back' })).toBeNull();
   });
 
-  it('starts with the Student ticked who was sent here from the other book', () => {
-    showBook({ ticked: '9001' });
+  it('starts with the Students ticked who were sent here from another page', () => {
+    showBook({ ticked: ['9001', '9002'] });
 
     expect(screen.getByRole('checkbox', { name: 'Asha Rao came back' })).toHaveProperty(
+      'checked',
+      true,
+    );
+    expect(screen.getByRole('checkbox', { name: 'Bina Rao came back' })).toHaveProperty(
       'checked',
       true,
     );

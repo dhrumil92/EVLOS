@@ -30,10 +30,17 @@ const canSend = (line: BookLine) => isReady(line) && line.problem === '';
 
 // The lines and the changes the Rector can make to them. A refused line keeps its reason
 // until the line is changed (FR-4: only that line is blocked).
-function useBookLines() {
-  const [lines, setLines] = useState<BookLine[]>([blankLine(1)]);
+// The book opens with one line for each Student sent from another page, or one blank line.
+function firstLines(students: readonly ListedStudent[], startStudents: readonly string[]) {
+  const sent = startStudents.flatMap((id) => students.filter((s) => s.studentId === id));
+  if (sent.length === 0) return [blankLine(1)];
+  return sent.map((student, index) => ({ ...blankLine(index + 1), student, room: student.room }));
+}
+
+function useBookLines(first: () => BookLine[]) {
+  const [lines, setLines] = useState<BookLine[]>(first);
   // Each line needs its own React key; a counter never hands out the same one twice.
-  const lastKey = useRef(1);
+  const lastKey = useRef(lines.length);
   const takeKey = () => {
     lastKey.current += 1;
     return lastKey.current;
@@ -277,7 +284,7 @@ function LineProblem(props: { line: BookLine; onOpenReturns: (studentId: string)
         </span>
         <button
           type="button"
-          className="link-button text-danger!"
+          className="link-button text-danger"
           onClick={() => {
             props.onOpenReturns(student.studentId);
           }}
@@ -391,10 +398,11 @@ export function GoingToHomeBook(props: {
   students: readonly ListedStudent[];
   source: StudentSource;
   today: string;
+  startStudents: readonly string[];
   onSaved: () => void;
   onOpenReturns: (studentId: string) => void;
 }) {
-  const book = useBookLines();
+  const book = useBookLines(() => firstLines(props.students, props.startStudents));
   const [note, setNote] = useState<{ saved: boolean; text: string } | null>(null);
   const [sending, setSending] = useState(false);
   const summary = summaryOf(book.lines);

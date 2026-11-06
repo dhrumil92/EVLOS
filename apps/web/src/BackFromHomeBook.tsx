@@ -193,9 +193,9 @@ function ReturnLine(props: {
   );
 }
 
-function useLines(startTicked: string | null) {
-  const [lines, setLines] = useState<Record<string, LineState>>(
-    startTicked ? { [startTicked]: { ...UNTICKED, ticked: true } } : {},
+function useLines(startTicked: readonly string[]) {
+  const [lines, setLines] = useState<Record<string, LineState>>(() =>
+    Object.fromEntries(startTicked.map((id) => [id, { ...UNTICKED, ticked: true }])),
   );
   const [returned, setReturned] = useState<ReadonlySet<string>>(new Set());
   const lineOf = (studentId: string) => lines[studentId] ?? UNTICKED;
@@ -244,7 +244,7 @@ export function BackFromHomeBook(props: {
   source: StudentSource;
   today: string;
   now?: () => number;
-  startTicked: string | null;
+  startTicked: readonly string[];
   onSaved: () => void;
 }) {
   const [top, setTop] = useState<ReturnWhen>({ day: 'Today', pickedDay: '', time: '' });

@@ -52,7 +52,9 @@ function fakeSource(refuse: Record<string, string> = {}, fails = false) {
   return { source, sent };
 }
 
-function showBook(options: { refuse?: Record<string, string>; fails?: boolean } = {}) {
+function showBook(
+  options: { refuse?: Record<string, string>; fails?: boolean; start?: string[] } = {},
+) {
   const fake = fakeSource(options.refuse, options.fails);
   const calls = { saved: 0, openedReturns: [] as string[] };
   render(
@@ -60,6 +62,7 @@ function showBook(options: { refuse?: Record<string, string>; fails?: boolean } 
       students={STUDENTS}
       source={fake.source}
       today={TODAY}
+      startStudents={options.start ?? []}
       onSaved={() => {
         calls.saved++;
       }}
@@ -101,6 +104,15 @@ describe('the Going-to-Home Book', () => {
     expect(screen.getByText('Asha Rao')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Bina Rao, room 213/ })).toBeNull();
     expect(input('Room, line 1').value).toBe('212');
+  });
+
+  it('starts with a line for each Student sent from another page', () => {
+    showBook({ start: ['9001', '9002'] });
+
+    expect(input('Room, line 1').value).toBe('212');
+    expect(input('Room, line 2').value).toBe('213');
+    expect(screen.getByText('Asha Rao')).toBeTruthy();
+    expect(screen.getByText('Bina Rao')).toBeTruthy();
   });
 
   it('starts a new line with the times of the line above', () => {

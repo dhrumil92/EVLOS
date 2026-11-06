@@ -20,7 +20,7 @@ const PILL: Record<PoojaStatusName, string> = {
   'Needs Review': 'status-review',
 };
 
-export function Segments<T extends string>(props: {
+function Segments<T extends string>(props: {
   label: string;
   options: readonly T[];
   value: T;
@@ -82,9 +82,8 @@ function StudentCard(props: {
   isDay: boolean;
   chosen: StatusFilter;
   onChoose: (status: StatusFilter) => void;
-  insideCard?: boolean;
 }) {
-  const { report, isDay, chosen, onChoose, insideCard = false } = props;
+  const { report, isDay, chosen, onChoose } = props;
   const [sortBy, setSortBy] = useState<SortBy>('Room');
   const options = filterOptions(report);
   const status = shownStatus(report, chosen);
@@ -94,10 +93,10 @@ function StudentCard(props: {
   );
 
   return (
-    <section className={insideCard ? 'px-3 pb-2' : 'report-card'} aria-label="Students">
+    <section className="report-card" aria-label="Students">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
         <div>
-          {!insideCard && <h2 className="font-display text-2xl font-semibold">Students</h2>}
+          <h2 className="font-display text-2xl font-semibold">Students</h2>
           <p className="text-muted">
             Showing {rows.length} of {report.rows.length} Students
           </p>
@@ -234,22 +233,6 @@ function ReportNotices({ report, isDay }: { report: Report; isDay: boolean }) {
         </p>
       )}
     </>
-  );
-}
-
-// Every Student's Pooja Status for a Day, for the live view page.
-export function EveryStudent({ source, today }: { source: ReportSource; today: string }) {
-  const { report, failed } = useReport(source, JSON.stringify({ view: 'Day', day: today }));
-  const [chosen, setChosen] = useState<StatusFilter>('All');
-  if (failed) return <p className="px-3 pb-4 text-muted">The Student list could not load.</p>;
-  if (!report) return <p className="px-3 pb-4 text-muted">Loading the Student list.</p>;
-  return (
-    <div className="grid gap-3">
-      <div className="grid gap-2 px-3">
-        <ReportNotices report={report} isDay />
-      </div>
-      <StudentCard report={report} isDay chosen={chosen} onChoose={setChosen} insideCard />
-    </div>
   );
 }
 
