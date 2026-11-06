@@ -56,7 +56,7 @@ function AddForm(props: { onAdd: (email: string) => Promise<boolean> }) {
   // noValidate: the server checks the address, so every refusal reads the same way.
   return (
     <form className="flex flex-wrap items-end gap-3" noValidate onSubmit={submit}>
-      <label className="grid gap-1 text-mist">
+      <label className="grid gap-1 text-muted">
         Email address
         <input
           className="field"
@@ -99,7 +99,7 @@ function ReportRecipientsCard({ source }: { source: SettingsSource }) {
     <section className="report-card grid gap-4" aria-label="Report Recipients">
       <div>
         <h2 className="font-display text-2xl font-semibold">Report Recipients</h2>
-        <p className="text-mist">
+        <p className="text-muted">
           These addresses receive the Review Reminder (23:00), the Daily Report (23:30) and the
           Monthly Report (09:00 on the 1st).
         </p>
@@ -156,14 +156,14 @@ function ChangePasswordCard({ source }: { source: SettingsSource }) {
     <section className="report-card grid gap-4" aria-label="Change password">
       <div>
         <h2 className="font-display text-2xl font-semibold">Change password</h2>
-        <p className="text-mist">
+        <p className="text-muted">
           The new password needs at least 12 characters. Changing it ends every other login, such as
           on a phone; this one stays.
         </p>
       </div>
       <form className="grid max-w-md gap-3" noValidate onSubmit={(event) => void submit(event)}>
         {PASSWORD_BOXES.map((label, index) => (
-          <label key={label} className="grid gap-1 text-mist">
+          <label key={label} className="grid gap-1 text-muted">
             {label}
             <input
               className="field"
@@ -198,7 +198,7 @@ function ChangePasswordCard({ source }: { source: SettingsSource }) {
 export function SettingsPage({ source }: { source: SettingsSource }) {
   return (
     <div className="grid gap-5">
-      <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">Settings</h1>
+      <h1 className="font-display text-[2.5rem] leading-tight font-bold text-primary">Settings</h1>
       <ReportRecipientsCard source={source} />
       <ChangePasswordCard source={source} />
     </div>

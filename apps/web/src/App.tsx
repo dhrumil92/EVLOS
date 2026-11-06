@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Altar } from './Altar.js';
 import { DeviceLastSeen, useDeviceStatus } from './DeviceLastSeen.js';
 import { httpDeviceStatusSource } from './device-status-source.js';
 import type { DeviceStatus, DeviceStatusSource } from './device-status-source.js';
@@ -67,11 +66,11 @@ function PunchRow({ punch, isNew }: { punch: LiveViewPunch; isNew: boolean }) {
         <span className="text-lg font-semibold">
           {punch.name ?? `Student ID ${punch.studentId}`}
         </span>
-        {punch.name && <span className="text-sm text-mist">Student ID {punch.studentId}</span>}
+        {punch.name && <span className="text-sm text-muted">Student ID {punch.studentId}</span>}
       </span>
       <span className="font-semibold">{istTime.format(punch.punchedAt)}</span>
       <span
-        className={`col-span-2 justify-self-start rounded-full px-3 py-0.5 text-sm font-semibold sm:col-span-1 ${punch.isCounted ? 'bg-gold/20 text-gold' : 'bg-note text-note-ink'}`}
+        className={`col-span-2 justify-self-start rounded-full px-3 py-0.5 text-sm font-bold sm:col-span-1 ${punch.isCounted ? 'status-present' : 'bg-quiet text-quiet-ink'}`}
       >
         {punch.notCountedBecause ? NOT_COUNTED[punch.notCountedBecause] : 'Present'}
       </span>
@@ -82,18 +81,18 @@ function PunchRow({ punch, isNew }: { punch: LiveViewPunch; isNew: boolean }) {
 function Punches({ live }: { live: LiveViewState }) {
   if (live.failed) {
     return (
-      <p className="px-3 pb-4 text-mist">
+      <p className="px-3 pb-4 text-muted">
         The live view cannot reach the EVLOS server. Start it with npm run dev, then reload this
         page.
       </p>
     );
   }
   if (live.view === null) {
-    return <p className="px-3 pb-4 text-mist">Loading today's Punches.</p>;
+    return <p className="px-3 pb-4 text-muted">Loading today's Punches.</p>;
   }
   if (live.view.punches.length === 0) {
     return (
-      <p className="px-3 pb-4 text-mist">
+      <p className="px-3 pb-4 text-muted">
         No Punches yet today. Each Punch appears here as soon as the Device sends it.
       </p>
     );
@@ -110,10 +109,10 @@ function Punches({ live }: { live: LiveViewState }) {
 function TodaysCount({ live, device }: { live: LiveViewState; device: DeviceStatus | null }) {
   return (
     <section aria-label="Today's count">
-      <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
+      <h1 className="font-display text-[2.5rem] leading-tight font-bold text-primary">
         Today's Pooja
       </h1>
-      <p className="mt-1 mb-5 text-mist">
+      <p className="mt-1 mb-5 text-muted">
         {live.view ? `${dayInWords(live.view.day)}. Pooja Window 05:30 to 18:00.` : ' '}
       </p>
       <PoojaRing
@@ -176,12 +175,14 @@ export function App(props: {
 
   return (
     <div className="screen">
-      <header className="gutter relative z-10 border-b border-line">
-        <div className="mx-auto flex max-w-[70rem] flex-wrap items-center gap-x-7 pt-2 md:flex-nowrap md:pt-0">
-          <div className="font-display text-3xl font-bold text-gold">EVLOS</div>
+      <header className="gutter border-b border-line bg-surface">
+        <div className="mx-auto flex max-w-[70rem] flex-wrap items-center gap-x-8 pt-2 md:flex-nowrap md:pt-0">
+          <div className="font-display text-[1.65rem] font-extrabold tracking-tight text-primary lowercase">
+            EVLOS
+          </div>
           <nav
             aria-label="Main menu"
-            className="flex min-w-0 basis-full gap-1 overflow-x-auto py-2 md:basis-auto"
+            className="flex min-w-0 basis-full gap-6 overflow-x-auto md:basis-auto"
           >
             {PAGES.map((name) => (
               <button
@@ -215,21 +216,19 @@ export function App(props: {
         </div>
       </header>
 
-      <div className="gutter relative z-10">
+      <div className="gutter">
         {widePages[page] ? (
           <main className="mx-auto max-w-[70rem] pt-8 pb-2">{widePages[page]}</main>
         ) : (
           <main className="mx-auto grid max-w-[70rem] gap-7 pt-8 pb-2 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] md:gap-10">
             <TodaysCount live={live} device={device} />
 
-            <section className="min-w-0 rounded-2xl border border-line bg-night/60 p-2">
+            <section className="min-w-0 rounded-[20px] border border-line bg-surface p-2">
               <LiveLists live={live} reports={reports} today={today} />
             </section>
           </main>
         )}
       </div>
-
-      <Altar flareKey={live.newestKey} />
     </div>
   );
 }

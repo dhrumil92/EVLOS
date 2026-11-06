@@ -98,12 +98,12 @@ function StudentCard(props: {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
         <div>
           {!insideCard && <h2 className="font-display text-2xl font-semibold">Students</h2>}
-          <p className="text-mist">
+          <p className="text-muted">
             Showing {rows.length} of {report.rows.length} Students
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-mist">
+          <label className="flex items-center gap-2 text-muted">
             Sort by
             <select
               className="field"
@@ -120,7 +120,7 @@ function StudentCard(props: {
         </div>
       </div>
       {rows.length === 0 ? (
-        <p className="px-1 pb-2 text-mist">
+        <p className="px-1 pb-2 text-muted">
           No Students match this filter. Choose All to see every Student.
         </p>
       ) : (
@@ -170,7 +170,7 @@ function DateFields(props: {
     type: string,
     max: string,
   ) => (
-    <label className="flex items-center gap-2 text-mist">
+    <label className="flex items-center gap-2 text-muted">
       {label}
       <input
         className="field"
@@ -241,8 +241,8 @@ function ReportNotices({ report, isDay }: { report: Report; isDay: boolean }) {
 export function EveryStudent({ source, today }: { source: ReportSource; today: string }) {
   const { report, failed } = useReport(source, JSON.stringify({ view: 'Day', day: today }));
   const [chosen, setChosen] = useState<StatusFilter>('All');
-  if (failed) return <p className="px-3 pb-4 text-mist">The Student list could not load.</p>;
-  if (!report) return <p className="px-3 pb-4 text-mist">Loading the Student list.</p>;
+  if (failed) return <p className="px-3 pb-4 text-muted">The Student list could not load.</p>;
+  if (!report) return <p className="px-3 pb-4 text-muted">Loading the Student list.</p>;
   return (
     <div className="grid gap-3">
       <div className="grid gap-2 px-3">
@@ -289,8 +289,10 @@ export function ReportsPage({ source, today }: { source: ReportSource; today: st
     <div className="grid gap-5">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div>
-          <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">Reports</h1>
-          <p className="text-mist">{report?.title ?? '\u00a0'}</p>
+          <h1 className="font-display text-[2.5rem] leading-tight font-bold text-primary">
+            Reports
+          </h1>
+          <p className="text-muted">{report?.title ?? '\u00a0'}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <DateFields

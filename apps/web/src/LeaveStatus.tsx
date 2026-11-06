@@ -56,7 +56,7 @@ function DateTime(props: {
 }) {
   return (
     <div className="flex flex-wrap gap-3">
-      <label className="grid gap-1 text-mist">
+      <label className="grid gap-1 text-muted">
         {props.label} date
         <input
           className="field"
@@ -69,7 +69,7 @@ function DateTime(props: {
           }}
         />
       </label>
-      <label className="grid gap-1 text-mist">
+      <label className="grid gap-1 text-muted">
         {props.label} time
         <input
           className="field"

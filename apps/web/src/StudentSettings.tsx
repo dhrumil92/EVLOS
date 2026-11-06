@@ -45,7 +45,7 @@ function Details(props: { student: ListedStudent; source: StudentSource; onSaved
           setNote('');
         }}
       />
-      <p className="text-mist">
+      <p className="text-muted">
         Student ID {props.student.studentId} cannot be changed. It matches his fingerprint on the
         Device.
       </p>

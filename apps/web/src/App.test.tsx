@@ -56,9 +56,6 @@ const reports: ReportSource = {
     }),
 };
 
-// jsdom has no canvas, and the smoke animation is not what these tests check.
-HTMLCanvasElement.prototype.getContext = () => null;
-
 afterEach(cleanup);
 
 describe('live view', () => {

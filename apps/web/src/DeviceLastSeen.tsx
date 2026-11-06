@@ -47,6 +47,6 @@ export function DeviceLastSeen({ status }: { status: DeviceStatus | null }) {
       {words(status)}
     </p>
   ) : (
-    <p className="text-mist">{words(status)}</p>
+    <p className="text-muted">{words(status)}</p>
   );
 }

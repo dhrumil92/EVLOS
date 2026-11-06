@@ -37,7 +37,7 @@ export function FieldInputs<Name extends string>(props: {
         const errorId = `${id}-${field.name}-error`;
         return (
           <div key={field.name} className="grid content-start gap-1">
-            <label className="grid gap-1 text-mist">
+            <label className="grid gap-1 text-muted">
               {field.label}
               <input
                 className="field"

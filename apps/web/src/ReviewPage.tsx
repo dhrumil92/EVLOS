@@ -95,7 +95,7 @@ function BeforeFinalize(props: {
   const [asking, setAsking] = useState(false);
   const { review } = props;
   if (!review.canFinalize) {
-    return <p className="text-mist">{REFUSALS['pooja-window-open']}</p>;
+    return <p className="text-muted">{REFUSALS['pooja-window-open']}</p>;
   }
   const count = review.needsReview.length;
   return (
@@ -106,7 +106,7 @@ function BeforeFinalize(props: {
       </p>
       <DeviceLastSeen status={props.device} />
       {count === 0 ? (
-        <p className="text-mist">
+        <p className="text-muted">
           No Student is on Needs Review. Every Student punched or was Away.
         </p>
       ) : (
@@ -144,7 +144,7 @@ function AbsentName({ student }: { student: Review['absent'][number] }) {
     <span className="grid">
       <span className="font-semibold">{student.name}</span>
       {student.punchAfterFinalize !== null && (
-        <span className="text-sm text-note-ink">
+        <span className="text-sm font-bold text-after-finalize">
           Punched at {timeWords.format(student.punchAfterFinalize)}, arrived after Finalize
         </span>
       )}
@@ -165,10 +165,10 @@ function AbsentRow(props: {
       : null;
   return (
     <li className={`email-row ${isCrossed || student.isExcluded ? 'email-row-excluded' : ''}`}>
-      <span className="text-mist">{student.room}</span>
+      <span className="text-muted">{student.room}</span>
       <AbsentName student={student} />
       {state ? (
-        <span className="text-mist">{state}</span>
+        <span className="text-muted">{state}</span>
       ) : (
         <button
           className={isCrossed ? 'link-button' : 'cross'}
@@ -211,10 +211,10 @@ function AfterFinalize(props: { review: Review; onSend: (excluded: string[]) => 
         </p>
       )}
       {review.absent.length === 0 ? (
-        <p className="text-mist">No Student is Absent on this Day.</p>
+        <p className="text-muted">No Student is Absent on this Day.</p>
       ) : (
         <>
-          <p className="text-mist">
+          <p className="text-muted">
             Absent Students get one email each. Press the cross to Exclude a Student who explained
             why he missed Pooja. He stays Absent in Reports.
           </p>
@@ -273,7 +273,7 @@ function DayChooser(props: {
   const others = (props.review?.notFinalizedDays ?? []).filter((day) => day !== props.day);
   return (
     <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-      <label className="grid gap-1 text-mist">
+      <label className="grid gap-1 text-muted">
         Day
         <input
           className="field"
@@ -287,7 +287,7 @@ function DayChooser(props: {
       </label>
       {others.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-mist">Not Finalized yet:</span>
+          <span className="text-muted">Not Finalized yet:</span>
           {others.map((day) => (
             <button
               key={day}
@@ -361,10 +361,10 @@ export function ReviewPage(props: {
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
+        <h1 className="font-display text-[2.5rem] leading-tight font-bold text-primary">
           Review and Finalize
         </h1>
-        <p className="text-mist">
+        <p className="text-muted">
           Review the Needs Review list, Finalize the Day, then Send Notifications.
         </p>
       </div>
@@ -378,7 +378,7 @@ export function ReviewPage(props: {
         <section className="report-card grid gap-4" aria-label={inWords(day)}>
           <div>
             <h2 className="font-display text-2xl font-semibold">{inWords(day)}</h2>
-            <p className="text-mist">
+            <p className="text-muted">
               {finalization
                 ? `Finalized at ${timeWords.format(finalization.finalizedAt)} by ${finalization.finalizedBy}.`
                 : 'Not Finalized.'}

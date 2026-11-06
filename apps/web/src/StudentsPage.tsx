@@ -218,14 +218,14 @@ function StudentList(props: {
   if (props.students.length === 0) {
     return (
       <section className="report-card">
-        <p className="text-mist">No Students yet. Use Add a Student to enter the first one.</p>
+        <p className="text-muted">No Students yet. Use Add a Student to enter the first one.</p>
       </section>
     );
   }
   return (
     <section className="report-card" aria-label="Students">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-x-5 gap-y-2">
-        <p className="text-mist">{countText(rows.length, group.length, choices)}</p>
+        <p className="text-muted">{countText(rows.length, group.length, choices)}</p>
         <div className="flex flex-wrap items-end gap-x-5 gap-y-2">
           <label className="switch">
             <input
@@ -238,7 +238,7 @@ function StudentList(props: {
             Show Deactivated
           </label>
           <div className="flex items-end gap-2">
-            <label className="grid gap-1 text-mist">
+            <label className="grid gap-1 text-muted">
               Search by name, Student ID or room
               <input
                 className="field"
@@ -259,7 +259,7 @@ function StudentList(props: {
         </div>
       </div>
       {rows.length === 0 ? (
-        <p className="text-mist">{emptyText(choices)}</p>
+        <p className="text-muted">{emptyText(choices)}</p>
       ) : (
         <StudentTable
           rows={rows}
@@ -329,8 +329,12 @@ export function StudentsPage({
     <div className="grid gap-5">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div>
-          <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">Students</h1>
-          <p className="text-mist">Add Students, edit their details, and open the gear for more.</p>
+          <h1 className="font-display text-[2.5rem] leading-tight font-bold text-primary">
+            Students
+          </h1>
+          <p className="text-muted">
+            Add Students, edit their details, and open the gear for more.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button

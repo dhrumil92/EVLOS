@@ -10,6 +10,7 @@ The raw ChatGPT export is not committed: it contains device addresses, serial nu
 | ChatGPT | 19 to 26 Oct 2026 | Understanding the hostel workflow, choosing the Device, first diagnostic server, Device settings. |
 | Claude | 26 Oct 2026 onward | Reading the course brief, requirements analysis, rules, documents, tech stack discussion. |
 | Google Antigravity | from 28 Oct 2026 | Implementation, under `AGENTS.md`. |
+| Google Stitch | 5 Nov 2026 | Trying Live view layouts from short prompts. |
 
 ## Rejected or changed suggestions
 | # | Date | Tool | Suggestion | Decision | Reason |
@@ -35,6 +36,13 @@ The raw ChatGPT export is not committed: it contains device addresses, serial nu
 | 19 | 30 Oct | Claude | Keep the Pooja Window equal to the temple hours (05:30 to 17:30 IST). | **Changed** | The author added 30 minutes for late Punches: the window is 05:30 to 18:00 IST, both ends included. |
 | 20 | 5 Nov | Claude | Add filter buttons to the Excel Report, switching to ExcelJS to get them. | **Rejected** | ExcelJS would bring 193 packages and 46 MB for one feature. The author kept write-excel-file (colours only) and asked instead for downloads that follow the Pooja Status filter on the Reports page, so a file holds only the Absent, Present or Not Applicable Students. |
 | 21 | 5 Nov | Claude | Put Settings in the page menu with the other pages. | **Changed** | The author placed Settings beside Log out, as an account item rather than a page of daily work. |
+| 22 | 5 Nov | Claude | Keep Temple Dusk (plum and gold, animated diya and dhoop) as the page theme. | **Rejected** | The author found it dark and the pages slow for the Rector, and asked for a light, flat look with no diya or dhoop. |
+| 23 | 5 Nov | Google Stitch | Live view designs made from the author's prompts in a blush palette. | **Rejected** | The author liked none of them. |
+| 24 | 5 to 6 Nov | Claude | Four light layouts in blush, then layout A in lemon yellow, then in sandalwood. | **Changed, then rejected** | The author picked layout A but rejected each colour version (borders too dark, then too glowing, then too thick), then asked for fresh directions. |
+| 25 | 6 Nov | Claude | Four new directions: Dawn, Tulsi, Peacock and Lavender. | **Dawn accepted, the others rejected** | Every page was then designed in Dawn: indigo on a pale blue-white, Bricolage Grotesque headings and Atkinson Hyperlegible text. |
+| 26 | 6 Nov | Claude (ui-ux-pro-max skill) | A dark glassmorphism style for an operations dashboard. | **Changed by Claude** | It goes against the author's "no dark or glossy" rule. Not a user rejection, recorded for honesty. |
+| 27 | 6 Nov | Claude | A Students table with a Today column and the Student before the Room. | **Changed** | It is a management page: Room first, Today removed, Email added. |
+| 28 | 6 Nov | Claude | Away in blue and Due Back in orange on the Live view and Students designs. | **Changed** | The glossary colours win: Away is red, Due Back is yellow, on every page. |
 
 ## Accepted after discussion (for context)
 | Date | Tool | Suggestion | Note |

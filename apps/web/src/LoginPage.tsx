@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { ReactNode, SyntheticEvent } from 'react';
-import { Altar } from './Altar.js';
 import type { AuthSource, LogInAnswer } from './auth-source.js';
 
 const REFUSALS: Record<Exclude<LogInAnswer, 'logged-in'>, string> = {
@@ -18,10 +17,7 @@ const LINK_SENT =
 export function AuthScreen({ children }: { children: ReactNode }) {
   return (
     <div className="screen">
-      <main className="gutter relative z-10 grid min-h-[70vh] place-items-center pt-10">
-        {children}
-      </main>
-      <Altar flareKey={null} />
+      <main className="gutter grid min-h-[70vh] place-items-center pt-10">{children}</main>
     </div>
   );
 }
@@ -29,15 +25,17 @@ export function AuthScreen({ children }: { children: ReactNode }) {
 export function CardHeading({ line }: { line: string }) {
   return (
     <div>
-      <h1 className="font-display text-5xl font-bold text-gold">EVLOS</h1>
-      <p className="text-mist">{line}</p>
+      <h1 className="font-display text-5xl font-extrabold tracking-tight text-primary lowercase">
+        EVLOS
+      </h1>
+      <p className="text-muted">{line}</p>
     </div>
   );
 }
 
 function EmailField(props: { value: string; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-1 text-mist">
+    <label className="grid gap-1 text-muted">
       Email
       <input
         className="field"
@@ -95,7 +93,7 @@ function LogInForm(props: {
         </p>
       )}
       <EmailField value={email} onChange={setEmail} />
-      <label className="grid gap-1 text-mist">
+      <label className="grid gap-1 text-muted">
         Password
         <input
           className="field"

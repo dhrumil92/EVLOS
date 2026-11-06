@@ -76,7 +76,7 @@ function StudentPicker(props: {
 
   return (
     <div className="grid gap-2">
-      <label className="grid gap-1 text-mist">
+      <label className="grid gap-1 text-muted">
         Find a Student by name, Student ID or room
         <input
           className="field"
@@ -91,7 +91,7 @@ function StudentPicker(props: {
           {matches.map((student) => (
             <li key={student.studentId}>
               <span>
-                {student.name} <span className="text-mist">room {student.room}</span>
+                {student.name} <span className="text-muted">room {student.room}</span>
               </span>
               {student.leaveState !== 'In hostel' && <LeaveStateLabel state={student.leaveState} />}
               <button
@@ -120,7 +120,7 @@ function Field(props: {
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1 text-mist">
+    <label className="grid gap-1 text-muted">
       {props.label}
       <input
         className="field"
@@ -148,7 +148,7 @@ function RowFrame(props: {
     <li className="many-row">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-semibold">{student.name}</span>
-        <span className="text-mist">room {student.room}</span>
+        <span className="text-muted">room {student.room}</span>
         <button
           className="link-button ml-auto"
           type="button"
@@ -159,7 +159,7 @@ function RowFrame(props: {
         </button>
       </div>
       {props.skipped ? (
-        <p className="text-mist">{props.skipped}</p>
+        <p className="text-muted">{props.skipped}</p>
       ) : (
         <div className="flex flex-wrap items-end gap-3">
           {props.children}

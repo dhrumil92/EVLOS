@@ -29,9 +29,6 @@ function typeTwice(first: string, again: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Set new password' }));
 }
 
-// jsdom has no canvas, and the smoke animation is not what these tests check.
-HTMLCanvasElement.prototype.getContext = () => null;
-
 afterEach(cleanup);
 
 describe('Reset password page', () => {

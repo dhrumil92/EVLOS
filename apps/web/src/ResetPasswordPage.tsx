@@ -9,7 +9,7 @@ const SERVER_FAILED = 'The server could not finish this. Try the link again in a
 
 function PasswordBox(props: { label: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="grid gap-1 text-mist">
+    <label className="grid gap-1 text-muted">
       {props.label}
       <input
         className="field"

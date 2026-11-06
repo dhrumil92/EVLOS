@@ -98,7 +98,7 @@ export function HourGraph({ hours }: { hours: number[] }) {
   return (
     <>
       <h2 className="font-display text-2xl font-semibold">Students by hour</h2>
-      <p className="mb-2 text-mist">
+      <p className="mb-2 text-muted">
         How many Students made their first Punch in each hour of the Pooja Window.
       </p>
       <Plot width={width} label="Students by hour of first Punch">
@@ -156,7 +156,7 @@ export function MonthGraph({ days }: { days: DayTotals[] }) {
   return (
     <>
       <h2 className="font-display text-2xl font-semibold">Every Day of the month</h2>
-      <p className="mb-2 text-mist">Hover over a Day to see its numbers.</p>
+      <p className="mb-2 text-muted">Hover over a Day to see its numbers.</p>
       <div className="mb-2 flex flex-wrap gap-x-5 gap-y-1">
         {SERIES.map((series) => (
           <span key={series.name} className="inline-flex items-center gap-1.5">

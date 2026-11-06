@@ -19,19 +19,19 @@ function countText(away: ListedStudent[]) {
 
 function AwayList({ away }: { away: ListedStudent[] }) {
   if (away.length === 0) {
-    return <p className="text-mist">No Student is Away.</p>;
+    return <p className="text-muted">No Student is Away.</p>;
   }
   return (
     <>
-      <p className="text-mist">{countText(away)}</p>
+      <p className="text-muted">{countText(away)}</p>
       <ul className="student-scroll grid" aria-label="Away Students">
         {away.map((student) => (
           <li key={student.studentId} className="away-row">
-            <span className="text-mist">{student.room}</span>
+            <span className="text-muted">{student.room}</span>
             <span className="font-semibold">{student.name}</span>
             <LeaveStateLabel state={student.leaveState} />
             {student.openLeave && (
-              <span className="text-mist">
+              <span className="text-muted">
                 Expected back {inWords(student.openLeave.expectedReturnAt)}
               </span>
             )}
@@ -68,8 +68,8 @@ export function LeavesPage(props: { source: StudentSource; today: string }) {
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">Leaves</h1>
-        <p className="text-mist">
+        <h1 className="font-display text-[2.5rem] leading-tight font-bold text-primary">Leaves</h1>
+        <p className="text-muted">
           See who is away, and record Leaves and Returns for many Students.
         </p>
       </div>

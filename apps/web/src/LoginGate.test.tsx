@@ -45,9 +45,6 @@ const fillAndSend = (email: string, password: string) => {
   fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
 };
 
-// jsdom has no canvas, and the smoke animation is not what these tests check.
-HTMLCanvasElement.prototype.getContext = () => null;
-
 afterEach(cleanup);
 
 describe('LoginGate', () => {
