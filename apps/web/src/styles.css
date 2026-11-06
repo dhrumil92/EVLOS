@@ -45,6 +45,13 @@
   --color-ok: #17532d;
   --color-ok-wash: #eaf6ee;
   --color-ok-line: #bfe0cb;
+  --color-present-wash: #ddf0e3;
+  --color-present-ink: #1e6b3a;
+  --color-review-ink: #7a4f00;
+  --color-warn: #5c3d00;
+  --color-warn-wash: #fff6e5;
+  --color-warn-line: #e9b44c;
+  --color-overlay: rgb(27 31 59 / 50%);
   --color-after-finalize: #5b2a9a;
   --font-display: 'Bricolage Grotesque', 'Segoe UI', sans-serif;
   --font-sans: 'Atkinson Hyperlegible', 'Segoe UI', sans-serif;

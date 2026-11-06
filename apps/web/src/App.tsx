@@ -168,7 +168,15 @@ export function App(props: {
     [STUDENTS]: <StudentsPage source={students} today={today} />,
     [LEAVES]: <LeavesPage source={students} today={today} />,
     [REVIEW]: (
-      <ReviewPage source={props.review ?? httpReviewSource} device={deviceSource} today={today} />
+      <ReviewPage
+        source={props.review ?? httpReviewSource}
+        device={deviceSource}
+        reports={reports}
+        today={today}
+        onOpenLeaves={() => {
+          setPage(LEAVES);
+        }}
+      />
     ),
     [SETTINGS]: <SettingsPage source={props.settings ?? httpSettingsSource} />,
   };
