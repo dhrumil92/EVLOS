@@ -92,6 +92,7 @@ Open `.env` and put your `evlos` password into both database addresses (replace 
 | `DEVICE_PORT` | `8081` | Where the Device sends Punches. |
 | `PAGE_PORT` | `3000` | Where the page's API listens (this machine only). |
 | `PUBLIC_PORT` | `3001` | Where the Public Live View's server listens (this machine only; no login). |
+| `TRUST_PROXY` | `false` | `true` only on the VM, behind Caddy, so the request limits count each visitor's own address. Keep `false` on your PC. |
 | `COOKIE_SECURE` | `false` | `true` only on the HTTPS server. |
 | `PUBLIC_URL` | `http://localhost:5173` | Password reset links point here. |
 | `SMTP_HOST`, `SMTP_PORT` | `localhost`, `1025` | Mailpit. For Gmail, see step 9. |
@@ -111,7 +112,7 @@ This builds the code and applies every migration in `apps/api/migrations` to bot
 ## 6. Check that everything works
 
 ```bash
-npm test             # about 770 tests: rules, server, database, pages
+npm test             # about 1,100 tests: rules, server, database, pages
 npm run lint
 npm run typecheck
 ```
@@ -247,6 +248,7 @@ The Device pushes Punches to the backend over plain HTTP on port 8081.
 | `npm run email:test -- <email>` | Check the email settings. |
 | `npm test` | Run every test. |
 | `npm run lint` / `npm run typecheck` / `npm run format` | Code checks and formatting. |
+| `npm audit --omit=dev` | Check the packages the server runs for known security problems. `npm audit` also checks the development tools. |
 
 ## When something goes wrong
 

@@ -38,7 +38,7 @@ Students of a 360-Student hostel must attend Pooja every day between 05:30 and 1
 **Settings and security**
 - The **Report Recipients** who receive the Reminder and the Reports are kept on a Settings page, so no address is written in the code.
 - Rector login with HttpOnly session cookies and Argon2 password hashes; change the password on the Settings page, or reset a forgotten one with a one-time link by email.
-- Login and password tries are limited, and every change by the Rector is recorded in an audit log.
+- Login and password tries are limited (five in 15 minutes), every other request is limited per address so a flood is refused, and every change by the Rector is recorded in an audit log.
 - No fingerprints are ever stored: they stay on the Device.
 
 ## The five rules
@@ -148,7 +148,7 @@ docs                 requirements, architecture, schedule, AI log
 
 ## Testing
 
-About 1,070 tests run with `npm test`: the rules as pure functions, the use cases with in-memory fakes, the HTTP routes with Fastify `inject`, and the PostgreSQL repositories against the real `evlos_test` database, which they refuse to run anywhere else. CI runs lint, typecheck, the format check and every test on each push to `main` and each pull request. See `TESTING.md`.
+About 1,100 tests run with `npm test`: the rules as pure functions, the use cases with in-memory fakes, the HTTP routes with Fastify `inject`, and the PostgreSQL repositories against the real `evlos_test` database, which they refuse to run anywhere else. CI runs lint, typecheck, the format check and every test on each push to `main` and each pull request. See `TESTING.md`.
 
 ## Privacy
 

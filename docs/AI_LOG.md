@@ -8,8 +8,8 @@ The raw ChatGPT export is not committed: it contains device addresses, serial nu
 | Tool | Period | Used for |
 |------|--------|----------|
 | ChatGPT | 19 to 26 Oct 2026 | Understanding the hostel workflow, choosing the Device, first diagnostic server, Device settings. |
-| Claude | 26 Oct 2026 onward | Reading the course brief, requirements analysis, rules, documents, tech stack discussion. |
-| Google Antigravity | from 28 Oct 2026 | Implementation, under `AGENTS.md`. |
+| Claude (claude.ai, on the web) | 26 Oct 2026 onward | Continuing the brainstorming, reading the course brief, requirements analysis, rules, the documents, tech stack discussion. |
+| Claude Code | from Phase 1 (31 Oct 2026) | Building the whole project under `AGENTS.md`: code, tests, the page designs and keeping the documents up to date. No other coding tool was used. |
 | Google Stitch | 5 Nov 2026 | Trying Live view layouts from short prompts. |
 
 ## Rejected or changed suggestions
@@ -47,6 +47,7 @@ The raw ChatGPT export is not committed: it contains device addresses, serial nu
 | 30 | 8 Nov | Claude | Show In hostel and Away (the glossary's words) in the new hostel Excel, and keep a CSV in the emails beside the Excel. | **Changed** | The author first preferred Present and Absent, then chose In hostel and Away after the glossary conflict was explained (Absent is only a Finalized Pooja Status). The author also removed the CSV from the Daily Report and Monthly Report emails, keeping it on the Reports page, and dropped the Student ID column. |
 | 31 | 8 Nov | Claude | Group Students by floor, with a heading for each floor, in the new Excel. | **Changed** | The author wants one plain list in ascending room order (101, 102 ... 110, 201), with no groups and no headings. |
 | 32 | 8 Nov | Claude | Put the Public Live View behind a link with a long secret code, and keep its Away and Due Back counts. | **Changed** | The author made it a plain public `/live`, since the numbers are meant for every Student, and kept only "N of M have done Pooja" and the bars. Claude's other suggestions were accepted: a separate server with no login, a 30-second cache, a rate limit, and M as the Active Students less those Not Applicable. |
+| 33 | 8 Nov | Claude | Limit the Public Live View to 60 requests a minute per address, and keep the login check before the request limit. | **Changed by Claude** | Found while answering the author's question about flooding: all Students on the hostel Wi-Fi share one address, so 60 would block the page once about 30 watched, and behind Caddy every visitor would share Caddy's address. The limit is now 1200, every page route has a 600-a-minute limit counted before the login check, and `TRUST_PROXY` makes the limits count each visitor. Not a user rejection, recorded for honesty. |
 
 ## Accepted after discussion (for context)
 | Date | Tool | Suggestion | Note |

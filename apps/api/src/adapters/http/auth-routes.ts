@@ -38,6 +38,8 @@ const RESET_URL = '/api/reset-password';
 const OPEN_URLS = new Set([LOGIN_URL, FORGOT_URL, RESET_URL]);
 // Five tries in 15 minutes from one address, so a password cannot be guessed by trying.
 const FIVE_TRIES = { config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } };
+// Any page route, from one address, in one minute.
+const REQUESTS_PER_MINUTE = 600;
 
 // The answer for each outcome of a password change. A wrong current password is 403, not
 // 401: 401 would tell the page that the login has ended.
@@ -81,9 +83,13 @@ function requireLogin(deps: AuthRoutesDeps) {
 // Register before any page route, so every one of them needs a login (FR-13).
 export async function registerAuth(app: FastifyInstance, deps: AuthRoutesDeps): Promise<void> {
   await app.register(cookie);
-  await app.register(rateLimit, { global: false });
+  // Every page route: a flood from one address is refused. The Rector's pages ask far less than
+  // this; login, forgotten password and password change keep their own five tries.
+  await app.register(rateLimit, { max: REQUESTS_PER_MINUTE, timeWindow: '1 minute' });
   app.decorateRequest('rector', null);
-  app.addHook('onRequest', requireLogin(deps));
+  // After the request limit has counted the request, so a flood of requests that are not logged
+  // in is refused too, not only answered 401 one by one.
+  app.addHook('preValidation', requireLogin(deps));
 
   app.post(LOGIN_URL, FIVE_TRIES, async (request, reply) => {
     const result = await deps.logIn(text(request.body, 'email'), text(request.body, 'password'));

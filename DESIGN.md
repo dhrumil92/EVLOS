@@ -33,7 +33,11 @@ The Device adapter (`apps/api/src/adapters/device/`, parser at `parse-attlog.ts:
 - The Device sends plain HTTP, so Punch uploads are not encrypted in transit. Access is limited to known Device serial numbers.
 - The Device is told to upload Punches only, which keeps fingerprint templates on the Device. This relies on the Device obeying that setting, so EVLOS also discards any fingerprint upload that still arrives, unread, and never stores it.
 
+- Vidyalaya Presence is worked out from the Leaves as they are when it is asked for. A Leave recorded the next morning changes it, so the Daily Report email of that night can show a Student In hostel who had left; the Monthly Report has the final answer.
+- The request limits count addresses. Every Student on the hostel Wi-Fi shares one internet address, so the five login tries are shared by everyone on that Wi-Fi: someone there who keeps trying wrong passwords can stop the Rector logging in from that Wi-Fi for 15 minutes (mobile data still works). The Public Live View allows 1200 requests a minute per address for the same reason.
+- `npm audit` reports 14 moderate findings (2026-11-08), all in development tools (esbuild through the dev tooling, minimatch through ESLint) that never run on the server; the server's own packages have none. Fixing them needs major upgrades of those tools, left for Phase 7.
+
 ## AI use
-- **Tools:** ChatGPT for early exploration (hostel workflow, Device setup, first diagnostic server); Claude for requirements analysis and drafting documents; Google Antigravity for implementation under `AGENTS.md`.
+- **Tools:** ChatGPT for the first brainstorming (hostel workflow, Device setup, first diagnostic server); Claude on the web (claude.ai) to continue the brainstorming, analyse the requirements and draft the documents; Claude Code to build the whole project under `AGENTS.md`. No other coding tool was used.
 - **Rejected suggestions:** every one is logged in `docs/AI_LOG.md`. One example: Claude suggested a hint that tells the Rector when an Away Student punches ("he seems to be back"). The author rejected it because recording Returns is the Rector's core duty, and the assumption is documented instead.
 - **Rule for every change:** the author reads the diff and can explain each file before merging.

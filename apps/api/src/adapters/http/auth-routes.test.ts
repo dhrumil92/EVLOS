@@ -85,6 +85,27 @@ describe('Rector login', () => {
 
     expect(reply.statusCode).toBe(429);
   });
+
+  it('refuses one address that floods the page API with more than 600 requests a minute', async () => {
+    const { app } = await buildApp();
+
+    const replies = [];
+    for (let index = 0; index < 601; index++) {
+      replies.push(await app.inject({ method: 'GET', url: '/api/students' }));
+    }
+
+    expect(replies[599]?.statusCode).toBe(401);
+    expect(replies[600]?.statusCode).toBe(429);
+  });
+
+  it('keeps the general limit generous: a logged-in Rector is not refused in normal use', async () => {
+    const { app } = await buildApp();
+
+    for (let index = 0; index < 300; index++) {
+      const reply = await app.inject({ method: 'GET', url: '/api/students', cookies: withSession });
+      expect(reply.statusCode).toBe(200);
+    }
+  });
 });
 
 describe('pages need a login', () => {

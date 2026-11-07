@@ -57,6 +57,9 @@ if (databaseUrl === undefined) {
 const devicePort = Number(process.env.DEVICE_PORT ?? '8081');
 const pagePort = Number(process.env.PAGE_PORT ?? '3000');
 const publicPort = Number(process.env.PUBLIC_PORT ?? '3001');
+// true on the VM, where Caddy is in front: the limits then count each visitor by the address
+// Caddy passes on, not Caddy's own address, which every visitor would share.
+const trustProxy = process.env.TRUST_PROXY === 'true';
 const secureCookie = process.env.COOKIE_SECURE === 'true';
 // Read before anything starts, so a wrong email setting stops the server at once.
 const smtp = smtpSettingsFrom(process.env);
@@ -88,7 +91,7 @@ registerDeviceRoutes(deviceApp, {
     recordPunches(deviceSerial, uploaded, { punches, clock, liveFeed: viewers }),
 });
 
-const pageApp = Fastify({ logger: true });
+const pageApp = Fastify({ logger: true, trustProxy });
 // First, so every page route after it needs a login (FR-13).
 await registerAuth(pageApp, {
   logIn: (email, password) => logIn(email, password, login),
@@ -162,7 +165,7 @@ await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
 
 // The Public Live View (FR-17) on a server of its own: no login, no cookie, and no Rector route
 // on it, only one read-only route that answers with numbers.
-const publicApp = Fastify({ logger: true });
+const publicApp = Fastify({ logger: true, trustProxy });
 await registerPublicRoutes(publicApp, {
   getPublicLiveView: () => getPublicLiveView({ students, leaves, punches, finalized, clock }),
   now: () => clock.now(),

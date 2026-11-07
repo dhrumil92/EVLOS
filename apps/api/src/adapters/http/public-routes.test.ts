@@ -11,9 +11,10 @@ const VIEW: PublicLiveView = {
   updatedAt: Date.UTC(2026, 10, 8, 2, 12),
 };
 
-async function buildApp() {
+// trustProxy as on the VM, where Caddy passes on each viewer's own address.
+async function buildApp(trustProxy = false) {
   const state = { asked: 0, now: Date.UTC(2026, 10, 8, 2, 12) };
-  const app = Fastify();
+  const app = Fastify({ trustProxy });
   await registerPublicRoutes(app, {
     getPublicLiveView: () => {
       state.asked++;
@@ -111,13 +112,30 @@ describe('the Public Live View route', () => {
     expect(state.asked).toBe(1);
   });
 
-  it('refuses one address that asks more than 60 times in a minute', async () => {
+  // All the Students on the hostel Wi-Fi share one internet address, and each page asks twice a
+  // minute, so the limit must let 360 Students watch from one address.
+  it('lets one address ask 1200 times in a minute, enough for every Student on one Wi-Fi', async () => {
     const { app } = await buildApp();
 
     const replies = [];
-    for (let index = 0; index < 61; index++) replies.push(await live(app));
+    for (let index = 0; index < 1201; index++) replies.push(await live(app));
 
-    expect(replies[59]?.statusCode).toBe(200);
-    expect(replies[60]?.statusCode).toBe(429);
+    expect(replies[1199]?.statusCode).toBe(200);
+    expect(replies[1200]?.statusCode).toBe(429);
+  });
+
+  it('counts each viewer by his own address when Caddy passes it on', async () => {
+    const { app } = await buildApp(true);
+    const from = (address: string) =>
+      app.inject({
+        method: 'GET',
+        url: '/api/public/live',
+        headers: { 'x-forwarded-for': address },
+      });
+
+    for (let index = 0; index < 1200; index++) await from('203.0.113.7');
+
+    expect((await from('203.0.113.7')).statusCode).toBe(429);
+    expect((await from('198.51.100.9')).statusCode).toBe(200);
   });
 });

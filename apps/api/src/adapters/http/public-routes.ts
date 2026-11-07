@@ -10,8 +10,10 @@ export interface PublicRoutesDeps {
 
 // However many people watch, the numbers are worked out at most once in this time.
 const KEEP_MS = 30 * 1000;
-// Each address may ask this often; the page itself asks once every 30 seconds.
-const TRIES_PER_MINUTE = 60;
+// Each address may ask this often. The page asks twice a minute, and all the Students on the
+// hostel Wi-Fi share one internet address, so 1200 lets every one of 360 Students watch at once.
+// Each answer comes from the 30-second cache, so even this many costs little; more is a flood.
+const TRIES_PER_MINUTE = 1200;
 
 // The last answer, kept for KEEP_MS. Viewers who ask while it is being worked out share the
 // same answer, so a crowd at one moment still costs one look at the database.

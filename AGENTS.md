@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for AI coding agents (Google Antigravity or any other) working on EVLOS. Read this first. If Antigravity does not pick this file up automatically, paste it into the workspace Rules.
+Instructions for AI coding agents working on EVLOS (Claude Code, which built the project, or any other). Read this first.
 
 ## What this project is
 A hostel Pooja attendance system: a fingerprint Device pushes Punches to a server; the Rector records Leaves and Returns, reviews exceptions, Finalizes the Day; Students are emailed only after Finalize; the Rector gets Reports. Requirements: `docs/PRD.md`. Structure and tech stack: `docs/ARCHITECTURE.md`. Schedule: `docs/PHASES.md`.
@@ -44,7 +44,7 @@ Run from the repo root.
 | `npm run format` / `npm run format:check` | Apply / check Prettier formatting. |
 | `cd apps/api && npx drizzle-kit generate --name <what_changed>` | Write a new SQL migration after editing `apps/api/src/db/schema.ts`. Never edit or regenerate a migration that has already been applied; add a new one. |
 
-`npm run dev` starts the server (Device endpoints on `DEVICE_PORT`, page API on `PAGE_PORT`, this machine only). `npm run dev:web` starts the page at http://localhost:5173. CI (`.github/workflows/ci.yml`) runs lint, typecheck, format check, `db:setup` and test on every push to `main` and every pull request.
+`npm run dev` starts the server (Device endpoints on `DEVICE_PORT`, page API on `PAGE_PORT`, and the Public Live View on `PUBLIC_PORT`, the last two on this machine only). `npm run dev:web` starts the page at http://localhost:5173. CI (`.github/workflows/ci.yml`) runs lint, typecheck, format check, `db:setup` and test on every push to `main` and every pull request.
 
 ## Definition of done
 - A failing test existed first and now passes; the whole suite, lint and typecheck pass.
