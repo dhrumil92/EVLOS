@@ -92,6 +92,7 @@
 @layer components {
   .screen {
     min-height: 100%;
+    overflow-x: clip;
     padding-bottom: 48px;
     font-variant-numeric: tabular-nums;
   }
@@ -121,12 +122,6 @@
     border-bottom-color: var(--color-primary);
     color: var(--color-ink);
     font-weight: 700;
-  }
-
-  @media (max-width: 767px) {
-    .menu-item {
-      min-height: 48px;
-    }
   }
 
   /* A new Punch glows saffron for a moment: saffron means "now" in Dawn. */
@@ -511,10 +506,25 @@
     border: 1px solid var(--color-line);
   }
 
+  /* The phone menu slides in from the right edge. */
+  .drawer {
+    animation: slide-in 220ms ease-out;
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .just-arrived {
+    .just-arrived,
+    .drawer {
       animation: none;
     }
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
   }
 }
 

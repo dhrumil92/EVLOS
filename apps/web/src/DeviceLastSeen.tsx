@@ -28,6 +28,13 @@ export function useDeviceStatus(source: DeviceStatusSource): DeviceStatus | null
   return status;
 }
 
+// "Last seen 7 Nov, 19:36", or that the Device has not been in touch yet.
+export function lastSeenShort(status: DeviceStatus): string {
+  return status.lastSeenAt === null
+    ? 'Not in touch yet'
+    : `Last seen ${seenWords.format(status.lastSeenAt)}`;
+}
+
 function words(status: DeviceStatus): string {
   if (status.lastSeenAt === null) {
     return 'The Device has not been in touch yet: check its power, its Wi-Fi and its Cloud server setting.';

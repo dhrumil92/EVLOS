@@ -80,6 +80,99 @@ describe('menu', () => {
     expect(items[0]?.getAttribute('aria-current')).toBe('page');
   });
 
+  it('keeps the menu bar in view while the page scrolls', async () => {
+    render(<App reports={reports} source={fakeSource(view()).source} />);
+    await screen.findByText(/No Punches yet/);
+
+    expect(screen.getByRole('banner').classList.contains('sticky')).toBe(true);
+  });
+
+  describe('on a phone', () => {
+    const open = async (onLogOut?: () => void) => {
+      render(<App reports={reports} source={fakeSource(view()).source} onLogOut={onLogOut} />);
+      await screen.findByText(/No Punches yet/);
+      fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+      return screen.getByRole('navigation', { name: 'Pages' });
+    };
+
+    it('has a three-line button, and the list of pages is closed at first', async () => {
+      render(<App reports={reports} source={fakeSource(view()).source} />);
+      await screen.findByText(/No Punches yet/);
+
+      const button = screen.getByRole('button', { name: 'Menu' });
+
+      expect(button.getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+    });
+
+    it('opens the list of every page, Settings and Log out when the button is pressed', async () => {
+      const pages = await open(() => undefined);
+
+      expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe(
+        'true',
+      );
+      expect(
+        within(pages)
+          .getAllByRole('button')
+          .map((item) => item.textContent),
+      ).toEqual([
+        'Live view',
+        'Students',
+        'Leaves',
+        'Review and Finalize',
+        'Reports',
+        'Settings',
+        'Log out',
+      ]);
+    });
+
+    it('marks the page the Rector is on', async () => {
+      const pages = await open();
+
+      expect(
+        within(pages).getByRole('button', { name: 'Live view' }).getAttribute('aria-current'),
+      ).toBe('page');
+      expect(
+        within(pages).getByRole('button', { name: 'Students' }).getAttribute('aria-current'),
+      ).toBeNull();
+    });
+
+    it('opens the page pressed, and closes the list', async () => {
+      const pages = await open();
+
+      fireEvent.click(within(pages).getByRole('button', { name: 'Leaves' }));
+
+      expect(screen.getByRole('heading', { name: 'Leaves', level: 1 })).toBeTruthy();
+      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe(
+        'false',
+      );
+    });
+
+    it('logs the Rector out from the list, and closes it', async () => {
+      let loggedOut = 0;
+      const pages = await open(() => {
+        loggedOut++;
+      });
+
+      fireEvent.click(within(pages).getByRole('button', { name: 'Log out' }));
+
+      expect(loggedOut).toBe(1);
+      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+    });
+
+    it('closes with the button again, and with Escape', async () => {
+      await open();
+      fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+      fireEvent.keyDown(screen.getByRole('navigation', { name: 'Pages' }), { key: 'Escape' });
+
+      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+    });
+  });
+
   it('logs the Rector out from the menu', async () => {
     let loggedOut = 0;
     render(
@@ -104,7 +197,7 @@ describe('menu', () => {
     const header = screen.getByRole('banner');
     const outsideMenu = within(header)
       .getAllByRole('button')
-      .filter((button) => !button.closest('nav'))
+      .filter((button) => !button.closest('nav') && button.getAttribute('aria-label') !== 'Menu')
       .map((button) => button.textContent);
 
     expect(outsideMenu).toEqual(['Settings', 'Log out']);
