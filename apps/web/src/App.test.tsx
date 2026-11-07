@@ -95,35 +95,40 @@ describe('menu', () => {
       return screen.getByRole('navigation', { name: 'Pages' });
     };
 
-    it('has a three-line button, and the list of pages is closed at first', async () => {
+    it('has a three-line button, and the side panel is closed at first', async () => {
       render(<App reports={reports} source={fakeSource(view()).source} />);
       await screen.findByText(/No Punches yet/);
 
       const button = screen.getByRole('button', { name: 'Menu' });
 
       expect(button.getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
       expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
     });
 
-    it('opens the list of every page, Settings and Log out when the button is pressed', async () => {
-      const pages = await open(() => undefined);
+    it('slides in a panel with the pages when the button is pressed', async () => {
+      const pages = await open();
 
-      expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe(
-        'true',
-      );
+      expect(screen.getByRole('dialog', { name: 'Menu' }).contains(pages)).toBe(true);
       expect(
         within(pages)
           .getAllByRole('button')
-          .map((item) => item.textContent),
-      ).toEqual([
-        'Live view',
-        'Students',
-        'Leaves',
-        'Review and Finalize',
-        'Reports',
-        'Settings',
-        'Log out',
-      ]);
+          .map((item) => item.textContent)
+          .filter((text) => text !== ''),
+      ).toEqual(['Live view', 'Students', 'Leaves', 'Review and Finalize', 'Reports', 'Settings']);
+    });
+
+    it('puts Settings and Log out at the bottom, after the pages', async () => {
+      const pages = await open(() => undefined);
+
+      const buttons = within(pages)
+        .getAllByRole('button')
+        .map((item) => item.textContent);
+
+      expect(buttons.slice(-2)).toEqual(['Settings', 'Log out']);
+      expect(buttons.indexOf('Reports')).toBeLessThan(buttons.indexOf('Settings'));
+      const bottom = within(pages).getByRole('button', { name: 'Settings' }).parentElement;
+      expect(bottom?.classList.contains('mt-auto')).toBe(true);
     });
 
     it('marks the page the Rector is on', async () => {
@@ -137,19 +142,28 @@ describe('menu', () => {
       ).toBeNull();
     });
 
-    it('opens the page pressed, and closes the list', async () => {
+    it('opens the page pressed, and closes the panel', async () => {
       const pages = await open();
 
       fireEvent.click(within(pages).getByRole('button', { name: 'Leaves' }));
 
       expect(screen.getByRole('heading', { name: 'Leaves', level: 1 })).toBeTruthy();
-      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
       expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe(
         'false',
       );
     });
 
-    it('logs the Rector out from the list, and closes it', async () => {
+    it('opens Settings from the bottom of the panel', async () => {
+      const pages = await open();
+
+      fireEvent.click(within(pages).getByRole('button', { name: 'Settings' }));
+
+      expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeTruthy();
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+    });
+
+    it('logs the Rector out from the panel, and closes it', async () => {
       let loggedOut = 0;
       const pages = await open(() => {
         loggedOut++;
@@ -158,18 +172,32 @@ describe('menu', () => {
       fireEvent.click(within(pages).getByRole('button', { name: 'Log out' }));
 
       expect(loggedOut).toBe(1);
-      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
     });
 
-    it('closes with the button again, and with Escape', async () => {
+    it('closes with its cross, with the dimmed strip of the page, and with Escape', async () => {
       await open();
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+
       fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
-      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Close menu' }));
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
 
       fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
       fireEvent.keyDown(screen.getByRole('navigation', { name: 'Pages' }), { key: 'Escape' });
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+    });
 
-      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+    it('puts the cross in reach, and stops the page behind from scrolling while open', async () => {
+      await open();
+
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
+      expect(document.body.style.overflow).toBe('hidden');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+      expect(document.body.style.overflow).not.toBe('hidden');
     });
   });
 

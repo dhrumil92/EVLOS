@@ -30,6 +30,7 @@
   --color-surface: #ffffff;
   --color-wash: #f7f8fd;
   --color-tint: #eef0fb;
+  --color-panel: #e8ebf8;
   --color-selected: #dfe4f8;
   --color-ink: #1b1f3b;
   --color-muted: #4a4f72;
@@ -127,13 +128,6 @@
   /* A new Punch glows saffron for a moment: saffron means "now" in Dawn. */
   .just-arrived {
     animation: arrive 2.6s ease-out;
-  }
-
-  .login-card {
-    padding: 28px;
-    border: 1px solid var(--color-line);
-    border-radius: 20px;
-    background: var(--color-surface);
   }
 
   .btn:disabled {

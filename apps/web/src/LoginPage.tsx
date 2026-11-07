@@ -1,45 +1,44 @@
-import { useState } from 'react';
-import type { ReactNode, SyntheticEvent } from 'react';
+import { useId, useState } from 'react';
+import type { SyntheticEvent } from 'react';
 import type { AuthSource, LogInAnswer } from './auth-source.js';
+import { AuthAlert, AuthShell, AuthTitle } from './AuthShell.js';
+import { ShowHideInput } from './PasswordFields.js';
 
-const REFUSALS: Record<Exclude<LogInAnswer, 'logged-in'>, string> = {
-  refused: 'Email or password is wrong.',
-  'too-many': 'Too many tries. Wait 15 minutes, then log in again.',
+interface Problem {
+  title: string;
+  hint?: string;
+  // The password is what was wrong, so its box is marked.
+  isWrong?: boolean;
+}
+
+const REFUSALS: Record<Exclude<LogInAnswer, 'logged-in'>, Problem> = {
+  refused: {
+    title: 'Email or password is wrong.',
+    hint: 'Check Caps Lock, then try again. After too many tries you wait 15 minutes.',
+    isWrong: true,
+  },
+  'too-many': { title: 'Too many tries. Wait 15 minutes, then log in again.' },
 };
-const UNREACHABLE =
-  'The EVLOS server cannot be reached. Start it with npm run dev, then try again.';
+const UNREACHABLE: Problem = {
+  title: 'The EVLOS server cannot be reached. Start it with npm run dev, then try again.',
+};
 // The same answer whether or not the email has an account (see the server's auth routes).
 const LINK_SENT =
   "If this is the Rector's email, a link to set a new password has been sent to it. " +
   'The link works once, for 30 minutes.';
 
-// The page around the login card, also used by the reset password page.
-export function AuthScreen({ children }: { children: ReactNode }) {
-  return (
-    <div className="screen">
-      <main className="gutter grid min-h-[70vh] place-items-center pt-10">{children}</main>
-    </div>
-  );
-}
-
-export function CardHeading({ line }: { line: string }) {
-  return (
-    <div>
-      <h1 className="font-display text-5xl font-extrabold tracking-tight text-primary lowercase">
-        EVLOS
-      </h1>
-      <p className="text-muted">{line}</p>
-    </div>
-  );
-}
-
 function EmailField(props: { value: string; onChange: (value: string) => void }) {
+  const id = useId();
   return (
-    <label className="grid gap-1 text-muted">
-      Email
+    <div className="grid gap-1.5">
+      <label htmlFor={id} className="font-bold">
+        Email
+      </label>
       <input
-        className="field"
+        id={id}
+        className="field min-h-12 text-[1.05rem]"
         type="email"
+        inputMode="email"
         autoComplete="username"
         required
         value={props.value}
@@ -47,7 +46,7 @@ function EmailField(props: { value: string; onChange: (value: string) => void })
           props.onChange(event.target.value);
         }}
       />
-    </label>
+    </div>
   );
 }
 
@@ -57,9 +56,10 @@ function LogInForm(props: {
   onLoggedIn: () => void;
   onForgot: () => void;
 }) {
+  const passwordId = useId();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [problem, setProblem] = useState('');
+  const [problem, setProblem] = useState<Problem | null>(null);
   const [sending, setSending] = useState(false);
 
   const logIn = async (event: SyntheticEvent) => {
@@ -81,44 +81,39 @@ function LogInForm(props: {
   };
 
   return (
-    <form
-      className="login-card grid w-full max-w-[24rem] gap-4"
-      aria-label="Log in"
-      onSubmit={(event) => void logIn(event)}
-    >
-      <CardHeading line="Log in to see today's Pooja." />
+    <form className="grid gap-5" aria-label="Log in" onSubmit={(event) => void logIn(event)}>
+      <AuthTitle title="Log in" line="Use the email and password set up for the Rector." />
       {props.note && (
         <p className="notice" role="status">
           {props.note}
         </p>
       )}
+      {problem && <AuthAlert isProblem title={problem.title} hint={problem.hint} />}
       <EmailField value={email} onChange={setEmail} />
-      <label className="grid gap-1 text-muted">
-        Password
-        <input
-          className="field"
-          type="password"
-          autoComplete="current-password"
-          required
+      <div className="grid gap-1.5">
+        <div className="flex items-baseline justify-between gap-3">
+          <label htmlFor={passwordId} className="font-bold">
+            Password
+          </label>
+          <button
+            type="button"
+            className="font-bold text-primary hover:underline"
+            onClick={props.onForgot}
+          >
+            Forgot password?
+          </button>
+        </div>
+        <ShowHideInput
+          id={passwordId}
           value={password}
-          onChange={(event) => {
-            setPassword(event.target.value);
-          }}
+          onChange={setPassword}
+          autoComplete="current-password"
+          isInvalid={problem?.isWrong === true}
         />
-      </label>
-      {problem && (
-        <p className="field-error" role="alert">
-          {problem}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="btn" type="submit" disabled={sending}>
-          Log in
-        </button>
-        <button className="btn-quiet" type="button" onClick={props.onForgot}>
-          Forgot password?
-        </button>
       </div>
+      <button className="btn min-h-13 text-lg" type="submit" disabled={sending}>
+        Log in
+      </button>
     </form>
   );
 }
@@ -126,7 +121,9 @@ function LogInForm(props: {
 // A Rector who forgot the password asks for a one-time link to the login email.
 function ForgotPasswordForm(props: { auth: AuthSource; onBack: () => void }) {
   const [email, setEmail] = useState('');
-  const [answer, setAnswer] = useState<{ sent: boolean; text: string } | null>(null);
+  const [answer, setAnswer] = useState<{ isSent: boolean; title: string; hint?: string } | null>(
+    null,
+  );
 
   const send = async (event: SyntheticEvent) => {
     event.preventDefault();
@@ -134,38 +131,49 @@ function ForgotPasswordForm(props: { auth: AuthSource; onBack: () => void }) {
       const reply = await props.auth.requestPasswordReset(email);
       setAnswer(
         reply === 'sent'
-          ? { sent: true, text: LINK_SENT }
-          : { sent: false, text: 'Too many requests. Wait 15 minutes, then try again.' },
+          ? { isSent: true, title: 'Check your email.', hint: LINK_SENT }
+          : { isSent: false, title: 'Too many requests. Wait 15 minutes, then try again.' },
       );
     } catch {
-      setAnswer({ sent: false, text: UNREACHABLE });
+      setAnswer({ isSent: false, title: UNREACHABLE.title });
     }
   };
 
+  const isSent = answer?.isSent === true;
   return (
     <form
-      className="login-card grid w-full max-w-[24rem] gap-4"
+      className="grid gap-5"
       aria-label="Forgot password"
       onSubmit={(event) => void send(event)}
     >
-      <CardHeading line="Type the email you log in with. A link to set a new password will be sent to it." />
+      <AuthTitle
+        title="Forgot password"
+        line="Type the email you log in with. A link to set a new password will be sent to it."
+      />
       <EmailField value={email} onChange={setEmail} />
-      {answer && (
-        <p
-          className={answer.sent ? 'notice' : 'field-error'}
-          role={answer.sent ? 'status' : 'alert'}
+      {answer && <AuthAlert isProblem={!answer.isSent} title={answer.title} hint={answer.hint} />}
+      <button className={`min-h-13 text-lg ${isSent ? 'btn-quiet' : 'btn'}`} type="submit">
+        {isSent ? 'Send the link again' : 'Send link'}
+      </button>
+      <button
+        type="button"
+        className="inline-flex min-h-11 items-center gap-1.5 self-start font-bold text-primary hover:underline"
+        onClick={props.onBack}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          aria-hidden="true"
         >
-          {answer.text}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center gap-3">
-        <button className="btn" type="submit">
-          Send link
-        </button>
-        <button className="btn-quiet" type="button" onClick={props.onBack}>
-          Back to log in
-        </button>
-      </div>
+          <path d="M15 6l-6 6 6 6" />
+        </svg>
+        Back to Log in
+      </button>
     </form>
   );
 }
@@ -173,7 +181,7 @@ function ForgotPasswordForm(props: { auth: AuthSource; onBack: () => void }) {
 export function LoginPage(props: { auth: AuthSource; note: string; onLoggedIn: () => void }) {
   const [isForgot, setIsForgot] = useState(false);
   return (
-    <AuthScreen>
+    <AuthShell>
       {isForgot ? (
         <ForgotPasswordForm
           auth={props.auth}
@@ -189,6 +197,6 @@ export function LoginPage(props: { auth: AuthSource; note: string; onLoggedIn: (
           }}
         />
       )}
-    </AuthScreen>
+    </AuthShell>
   );
 }
