@@ -270,34 +270,34 @@ export function ReportsPage({ source, today }: { source: ReportSource; today: st
 
   return (
     <div className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <div>
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
           <h1 className="font-display text-[2.5rem] leading-tight font-bold text-primary">
             Reports
           </h1>
-          <p className="text-muted">{report?.title ?? '\u00a0'}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <DateFields
+              view={view}
+              today={today}
+              {...dates}
+              set={(field, value) => {
+                setDates((old) => ({ ...old, [field]: value }));
+              }}
+            />
+            <Segments label="Report period" options={VIEWS} value={view} onChange={setView} />
+            {report && (
+              <>
+                <a className="btn" href={source.csvUrl(request, status)} download>
+                  Download CSV
+                </a>
+                <a className="btn" href={source.xlsxUrl(request, status)} download>
+                  Download Excel
+                </a>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <DateFields
-            view={view}
-            today={today}
-            {...dates}
-            set={(field, value) => {
-              setDates((old) => ({ ...old, [field]: value }));
-            }}
-          />
-          <Segments label="Report period" options={VIEWS} value={view} onChange={setView} />
-          {report && (
-            <>
-              <a className="btn" href={source.csvUrl(request, status)} download>
-                Download CSV
-              </a>
-              <a className="btn" href={source.xlsxUrl(request, status)} download>
-                Download Excel
-              </a>
-            </>
-          )}
-        </div>
+        <p className="text-muted">{report?.title ?? '\u00a0'}</p>
       </div>
 
       {failed && (

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { ReportRequest, ReportSource } from './report-source.js';
 import type {
   AddResult,
   EditResult,
@@ -96,11 +97,39 @@ function fakeSource(answer?: AddResult, failing = false) {
   return { source, state };
 }
 
-function show(source: StudentSource, today?: string) {
+// Bina Rao has a month of Pooja Statuses; every other Student has none.
+function fakeReports() {
+  const asked: ReportRequest[] = [];
+  const reports: ReportSource = {
+    load: (request) => {
+      asked.push(request);
+      return Promise.resolve({
+        title: 'A month',
+        isFinalized: false,
+        hours: null,
+        days: [],
+        rows: [
+          {
+            studentId: '9002',
+            name: 'Bina Rao',
+            room: '201',
+            statuses: ['Present', 'Absent', 'Not Applicable'],
+          },
+        ],
+      });
+    },
+    csvUrl: () => '',
+    xlsxUrl: () => '',
+  };
+  return { reports, asked };
+}
+
+function show(source: StudentSource, today?: string, reports = fakeReports().reports) {
   const opened: [string, readonly string[]][] = [];
   render(
     <StudentsPage
       source={source}
+      reports={reports}
       today={today ?? '2026-11-03'}
       onOpenLeaves={(book, students) => {
         opened.push([book, students]);
@@ -419,6 +448,28 @@ describe('the Student panel', () => {
     return screen.getByRole('region', { name });
   };
 
+  it('puts the search and filter card above both columns, and the list beside the panel', async () => {
+    show(fakeSource().source);
+    const toolbar = await screen.findByRole('region', { name: 'Find and filter' });
+
+    const columns = screen.getByRole('region', { name: 'Students' }).parentElement;
+
+    expect(columns?.contains(screen.getByRole('region', { name: 'Choose a Student' }))).toBe(true);
+    expect(columns?.contains(toolbar)).toBe(false);
+    expect(
+      toolbar.compareDocumentPosition(screen.getByRole('region', { name: 'Students' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('keeps its place beside the list, saying what will appear there, before a name is pressed', async () => {
+    show(fakeSource().source);
+
+    const place = await screen.findByRole('region', { name: 'Choose a Student' });
+
+    expect(within(place).getByText(/Press a Student's name/)).toBeTruthy();
+  });
+
   it('opens when the name is pressed, and closes with Close or Escape', async () => {
     show(fakeSource().source);
 
@@ -426,6 +477,7 @@ describe('the Student panel', () => {
     expect(within(panel).getByText('Room 201, Student ID 9002')).toBeTruthy();
     fireEvent.click(within(panel).getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('region', { name: 'Bina Rao' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Choose a Student' })).toBeTruthy();
 
     fireEvent.keyDown(await openPanel('Bina Rao'), { key: 'Escape' });
     expect(screen.queryByRole('region', { name: 'Bina Rao' })).toBeNull();
@@ -438,6 +490,32 @@ describe('the Student panel', () => {
     expect(within(panel).getByText('In hostel')).toBeTruthy();
     expect(within(panel).getByLabelText<HTMLInputElement>('Out date').max).toBe('2026-11-03');
     expect(within(panel).getByRole('button', { name: 'Record Leave' })).toBeTruthy();
+  });
+
+  it("shows the Student's month of Pooja Statuses, between the name and the Leave box", async () => {
+    show(fakeSource().source, '2026-11-03');
+    const panel = await openPanel('Bina Rao');
+
+    const month = await within(panel).findByRole('region', { name: 'Pooja Statuses in the month' });
+
+    expect(within(month).getByLabelText('1 November: Present')).toBeTruthy();
+    expect(within(month).getByLabelText('2 November: Absent')).toBeTruthy();
+    expect(within(month).getByText('1 Present, 1 Absent, 1 Not Applicable')).toBeTruthy();
+    const leave = within(panel).getByRole('heading', { name: 'Leave' });
+    expect(month.compareDocumentPosition(leave) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      within(panel).getByRole('heading', { name: 'Bina Rao' }).compareDocumentPosition(month) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('asks for the month that holds today, and shows no Pooja Status of another Student', async () => {
+    const { reports, asked } = fakeReports();
+    show(fakeSource().source, '2026-11-03', reports);
+    const panel = await openPanel('Asha Rao');
+
+    expect(await within(panel).findByText('No Pooja Status for this month.')).toBeTruthy();
+    expect(asked).toEqual([{ view: 'Month', month: '2026-11' }]);
   });
 
   describe('Details', () => {

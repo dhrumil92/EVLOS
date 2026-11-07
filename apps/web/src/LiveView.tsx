@@ -90,34 +90,34 @@ function Heading(props: {
 }) {
   const device = useDeviceStatus(props.device);
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div className="grid gap-1">
+    <div className="grid gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <h1 className="font-display text-[2.75rem] leading-tight font-extrabold tracking-tight">
           {props.day ? dayInWords(props.day) : "Today's Pooja"}
         </h1>
-        <p className="text-muted">Pooja Window 05:30 to 18:00.</p>
-        <DeviceLastSeen status={device} />
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="btn-quiet min-h-12"
+            type="button"
+            onClick={() => {
+              props.onOpenLeaves('Back-from-Home Book', []);
+            }}
+          >
+            Record Return
+          </button>
+          <button
+            className="btn min-h-12"
+            type="button"
+            onClick={() => {
+              props.onOpenLeaves('Going-to-Home Book', []);
+            }}
+          >
+            Record Leave
+          </button>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-3">
-        <button
-          className="btn-quiet min-h-12"
-          type="button"
-          onClick={() => {
-            props.onOpenLeaves('Back-from-Home Book', []);
-          }}
-        >
-          Record Return
-        </button>
-        <button
-          className="btn min-h-12"
-          type="button"
-          onClick={() => {
-            props.onOpenLeaves('Going-to-Home Book', []);
-          }}
-        >
-          Record Leave
-        </button>
-      </div>
+      <p className="text-muted">Pooja Window 05:30 to 18:00.</p>
+      <DeviceLastSeen status={device} />
     </div>
   );
 }

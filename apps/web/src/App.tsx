@@ -121,7 +121,9 @@ export function App(props: {
       />
     ),
     [REPORTS]: <ReportsPage source={reports} today={today} />,
-    [STUDENTS]: <StudentsPage source={students} today={today} onOpenLeaves={openLeaves} />,
+    [STUDENTS]: (
+      <StudentsPage source={students} reports={reports} today={today} onOpenLeaves={openLeaves} />
+    ),
     [LEAVES]: (
       <LeavesPage
         key={leaves.times}
@@ -149,7 +151,7 @@ export function App(props: {
     <div className="screen">
       <Menu page={page} onPage={setPage} onLogOut={props.onLogOut} />
       <div className="gutter">
-        <main className="mx-auto max-w-[80rem] pt-8 pb-2">{pages[page]}</main>
+        <main className="mx-auto max-w-[80rem] pt-4 pb-2">{pages[page]}</main>
       </div>
     </div>
   );

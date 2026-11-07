@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import { LeaveStatus } from './LeaveStatus.js';
+import type { ReportSource } from './report-source.js';
 import { DETAIL_FIELDS, errorsFor, FieldInputs } from './student-fields.js';
+import { StudentMonth } from './StudentMonth.js';
 import type { ListedStudent, StudentDetails, StudentSource } from './student-source.js';
 
 export type ActiveChange = 'Deactivate' | 'Activate';
@@ -198,10 +200,11 @@ function ActiveChangeBox(props: {
   );
 }
 
-// Everything about one Student, beside the list: Leave first, then Details, then Deactivate.
+// Everything about one Student, beside the list: the month, then Leave, Details and Deactivate.
 export function StudentPanel(props: {
   student: ListedStudent;
   source: StudentSource;
+  reports: ReportSource;
   // Today's IST date, the default for Leave and Return dates.
   today: string;
   onSaved: () => void;
@@ -250,6 +253,12 @@ export function StudentPanel(props: {
           </svg>
         </button>
       </div>
+      <StudentMonth
+        studentId={student.studentId}
+        reports={props.reports}
+        today={props.today}
+        reloadWhen={student}
+      />
       {student.isActive && (
         <div className="grid gap-2 rounded-2xl border border-line bg-wash p-4">
           <h3 className="font-display text-lg font-bold">Leave</h3>

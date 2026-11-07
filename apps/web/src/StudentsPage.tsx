@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import type { SyntheticEvent } from 'react';
+import type { ReactNode, SyntheticEvent } from 'react';
 import type { Book } from './LeavesPage.js';
 import { LeaveStateLabel } from './LeaveStatus.js';
 import { DETAIL_FIELDS, errorsFor, FieldInputs } from './student-fields.js';
 import type { FieldSpec } from './student-fields.js';
-import { GROUPS, groupCounts, SORTS, ticked, visibleStudents } from './student-list.js';
-import type { Group, ListChoices, StudentSort } from './student-list.js';
+import { StudentMenus } from './StudentMenus.js';
+import { ticked, visibleStudents } from './student-list.js';
+import type { Group, ListChoices } from './student-list.js';
+import type { ReportSource } from './report-source.js';
 import { StudentPanel } from './StudentPanel.js';
 import type { ActiveChange } from './StudentPanel.js';
 import type { AddResult, ListedStudent, StudentForm, StudentSource } from './student-source.js';
@@ -33,6 +35,8 @@ const GROUP_EMPTY: Record<Group, string> = {
   'Due Back': 'No Student is Due Back.',
   Deactivated: 'No Student is Deactivated.',
 };
+
+const START_CHOICES: ListChoices = { group: 'All Active', search: '', floor: null, sort: 'Room' };
 
 type OpenLeaves = (book: Book, students: readonly string[]) => void;
 
@@ -95,88 +99,6 @@ function AddStudentForm(props: { source: StudentSource; onAdded: (name: string) 
   );
 }
 
-function Toolbar(props: {
-  students: readonly ListedStudent[];
-  choices: ListChoices;
-  onChoices: (change: Partial<ListChoices>) => void;
-}) {
-  const { choices } = props;
-  const counts = groupCounts(props.students);
-  const floors = [...new Set(props.students.map((s) => s.floor))].sort((a, b) => a - b);
-  return (
-    <section
-      aria-label="Find and filter"
-      className="book-card flex flex-wrap items-end gap-x-4 gap-y-3 p-4"
-    >
-      <label className="grid flex-[2_1_18rem] gap-1 text-sm font-bold text-muted">
-        Search by name, Student ID or room
-        <input
-          className="field w-full font-normal"
-          type="search"
-          value={choices.search}
-          onChange={(event) => {
-            props.onChoices({ search: event.target.value });
-          }}
-        />
-      </label>
-      <div role="group" aria-label="Show" className="flex flex-[3_1_26rem] flex-wrap gap-2">
-        {GROUPS.map((group) => {
-          const isOn = group === choices.group;
-          return (
-            <button
-              key={group}
-              type="button"
-              aria-pressed={isOn}
-              onClick={() => {
-                props.onChoices({ group });
-              }}
-              className={`min-h-11 rounded-full border-[1.5px] px-3.5 font-bold ${isOn ? 'border-primary bg-primary text-white' : 'border-line bg-surface hover:border-primary'}`}
-            >
-              {group}{' '}
-              <span className={`font-normal ${isOn ? 'text-on-primary-muted' : 'text-muted'}`}>
-                {counts[group]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-      <label className="grid gap-1 text-sm font-bold text-muted">
-        Floor
-        <select
-          className="field font-normal"
-          value={choices.floor === null ? '' : String(choices.floor)}
-          onChange={(event) => {
-            props.onChoices({
-              floor: event.target.value === '' ? null : Number(event.target.value),
-            });
-          }}
-        >
-          <option value="">All floors</option>
-          {floors.map((floor) => (
-            <option key={floor} value={String(floor)}>
-              Floor {floor}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="grid gap-1 text-sm font-bold text-muted">
-        Sort by
-        <select
-          className="field font-normal"
-          value={choices.sort}
-          onChange={(event) => {
-            props.onChoices({ sort: event.target.value as StudentSort });
-          }}
-        >
-          {SORTS.map((sort) => (
-            <option key={sort}>{sort}</option>
-          ))}
-        </select>
-      </label>
-    </section>
-  );
-}
-
 function TickBar(props: {
   students: readonly ListedStudent[];
   ids: ReadonlySet<string>;
@@ -235,7 +157,10 @@ function StudentRow(props: {
 }) {
   const { student } = props;
   return (
-    <tr className={props.isOpen ? 'bg-tint' : props.isTicked ? 'bg-wash' : ''}>
+    <tr
+      className={`cursor-pointer ${props.isOpen ? 'bg-selected' : `hover:bg-tint ${props.isTicked ? 'bg-wash' : ''}`}`}
+      onClick={props.onOpen}
+    >
       <td>
         <input
           type="checkbox"
@@ -243,16 +168,15 @@ function StudentRow(props: {
           aria-label={`Tick ${student.name}`}
           checked={props.isTicked}
           onChange={props.onTick}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
         />
       </td>
       <td className="font-bold">{student.room}</td>
       <td>
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <button
-            type="button"
-            className="text-left font-bold hover:text-primary hover:underline"
-            onClick={props.onOpen}
-          >
+          <button type="button" className="text-left font-bold">
             {student.name}
           </button>
           {student.isActive && student.leaveState !== 'In hostel' && (
@@ -370,31 +294,23 @@ function useTicks() {
   };
 }
 
+// The list, with its search box, beside the side panel. The filters and sort are in the heading.
 function StudentList(props: {
   students: readonly ListedStudent[];
+  choices: ListChoices;
+  onChoices: (change: Partial<ListChoices>) => void;
   openId: string | null;
+  side: ReactNode;
   onOpen: (studentId: string) => void;
   onOpenLeaves?: OpenLeaves | undefined;
 }) {
-  const [choices, setChoices] = useState<ListChoices>({
-    group: 'All Active',
-    search: '',
-    floor: null,
-    sort: 'Room',
-  });
+  const { choices } = props;
   const ticks = useTicks();
   const rows = visibleStudents(props.students, choices);
   const total = visibleStudents(props.students, { ...choices, search: '', floor: null }).length;
   return (
-    <div className="grid min-w-0 gap-4">
-      <Toolbar
-        students={props.students}
-        choices={choices}
-        onChoices={(change) => {
-          setChoices((old) => ({ ...old, ...change }));
-        }}
-      />
-      <section aria-label="Students" className="book-card grid">
+    <div className="flex flex-wrap items-start gap-5">
+      <section aria-label="Students" className="book-card grid min-w-0 flex-[3_1_40rem]">
         {ticks.ids.size > 0 && (
           <TickBar
             students={props.students}
@@ -403,9 +319,19 @@ function StudentList(props: {
             onClear={ticks.clear}
           />
         )}
-        <p className="px-4 pt-3 pb-2 text-sm text-muted">
-          {countText(rows.length, total, choices)}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 pt-3 pb-2">
+          <p className="text-sm text-muted">{countText(rows.length, total, choices)}</p>
+          <input
+            className="field w-full sm:w-72"
+            type="search"
+            aria-label="Search by name, Student ID or room"
+            placeholder="Find by name, Student ID or room"
+            value={choices.search}
+            onChange={(event) => {
+              props.onChoices({ search: event.target.value });
+            }}
+          />
+        </div>
         {rows.length === 0 ? (
           <p className="px-4 pb-4 text-muted">{emptyText(choices)}</p>
         ) : (
@@ -418,6 +344,7 @@ function StudentList(props: {
           />
         )}
       </section>
+      {props.side}
     </div>
   );
 }
@@ -431,28 +358,72 @@ function summaryOf(students: readonly ListedStudent[]) {
   return `${plural(active.length, 'Active Student')} in ${plural(rooms, 'room')}.${deactivated}`;
 }
 
-function Heading(props: { students: ListedStudent[] | null; adding: boolean; onAdd: () => void }) {
+function Heading(props: {
+  students: ListedStudent[] | null;
+  choices: ListChoices;
+  onChoices: (change: Partial<ListChoices>) => void;
+  adding: boolean;
+  onAdd: () => void;
+}) {
   const { students } = props;
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div>
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <h1 className="font-display text-[2.75rem] leading-tight font-extrabold tracking-tight">
           Students
         </h1>
-        {students && students.length > 0 && <p className="text-muted">{summaryOf(students)}</p>}
+        <div className="flex flex-wrap items-center gap-3">
+          {students && students.length > 0 && (
+            <StudentMenus students={students} choices={props.choices} onChoices={props.onChoices} />
+          )}
+          <button className="btn min-h-12" type="button" onClick={props.onAdd}>
+            {props.adding ? 'Close the form' : 'Add a Student'}
+          </button>
+        </div>
       </div>
-      <button className="btn min-h-12" type="button" onClick={props.onAdd}>
-        {props.adding ? 'Close the form' : 'Add a Student'}
-      </button>
+      {students && students.length > 0 && <p className="text-muted">{summaryOf(students)}</p>}
     </div>
   );
 }
 
-// Beside the list: Add a Student, or the chosen Student's panel, or nothing.
+// The panel's place before a name is pressed, so the page keeps its two columns.
+function ChooseAStudent() {
+  return (
+    <section
+      aria-label="Choose a Student"
+      className="grid justify-items-center gap-3 rounded-[20px] border-[1.5px] border-dashed border-line-strong bg-surface px-6 py-10 text-center"
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tint text-primary"
+      >
+        <svg
+          width="26"
+          height="26"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+        </svg>
+      </span>
+      <h2 className="font-display text-xl font-bold">Choose a Student</h2>
+      <p className="max-w-[32ch] text-muted">
+        Press a Student's name in the list to see the month, Leave, Details and Deactivate here.
+      </p>
+    </section>
+  );
+}
+
+// Beside the list, always: Add a Student, the chosen Student's panel, or where it will appear.
 function SidePanel(props: {
   adding: boolean;
   open: ListedStudent | null;
   source: StudentSource;
+  reports: ReportSource;
   today: string;
   onAdded: (name: string) => void;
   onSaved: () => void;
@@ -460,16 +431,21 @@ function SidePanel(props: {
   onClose: () => void;
 }) {
   const { open } = props;
-  if (!props.adding && open === null) return null;
+  const empty = props.adding ? (
+    <AddStudentForm source={props.source} onAdded={props.onAdded} />
+  ) : (
+    <ChooseAStudent />
+  );
   return (
     <aside className="min-w-0 flex-[2_1_22rem]">
       {open === null ? (
-        <AddStudentForm source={props.source} onAdded={props.onAdded} />
+        empty
       ) : (
         <StudentPanel
           key={open.studentId}
           student={open}
           source={props.source}
+          reports={props.reports}
           today={props.today}
           onSaved={props.onSaved}
           onActiveChange={(change) => props.onActiveChange(open, change)}
@@ -482,7 +458,10 @@ function SidePanel(props: {
 
 function ListArea(props: {
   students: ListedStudent[] | null;
+  choices: ListChoices;
+  onChoices: (change: Partial<ListChoices>) => void;
   openId: string | null;
+  side: ReactNode;
   onOpen: (studentId: string) => void;
   onOpenLeaves?: OpenLeaves | undefined;
 }) {
@@ -490,25 +469,32 @@ function ListArea(props: {
   if (students === null) return null;
   if (students.length === 0) {
     return (
-      <section className="report-card">
-        <p className="text-muted">No Students yet. Use Add a Student to enter the first one.</p>
-      </section>
+      <div className="flex flex-wrap items-start gap-5">
+        <section className="report-card min-w-0 flex-[3_1_40rem]">
+          <p className="text-muted">No Students yet. Use Add a Student to enter the first one.</p>
+        </section>
+        {props.side}
+      </div>
     );
   }
   return (
     <StudentList
       students={students}
+      choices={props.choices}
+      onChoices={props.onChoices}
       openId={props.openId}
+      side={props.side}
       onOpen={props.onOpen}
       onOpenLeaves={props.onOpenLeaves}
     />
   );
 }
 
-// The Students page: find, filter and tick Students; one Student's Leave, Details and
-// Deactivate in the panel beside the list; Add a Student in the same place.
+// The Students page: filter, sort, find and tick Students; one Student's Leave, Details and
+// Deactivate, and their month, in the panel beside the list; Add a Student in the same place.
 export function StudentsPage(props: {
   source: StudentSource;
+  reports: ReportSource;
   today?: string;
   onOpenLeaves?: OpenLeaves | undefined;
 }) {
@@ -517,6 +503,10 @@ export function StudentsPage(props: {
   const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [choices, setChoices] = useState(START_CHOICES);
+  const change = (changed: Partial<ListChoices>) => {
+    setChoices((old) => ({ ...old, ...changed }));
+  };
   const open = adding ? null : (students?.find((s) => s.studentId === openId) ?? null);
 
   const changeActive = async (student: ListedStudent, change: ActiveChange) => {
@@ -531,6 +521,8 @@ export function StudentsPage(props: {
     <div className="grid gap-5">
       <Heading
         students={students}
+        choices={choices}
+        onChoices={change}
         adding={adding}
         onAdd={() => {
           setAdding((old) => !old);
@@ -548,34 +540,35 @@ export function StudentsPage(props: {
           this page.
         </p>
       )}
-      <div className="flex flex-wrap items-start gap-5">
-        <div className="min-w-0 flex-[3_1_40rem]">
-          <ListArea
-            students={students}
-            openId={openId}
-            onOpen={(studentId) => {
-              setOpenId(studentId);
-              setAdding(false);
+      <ListArea
+        students={students}
+        choices={choices}
+        onChoices={change}
+        openId={openId}
+        onOpen={(studentId) => {
+          setOpenId(studentId);
+          setAdding(false);
+        }}
+        onOpenLeaves={props.onOpenLeaves}
+        side={
+          <SidePanel
+            adding={adding}
+            open={open}
+            source={source}
+            reports={props.reports}
+            today={props.today ?? istToday()}
+            onAdded={(name) => {
+              setMessage(`Added ${name}.`);
+              void refresh();
             }}
-            onOpenLeaves={props.onOpenLeaves}
+            onSaved={() => void refresh()}
+            onActiveChange={changeActive}
+            onClose={() => {
+              setOpenId(null);
+            }}
           />
-        </div>
-        <SidePanel
-          adding={adding}
-          open={open}
-          source={source}
-          today={props.today ?? istToday()}
-          onAdded={(name) => {
-            setMessage(`Added ${name}.`);
-            void refresh();
-          }}
-          onSaved={() => void refresh()}
-          onActiveChange={changeActive}
-          onClose={() => {
-            setOpenId(null);
-          }}
-        />
-      </div>
+        }
+      />
     </div>
   );
 }

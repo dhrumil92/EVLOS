@@ -36,10 +36,11 @@ Students must attend Pooja during the Pooja Window (05:30 to 18:00 IST). Today t
 ## 5. Functional requirements
 Each has acceptance criteria in Given / When / Then form.
 
-**FR-1 Manage Students (form and settings).** The Rector adds each new Student with a form: Student ID (the number registered on the Device), name, room, email, phone. A room is three digits, such as 605: the first digit is the floor and the other two number the room on that floor. The Student list can show one floor at a time and can be sorted by room or by name, A to Z. There is no joining or leaving date on the form. A Student is Active from the Day he is added. In the Student list, every row has a settings (gear) icon that opens a small panel with three tabs:
-- **Details:** edits the Student's name, room, email and phone. The Student ID cannot be changed.
-- **Leave status:** shows whether the Student is In hostel, Away, or Due Back; records a Leave (Out date and time, Expected Return date and time); and records a Return (FR-4, FR-5).
-- **Danger zone:** a button to Deactivate or Activate the Student.
+**FR-1 Manage Students (form and settings).** The Rector adds each new Student with a form: Student ID (the number registered on the Device), name, room, email, phone. A room is three digits, such as 605: the first digit is the floor and the other two number the room on that floor. The Student list can show one floor at a time and can be sorted by room or by name, A to Z. There is no joining or leaving date on the form. A Student is Active from the Day he is added. Clicking a row in the Student list opens that Student's side panel beside the list (until then it shows "Choose a Student"). The panel has, from the top:
+- **Month:** one box for each Day of the month, coloured by the Student's Pooja Status (green Present, red Absent, grey Not Applicable), with arrows to earlier months and a count in words below.
+- **Leave box:** shows whether the Student is In hostel, Away, or Due Back; records a Leave (Out date and time, Expected Return date and time); and records a Return (FR-4, FR-5).
+- **Details:** shows the Student's name, room, email and phone, and an Edit details button. The Student ID cannot be changed.
+- **Deactivate or Activate:** a small red link below Details, which asks the Rector to confirm.
 
 Acceptance criteria:
 - Given a filled form with a Student ID not used by any other Student, when saved, then the Student is Active from today.
@@ -70,7 +71,7 @@ Acceptance criteria:
 - Given a past Day, when the Rector picks it on the Reports page, then the page shows that Day's Pooja Statuses and says whether it is Finalized. A Finalized Day shows its stored results; a Day not Finalized shows Needs Review, never Absent.
 - A Day in the future cannot be picked.
 
-**FR-4 Record Leave.** The Rector records a Leave for one Student (gear icon, Leave status tab) or for many at once (FR-4b): Out date and time, Expected Return date and time. The Out Time may be in the past, because the Rector often enters Leaves after the Students have left.
+**FR-4 Record Leave.** The Rector records a Leave for one Student (the Leave box in the Student's side panel) or for many at once (FR-4b): Out date and time, Expected Return date and time. The Out Time may be in the past, because the Rector often enters Leaves after the Students have left.
 - Given a Student with no open Leave, when a Leave is recorded, then the Student is Away.
 - Given a Student who already has an open Leave, when another is recorded, then it is refused for that Student with a reason.
 - Given an Out Time later than now, when a Leave is recorded, then it is refused with a reason. A Student fills the Leave Note only at the moment of leaving, so an Out Time is never in the future; it may be days in the past, because the Rector sometimes enters the Leave Notes the next day.
@@ -91,7 +92,7 @@ A Student who already has an open Leave is marked on the line, with a link that 
 
 This is for vacations and holidays, when 30 to 40 Students leave on the same day.
 
-**FR-5 Record Return.** The Rector records a Return Time for one Student (Leave status tab) or for many at once on the Leaves page's Back-from-Home Book tab. That tab lists only the Students who are Away, Due Back first, so the Rector ticks the names written in the book; a Find box narrows a long list by room or name.
+**FR-5 Record Return.** The Rector records a Return Time for one Student (the Leave box in the Student's side panel) or for many at once on the Leaves page's Back-from-Home Book tab. That tab lists only the Students who are Away, Due Back first, so the Rector ticks the names written in the book; a Find box narrows a long list by room or name.
 
 One Return day (Today, Yesterday or a picked date) and Return Time at the top, with a Use now button, fills every ticked line. A line whose time differs in the book is changed on that line, and it then keeps its own time.
 

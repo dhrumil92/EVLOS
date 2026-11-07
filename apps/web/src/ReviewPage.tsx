@@ -55,8 +55,15 @@ function DaySwitcher(props: {
 }) {
   const { day } = props;
   return (
-    <div className="grid justify-items-end gap-1">
-      <div className="flex items-end gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+      <p
+        className={`text-sm font-bold ${props.finalizedAt === null ? 'text-review-ink' : 'text-ok'}`}
+      >
+        {props.finalizedAt === null
+          ? 'Not Finalized'
+          : `Finalized at ${timeOfDay(props.finalizedAt)}`}
+      </p>
+      <div className="flex items-center gap-2">
         <Arrow
           label="Previous Day"
           disabled={false}
@@ -65,18 +72,16 @@ function DaySwitcher(props: {
             props.onDay(dayBefore(day));
           }}
         />
-        <label className="grid gap-1 text-sm font-bold text-muted">
-          Day
-          <input
-            className="field font-normal"
-            type="date"
-            max={props.today}
-            value={day}
-            onChange={(event) => {
-              if (event.target.value) props.onDay(event.target.value);
-            }}
-          />
-        </label>
+        <input
+          aria-label="Day"
+          className="field"
+          type="date"
+          max={props.today}
+          value={day}
+          onChange={(event) => {
+            if (event.target.value) props.onDay(event.target.value);
+          }}
+        />
         <Arrow
           label="Next Day"
           disabled={day >= props.today}
@@ -86,13 +91,6 @@ function DaySwitcher(props: {
           }}
         />
       </div>
-      <p
-        className={`text-sm font-bold ${props.finalizedAt === null ? 'text-review-ink' : 'text-ok'}`}
-      >
-        {props.finalizedAt === null
-          ? 'Not Finalized'
-          : `Finalized at ${timeOfDay(props.finalizedAt)}`}
-      </p>
     </div>
   );
 }
@@ -269,21 +267,21 @@ export function ReviewPage(props: {
   const statuses = useDayStatuses(props.reports, day, review);
   return (
     <div className="grid gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <h1 className="font-display text-[2.75rem] leading-tight font-extrabold tracking-tight">
             Review and Finalize
           </h1>
-          <p className="text-muted">
-            Review the Needs Review list, Finalize the Day, then Send Notifications.
-          </p>
+          <DaySwitcher
+            day={day}
+            today={props.today}
+            finalizedAt={current?.finalization?.finalizedAt ?? null}
+            onDay={setDay}
+          />
         </div>
-        <DaySwitcher
-          day={day}
-          today={props.today}
-          finalizedAt={current?.finalization?.finalizedAt ?? null}
-          onDay={setDay}
-        />
+        <p className="text-muted">
+          Review the Needs Review list, Finalize the Day, then Send Notifications.
+        </p>
       </div>
       <EarlierDays review={review} day={day} onDay={setDay} />
       {current && <ReviewSteps review={current} />}
