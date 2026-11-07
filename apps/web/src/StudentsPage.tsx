@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode, SyntheticEvent } from 'react';
 import type { Book } from './LeavesPage.js';
 import { LeaveStateLabel } from './LeaveStatus.js';
@@ -428,6 +428,10 @@ function ChooseAStudent() {
 }
 
 // Beside the list, always: Add a Student, the chosen Student's panel, or where it will appear.
+// Where the page is one column, as on a phone, a form or panel that is open goes above the
+// list and the page scrolls to it, so the Rector does not have to scroll to the end to find it.
+// The page puts the panel beside the list from 1044px wide (the two widths of the columns, their
+// gap and the page margins), so the order is only changed below that.
 function SidePanel(props: {
   adding: boolean;
   open: ListedStudent | null;
@@ -440,13 +444,22 @@ function SidePanel(props: {
   onClose: () => void;
 }) {
   const { open } = props;
+  const place = useRef<HTMLElement>(null);
+  const isShown = props.adding || open !== null;
+  const shownId = open?.studentId ?? null;
+  useEffect(() => {
+    if (isShown) place.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [isShown, shownId]);
   const empty = props.adding ? (
     <AddStudentForm source={props.source} onAdded={props.onAdded} />
   ) : (
     <ChooseAStudent />
   );
   return (
-    <aside className="min-w-0 flex-[2_1_22rem]">
+    <aside
+      ref={place}
+      className={`min-w-0 flex-[2_1_22rem] scroll-mt-16 ${isShown ? 'order-first min-[1044px]:order-none' : ''}`}
+    >
       {open === null ? (
         empty
       ) : (

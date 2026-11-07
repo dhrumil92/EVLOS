@@ -9,6 +9,7 @@ import { resetPageUrlFrom } from './adapters/http/public-url.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
 import { registerReportRecipientRoutes } from './adapters/http/report-recipient-routes.js';
 import { registerPresenceRoutes } from './adapters/http/presence-routes.js';
+import { registerPublicRoutes } from './adapters/http/public-routes.js';
 import { registerReportRoutes } from './adapters/http/report-routes.js';
 import { registerReviewRoutes } from './adapters/http/review-routes.js';
 import { registerStudentRoutes } from './adapters/http/student-routes.js';
@@ -28,6 +29,7 @@ import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-a
 import { editStudent } from './use-cases/edit-student.js';
 import { getDeviceStatus } from './use-cases/device-status.js';
 import { getLiveView } from './use-cases/get-live-view.js';
+import { getPublicLiveView } from './use-cases/get-public-live-view.js';
 import { getReport } from './use-cases/get-report.js';
 import { getVidyalayaPresence } from './use-cases/get-vidyalaya-presence.js';
 import { finalizeDay, getReview, sendNotifications } from './use-cases/review.js';
@@ -54,6 +56,7 @@ if (databaseUrl === undefined) {
 }
 const devicePort = Number(process.env.DEVICE_PORT ?? '8081');
 const pagePort = Number(process.env.PAGE_PORT ?? '3000');
+const publicPort = Number(process.env.PUBLIC_PORT ?? '3001');
 const secureCookie = process.env.COOKIE_SECURE === 'true';
 // Read before anything starts, so a wrong email setting stops the server at once.
 const smtp = smtpSettingsFrom(process.env);
@@ -156,6 +159,15 @@ registerLeaveRoutes(pageApp, {
 await deviceApp.listen({ port: devicePort, host: '0.0.0.0' });
 // 127.0.0.1 only until deployment, where Caddy adds HTTPS in front of it.
 await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
+
+// The Public Live View (FR-17) on a server of its own: no login, no cookie, and no Rector route
+// on it, only one read-only route that answers with numbers.
+const publicApp = Fastify({ logger: true });
+await registerPublicRoutes(publicApp, {
+  getPublicLiveView: () => getPublicLiveView({ students, leaves, punches, finalized, clock }),
+  now: () => clock.now(),
+});
+await publicApp.listen({ port: publicPort, host: '127.0.0.1' });
 
 if (smtp === null) {
   pageApp.log.warn('SMTP_HOST is not set, so emails stay queued. See .env.example.');

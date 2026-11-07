@@ -20,8 +20,8 @@ This guide takes a fresh Windows, macOS or Linux machine to a running EVLOS: the
 | Part | What it is | Started with |
 |------|------------|--------------|
 | **Database** | PostgreSQL 17 with two databases: `evlos` (your data) and `evlos_test` (wiped by every test run). | Already running as a service once installed. |
-| **Backend** | One Node.js process with two listeners: the Device endpoints on `DEVICE_PORT` (8081) and the page API on `PAGE_PORT` (3000). It also runs the schedule that sends emails. | `npm run dev` |
-| **Frontend** | The Rector's page, served by Vite at http://localhost:5173. It passes every `/api` request to the backend. | `npm run dev:web` |
+| **Backend** | One Node.js process with three listeners: the Device endpoints on `DEVICE_PORT` (8081), the page API on `PAGE_PORT` (3000) and the Public Live View on `PUBLIC_PORT` (3001). It also runs the schedule that sends emails. | `npm run dev` |
+| **Frontend** | The Rector's page, served by Vite at http://localhost:5173. It passes `/api/public` to the Public Live View's server and every other `/api` request to the page API. The Public Live View is at http://localhost:5173/live. | `npm run dev:web` |
 
 ## 1. Install the tools (once)
 
@@ -91,6 +91,7 @@ Open `.env` and put your `evlos` password into both database addresses (replace 
 | `TEST_DATABASE_URL` | `postgres://evlos:<password>@localhost:5432/evlos_test` | The test database; must end in `/evlos_test`. |
 | `DEVICE_PORT` | `8081` | Where the Device sends Punches. |
 | `PAGE_PORT` | `3000` | Where the page's API listens (this machine only). |
+| `PUBLIC_PORT` | `3001` | Where the Public Live View's server listens (this machine only; no login). |
 | `COOKIE_SECURE` | `false` | `true` only on the HTTPS server. |
 | `PUBLIC_URL` | `http://localhost:5173` | Password reset links point here. |
 | `SMTP_HOST`, `SMTP_PORT` | `localhost`, `1025` | Mailpit. For Gmail, see step 9. |

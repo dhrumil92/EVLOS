@@ -23,7 +23,13 @@ export default defineConfig({
     env: { TZ: 'America/Los_Angeles' },
     projects: WORKSPACES.map((root) => ({
       extends: true,
-      test: { name: root, root, include: ['src/**/*.test.{ts,tsx}'] },
+      test: {
+        name: root,
+        root,
+        include: ['src/**/*.test.{ts,tsx}'],
+        // Only the web pages scroll things into view.
+        setupFiles: root === 'apps/web' ? ['./src/test-setup.ts'] : [],
+      },
     })),
   },
 });

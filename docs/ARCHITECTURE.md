@@ -64,11 +64,15 @@ apps/api
                    http routes (and PUBLIC_URL for reset links), login (Argon2
                    and session tokens), roster (CSV reader for the first load),
                    email (Nodemailer over SMTP), scheduler (the schedule loop),
-                   report (one shared table, written as CSV or coloured Excel)
-apps/web           React UI for the Rector: login (with forgot password), live
-                   view, Students, Leaves, Review and Finalize, Reports,
-                   Settings (Report Recipients, change password), and the
-                   reset password page
+                   report (one shared table, written as CSV or coloured Excel;
+                   the Vidyalaya Presence Excel; the files for the emails)
+apps/web           React UI for the Rector in the Dawn design: login (with
+                   forgot password), live view, Students (each Student's month,
+                   Vidyalaya Presence download), Leaves (the two books),
+                   Review and Finalize, Reports (Day, Month, Pick dates),
+                   Settings (Report Recipients, password, Device and times),
+                   the reset password page; a sticky menu bar, and a side menu
+                   on phones
 ```
 Dependencies point inward: adapters know about the core, the core knows nothing about adapters. Reports are put together in the `getReport` use case from core rules; the core holds no Report builder of its own.
 
@@ -116,6 +120,8 @@ Each job writes a row with a `dedupe_key`, so running twice does not send twice.
 **Report.** Built by the `getReport` use case from stored data for a Day, month or date range: a Finalized Day is read from `pooja_results`, any other Day is worked out from Punches and Leaves. Shown on the Reports page and downloaded as CSV from `GET /api/reports/csv` or as Excel from `GET /api/reports/xlsx`: one row per Student, one column per Day, Not Applicable as "-", and a Day not Finalized marked in its heading. Both files are built from one shared table (`report-table.ts`), so they always hold the same cells; the Excel file stores every cell as text, so a Student ID keeps its leading zeros and no cell can run as a formula, and colours each Pooja Status with Excel's own styles (Present green, Absent red, Needs Review yellow, Not Applicable and Pending grey). A CSV is plain text, so it has no colours. A download may add `status` (for example `&status=Absent`, the filter chosen on the page): `withStatus` then keeps only the Students who had that Pooja Status on at least one Day, before either file is built, and the file name ends with the status. Report emails attach the Pooja Excel file and Vidyalaya Presence as a second Excel file; there is no CSV in the email. The monthly grid (Students by Days) is an export format, not the storage format.
 
 **Vidyalaya Presence.** Built by the `getVidyalayaPresence` use case from Students, their Active periods and Leaves, never from Punches, so it needs no Finalize and is worked out again each time. The rule is `isAwayOnDay` in the core: Away from the Day of the Out Time up to, but not including, the Day of the Return Time, and Away on every Day from the Out Time while there is no Return Time. Rooms are sorted with numeric text comparison, so 110 comes before 201. `presenceXlsx` writes the Excel file (the Room and Name columns, one column for each Day, then Days In hostel and Days Away). It is downloaded from `GET /api/vidyalaya-presence/xlsx` (a Day or a month, no range) and attached by `reportAttachments` to the Daily Report and Monthly Report emails. The Students page has no state of its own for it: the button builds the link.
+
+**Public Live View.** A second small Fastify server on `PUBLIC_PORT` (3001, this machine only), apart from the Rector's: it registers no login, sets no cookie and has one read-only route, `GET /api/public/live`, which takes no input. Every other address on it is "not found". `getPublicLiveView` works out today's numbers from `getReport`, so they follow the same Pooja rules: Present, and the Students expected (Active, less Not Applicable), plus how many first Punches fell in each 15-minute bar (`poojaSlotOf` in the core). The route keeps its answer for 30 seconds and shares it between viewers who ask at once, allows one address 60 requests a minute, and sends `X-Robots-Tag: noindex` and `Cache-Control: no-store`. The page at `/live` is shown by `main.tsx` without the login gate, asks again every 30 seconds with `credentials: 'omit'`, and draws the bars with the same `PunchBand` as the Rector's Live view. On the VM, Caddy sends `/api/public/` to `PUBLIC_PORT` and every other `/api/` to `PAGE_PORT`.
 
 **First load.** `npm run students:load -- <file.csv>` reads the Rector's list (Student IDs, names, rooms, emails), saved from Excel as "CSV UTF-8" with the columns of `sample-roster.csv`. It checks every row like the form and reports problems by line; with `--save` it adds every Student in one transaction, or none. Real data stays out of the repo.
 

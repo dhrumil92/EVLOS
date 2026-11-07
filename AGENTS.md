@@ -25,7 +25,7 @@ A hostel Pooja attendance system: a fingerprint Device pushes Punches to a serve
 - If you are unsure about a domain rule, ask. Do not guess.
 
 ## Stack
-TypeScript (strict), Node 22, Fastify, React with Vite and Tailwind, PostgreSQL with Drizzle, Vitest, Playwright for a few end-to-end flows, ESLint, Prettier. npm workspaces: `packages/core`, `apps/api`, `apps/web`. Docker Compose and Caddy are for deployment on the VM only, not for local development.
+TypeScript (strict), Node 22, Fastify, React with Vite and Tailwind, PostgreSQL with Drizzle, Vitest with React Testing Library for the pages (Playwright was planned for a few end-to-end flows and dropped on 2026-11-05; see `docs/ARCHITECTURE.md`), ESLint, Prettier. npm workspaces: `packages/core`, `apps/api`, `apps/web`. Docker Compose and Caddy are for deployment on the VM only, not for local development.
 
 ## Commands
 Run from the repo root.

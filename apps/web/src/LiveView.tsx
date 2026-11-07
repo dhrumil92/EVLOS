@@ -6,7 +6,8 @@ import { dayInWords, timeOfDay } from './ist-words.js';
 import type { Book } from './LeavesPage.js';
 import { inWords, LeaveStateLabel } from './LeaveStatus.js';
 import type { LiveViewPunch, LiveViewSource, NotCountedBecause } from './live-view-source.js';
-import { busiestSlot, firstPunchSlots, nowShare, slotWords } from './punch-band.js';
+import { firstPunchSlots } from './punch-band.js';
+import { PunchBand } from './PunchBand.js';
 import type { ReportSource } from './report-source.js';
 import type { ListedStudent, StudentSource } from './student-source.js';
 import { punchKey, useLiveView } from './use-live-view.js';
@@ -20,7 +21,6 @@ const NOT_COUNTED: Record<NotCountedBecause, string> = {
   'not-active': 'Not Active',
 };
 const ONE_MINUTE_MS = 60 * 1000;
-const AXIS = ['05:30', '08:00', '10:30', '13:00', '15:30', '18:00'];
 
 type OpenLeaves = (book: Book, students: readonly string[]) => void;
 interface Waiting {
@@ -119,67 +119,6 @@ function Heading(props: {
       <p className="text-muted">Pooja Window 05:30 to 18:00.</p>
       <DeviceLastSeen status={device} />
     </div>
-  );
-}
-
-function bandSummary(counts: readonly number[], nowAt: string | null) {
-  const busiest = busiestSlot(counts);
-  const most =
-    busiest === null
-      ? 'no counted Punch yet.'
-      : `most between ${slotWords(busiest).replace(' to ', ' and ')}.`;
-  return `When the Students punched: ${most}${nowAt ? ` Now is ${nowAt}.` : ''}`;
-}
-
-// One bar for each 15 minutes of the Pooja Window, from each Student's first counted Punch,
-// with a saffron line at Now while the window is open.
-function PunchBand(props: { punches: readonly LiveViewPunch[]; day: string; now: number }) {
-  const counts = firstPunchSlots(props.punches, props.day);
-  const tallest = Math.max(1, ...counts);
-  const share = nowShare(props.now, props.day);
-  const nowAt = share === null ? null : timeOfDay(props.now);
-  return (
-    <figure className="m-0 grid min-w-0 flex-[3_1_32rem] gap-2.5">
-      <figcaption className="flex flex-wrap items-baseline justify-between gap-3">
-        <span className="font-display text-xl font-bold">When the Punches came in</span>
-        <span className="text-sm text-muted">each bar is 15 minutes</span>
-      </figcaption>
-      <div
-        role="img"
-        aria-label={bandSummary(counts, nowAt)}
-        className="relative flex h-[170px] items-end gap-[2px] border-b-2 border-line-strong"
-      >
-        {counts.map((count, slot) => (
-          <span
-            key={slot}
-            title={`${slotWords(slot)}: ${String(count)} Students`}
-            className={`flex-1 ${count > 0 ? 'rounded-t bg-primary' : 'rounded-sm bg-band-empty'}`}
-            style={{ height: count > 0 ? `${String((count / tallest) * 150)}px` : '4px' }}
-          />
-        ))}
-        {share !== null && (
-          <>
-            <span
-              aria-hidden="true"
-              className="absolute -top-1.5 -bottom-0.5 w-0.5 bg-focus"
-              style={{ left: `${String(share * 100)}%` }}
-            />
-            <span
-              aria-hidden="true"
-              className="absolute -top-2 rounded-md bg-now-wash px-2 py-0.5 text-[13px] font-bold whitespace-nowrap text-now-ink"
-              style={{ left: `calc(${String(share * 100)}% + 8px)` }}
-            >
-              Now {nowAt}
-            </span>
-          </>
-        )}
-      </div>
-      <div aria-hidden="true" className="flex justify-between text-[13px] text-muted">
-        {AXIS.map((tick) => (
-          <span key={tick}>{tick}</span>
-        ))}
-      </div>
-    </figure>
   );
 }
 
@@ -370,7 +309,13 @@ export function LiveViewPage(props: {
       <Heading day={day} device={props.device} onOpenLeaves={props.onOpenLeaves} />
       <section aria-label="Today's Pooja" className="book-card flex flex-wrap gap-x-12 gap-y-7 p-7">
         <Counts live={live} waiting={waiting} away={away} />
-        {live.view && <PunchBand punches={live.view.punches} day={live.view.day} now={now} />}
+        {live.view && (
+          <PunchBand
+            counts={firstPunchSlots(live.view.punches, live.view.day)}
+            day={live.view.day}
+            now={now}
+          />
+        )}
       </section>
       <div className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3">
         <WaitingCard waiting={waiting} />
