@@ -51,6 +51,7 @@ The raw ChatGPT export is not committed: it contains device addresses, serial nu
 | 19 Oct | ChatGPT | A missing Punch is never Absent by itself. | Became rule 4. |
 | 26 Oct | ChatGPT | Use a mobile hotspot for first Device tests. | Avoided touching the hostel network. |
 | 27 Oct | Claude | Use PostgreSQL as the source of truth, and the author's GCP VM for hosting because the Device only speaks plain HTTP. | The author already runs PostgreSQL on the VM and chose to deploy everything there. |
+| 7 Nov | Claude | Drop the Students-by-hour chart from the Reports page, and add a Last night card and four numbers for the month (Present on a usual Day, Absent in all Days together, Students Absent at least once, the worst Day). | Chart dropped: the author's approved design has no hour chart, and the Live view already shows the hour band. Card and four numbers **Changed**: the author found the numbers confusing, and a list of Absent Students would run long with about 360 Students (Review and Finalize already shows it). The page shows Present, Not Applicable and Absent only when a Day is chosen. |
 
 ## Template for new entries
 | # | Date | Tool | Suggestion | Decision (Accepted / Rejected / Changed) | Reason |

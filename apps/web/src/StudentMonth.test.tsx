@@ -15,8 +15,7 @@ function fakeReports(rows: Record<string, Statuses>, failing = false) {
       return Promise.resolve({
         title: 'A month',
         isFinalized: false,
-        hours: null,
-        days: [],
+        reportDays: [],
         rows: Object.entries(rows).map(([studentId, statuses]) => ({
           studentId,
           name: `Student ${studentId}`,

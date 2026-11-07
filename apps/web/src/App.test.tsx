@@ -42,9 +42,23 @@ const reports: ReportSource = {
         { studentId: '9001', name: 'Asha Rao', room: '101', statuses: ['Present'] },
         { studentId: '9002', name: 'Bina Rao', room: '205', statuses: ['Needs Review'] },
       ],
-      hours: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      days: null,
+      reportDays: [],
     }),
+};
+
+// A Review of a Day that is not Finalized, for the tests that open Reports or Review and Finalize.
+const review: ReviewSource = {
+  load: (day) =>
+    Promise.resolve({
+      day,
+      canFinalize: false,
+      finalization: null,
+      needsReview: [],
+      absent: [],
+      notFinalizedDays: [],
+    }),
+  finalize: () => Promise.resolve({ reason: 'pooja-window-open' }),
+  send: () => Promise.resolve({ reason: 'not-finalized' }),
 };
 
 afterEach(cleanup);
@@ -114,31 +128,19 @@ describe('menu', () => {
     );
   });
 
-  it('opens the Reports page with its two cards', async () => {
+  it('opens the Reports page on this month, with its period choices', async () => {
     render(<App reports={reports} source={fakeSource(view()).source} />);
     await screen.findByText(/No Punches yet/);
 
     fireEvent.click(screen.getByRole('button', { name: 'Reports' }));
 
     expect(await screen.findByRole('heading', { name: 'Reports' })).toBeTruthy();
-    expect(await screen.findByText('Students by hour')).toBeTruthy();
-    expect(screen.getByText('Showing 2 of 2 Students')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Month report' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Month' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('region', { name: 'Last night' })).toBeNull();
   });
 
   it('opens the Review and Finalize page', async () => {
-    const review: ReviewSource = {
-      load: (day) =>
-        Promise.resolve({
-          day,
-          canFinalize: false,
-          finalization: null,
-          needsReview: [],
-          absent: [],
-          notFinalizedDays: [],
-        }),
-      finalize: () => Promise.resolve({ reason: 'pooja-window-open' }),
-      send: () => Promise.resolve({ reason: 'not-finalized' }),
-    };
     render(<App reports={reports} review={review} source={fakeSource(view()).source} />);
     await screen.findByText(/No Punches yet/);
 

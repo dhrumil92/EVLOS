@@ -5,7 +5,7 @@ import type { ListChoices, StudentSort } from './student-list.js';
 import type { ListedStudent } from './student-source.js';
 
 // A button that opens a small panel under it. It closes on Escape and on a press outside.
-function Menu(props: { label: string; children: (close: () => void) => ReactNode }) {
+function Menu(props: { name: string; label: string; children: (close: () => void) => ReactNode }) {
   const [isOpen, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -50,7 +50,11 @@ function Menu(props: { label: string; children: (close: () => void) => ReactNode
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute right-0 z-20 mt-2 grid min-w-60 gap-1.5 rounded-2xl border-[1.5px] border-line-strong bg-surface p-3">
+        <div
+          role="group"
+          aria-label={props.name}
+          className="absolute right-0 z-20 mt-2 grid min-w-60 gap-1.5 rounded-2xl border-[1.5px] border-line-strong bg-surface p-3"
+        >
           {props.children(() => {
             setOpen(false);
           })}
@@ -68,7 +72,7 @@ function FilterMenu(props: {
 }) {
   const counts = groupCounts(props.students);
   return (
-    <Menu label={`Filter: ${props.choices.group}`}>
+    <Menu name="Filter" label={`Filter: ${props.choices.group}`}>
       {(close) =>
         GROUPS.map((group) => {
           const isOn = group === props.choices.group;
@@ -83,7 +87,7 @@ function FilterMenu(props: {
               }}
               className={`flex min-h-11 items-center justify-between gap-6 rounded-xl px-3 text-left font-bold ${isOn ? 'bg-primary text-white' : 'hover:bg-tint'}`}
             >
-              {group}
+              {group}{' '}
               <span className={`font-normal ${isOn ? 'text-on-primary-muted' : 'text-muted'}`}>
                 {counts[group]}
               </span>
@@ -104,7 +108,7 @@ function SortMenu(props: {
   const { choices } = props;
   const floors = [...new Set(props.students.map((s) => s.floor))].sort((a, b) => a - b);
   return (
-    <Menu label="Floor and sort">
+    <Menu name="Floor and sort" label="Floor and sort">
       {() => (
         <>
           <label className="grid gap-1 text-sm font-bold text-muted">

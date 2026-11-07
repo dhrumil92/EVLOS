@@ -1,4 +1,4 @@
-import { byName, byRoom } from './report-rows.js';
+import { byName, byRoom } from './student-order.js';
 import type { ListedStudent } from './student-source.js';
 
 // The filter buttons above the Student list. Away includes Due Back, because a Due Back

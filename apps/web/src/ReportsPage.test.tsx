@@ -1,217 +1,354 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Report, ReportRequest, ReportRow, ReportSource } from './report-source.js';
 import { ReportsPage } from './ReportsPage.js';
+import type { PoojaStatusName, Report, ReportRequest, ReportSource } from './report-source.js';
 
-const TODAY = '2026-11-03';
+const TODAY = '2026-11-07';
+type Status = PoojaStatusName | null;
 
-const rows: ReportRow[] = [
-  { studentId: '9002', name: 'Bina Rao', room: 'B-101', statuses: ['Present'] },
-  { studentId: '9001', name: 'Asha Rao', room: 'C-101', statuses: ['Absent'] },
-  { studentId: '9003', name: 'Chitra Rao', room: 'A-101', statuses: ['Not Applicable'] },
+const ROWS: [string, string, ...Status[]][] = [
+  ['101', 'Asha Rao', 'Present', 'Absent', 'Present'],
+  ['102', 'Bina Rao', 'Present', 'Not Applicable', 'Absent'],
+  ['103', 'Chitra Rao', 'Absent', 'Absent', 'Present'],
+  ['204', 'Deepa Rao', 'Present', 'Present', 'Present'],
 ];
 
-const report = (facts: Partial<Report> = {}): Report => ({
-  title: 'Monday 2 November 2026',
-  isFinalized: true,
-  rows,
-  hours: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  days: null,
-  ...facts,
-});
+const titleOf = (request: ReportRequest) =>
+  request.view === 'Day'
+    ? `Day ${request.day}`
+    : request.view === 'Month'
+      ? `Month ${request.month}`
+      : `${request.from} to ${request.to}`;
 
-function fakeSource(answer: (request: ReportRequest) => Report = () => report()) {
+const reportFor = (request: ReportRequest, finalized = true): Report => {
+  const days = request.view === 'Day' ? [request.day] : ['2026-10-12', '2026-10-13', '2026-10-14'];
+  return {
+    title: titleOf(request),
+    isFinalized: finalized,
+    rows: ROWS.map(([room, name, ...statuses]) => ({
+      studentId: name,
+      name,
+      room,
+      // A Day Report has one Pooja Status for each Student: the first of the month's.
+      statuses: request.view === 'Day' ? [statuses[0] ?? null] : statuses,
+    })),
+    reportDays: days.map((day) => ({ day, isFinalized: finalized })),
+  };
+};
+
+function show(options: { failing?: boolean; finalized?: boolean } = {}) {
   const asked: ReportRequest[] = [];
   const source: ReportSource = {
     load: (request) => {
       asked.push(request);
-      return Promise.resolve(answer(request));
+      return options.failing
+        ? Promise.reject(new Error('down'))
+        : Promise.resolve(reportFor(request, options.finalized ?? true));
     },
     csvUrl: (request, status) => `/csv/${request.view}/${status}`,
     xlsxUrl: (request, status) => `/xlsx/${request.view}/${status}`,
   };
-  return { source, asked };
+  render(<ReportsPage source={source} today={TODAY} />);
+  return { asked };
 }
 
-const studentNames = () =>
-  screen
-    .getAllByRole('row')
-    .slice(1)
-    .map((row) => within(row).getAllByRole('cell')[1]?.textContent);
+const chip = (name: string) => screen.getByRole('button', { name });
+const countOf = (name: string) =>
+  screen.getByText(name, { selector: 'dt' }).nextElementSibling?.textContent;
 
 afterEach(cleanup);
 
 describe('Reports page', () => {
-  it('opens on the Report for today', async () => {
-    const { source, asked } = fakeSource();
+  it('has the title and nothing explaining the buttons', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
 
-    render(<ReportsPage source={source} today={TODAY} />);
-
-    await screen.findByText('Bina Rao');
-    expect(asked[0]).toEqual({ view: 'Day', day: TODAY });
+    expect(screen.getByRole('heading', { name: 'Reports', level: 1 })).toBeTruthy();
+    expect(screen.queryByText(/ready below/)).toBeNull();
   });
 
-  it('offers the Report shown as a CSV download', async () => {
-    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('opens on this month, without a press', async () => {
+    const { asked } = show();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
-
-    const link = await screen.findByRole('link', { name: 'Download CSV' });
-    expect(link.getAttribute('href')).toBe('/csv/Month/All');
+    expect(await screen.findByRole('heading', { name: 'Month 2026-11' })).toBeTruthy();
+    expect(asked).toEqual([{ view: 'Month', month: '2026-11' }]);
+    expect(chip('Month').getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByLabelText<HTMLInputElement>('Month').value).toBe('2026-11');
   });
 
-  it('offers the Report shown as an Excel download', async () => {
-    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('offers Day, Month and Pick dates, and no other period', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
+    const chips = within(screen.getByRole('group', { name: 'Period' })).getAllByRole('button');
 
-    const link = await screen.findByRole('link', { name: 'Download Excel' });
-    expect(link.getAttribute('href')).toBe('/xlsx/Month/All');
+    expect(chips.map((one) => one.textContent)).toEqual(['Day', 'Month', 'Pick dates']);
   });
 
-  it('downloads only the Students of the Pooja Status chosen on the page', async () => {
-    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('has no last night card and no downloads of it', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
-
-    expect(screen.getByRole('link', { name: 'Download CSV' }).getAttribute('href')).toBe(
-      '/csv/Day/Absent',
-    );
-    expect(screen.getByRole('link', { name: 'Download Excel' }).getAttribute('href')).toBe(
-      '/xlsx/Day/Absent',
-    );
+    expect(screen.queryByRole('region', { name: 'Last night' })).toBeNull();
+    expect(screen.getAllByRole('link')).toHaveLength(2);
   });
 
-  it('lists Students by room in ascending order first', async () => {
-    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('has no month numbers such as Worst Day', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
 
-    expect(studentNames()).toEqual(['Chitra Rao', 'Bina Rao', 'Asha Rao']);
+    expect(screen.queryByText('Worst Day')).toBeNull();
+    expect(screen.queryByText('Present on a usual Day')).toBeNull();
+    expect(screen.queryByText('Students Absent at least once')).toBeNull();
   });
 
-  it('can sort Students by name', async () => {
-    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('says whether every Day of the month is Finalized', async () => {
+    show();
 
-    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'Name' } });
-
-    expect(studentNames()).toEqual(['Asha Rao', 'Bina Rao', 'Chitra Rao']);
+    expect(await screen.findByText('3 Days, all Finalized')).toBeTruthy();
   });
 
-  it.each([
-    ['Present', 'Bina Rao'],
-    ['Absent', 'Asha Rao'],
-    ['Not Applicable', 'Chitra Rao'],
-  ])('can show only the Students who are %s', async (status, name) => {
-    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('draws three bars for each Day of the month', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
 
-    fireEvent.click(screen.getByRole('button', { name: status }));
-
-    expect(studentNames()).toEqual([name]);
-    expect(screen.getByText('Showing 1 of 3 Students')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /^\w+day \d+ October: Present/ })).toHaveLength(3);
   });
 
-  it('shows the graph in its own card, after the Student card', async () => {
-    render(<ReportsPage source={fakeSource().source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('lists every Student of the month, the most Absent first', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
 
-    const cards = document.querySelectorAll('.report-card');
+    const table = screen.getByRole('table', { name: 'Students in Month 2026-11' });
+    const names = within(table)
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => within(row).getAllByRole('cell')[1]?.textContent);
 
-    expect(cards).toHaveLength(2);
-    expect(within(cards[0] as HTMLElement).getByText('Students')).toBeTruthy();
-    expect(within(cards[1] as HTMLElement).getByText('Students by hour')).toBeTruthy();
+    expect(names).toEqual(['Chitra Rao', 'Asha Rao', 'Bina Rao', 'Deepa Rao']);
   });
 
-  it('shows the three bars of a month with their names', async () => {
-    const days = [{ day: 1, present: 300, absent: 10, notApplicable: 50 }];
-    const { source, asked } = fakeSource(() => report({ hours: null, days }));
-    render(<ReportsPage source={source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('says how to fix it when the Report cannot load', async () => {
+    show({ failing: true });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
+    expect(await screen.findByText(/This Report could not load/)).toBeTruthy();
+  });
+});
 
-    const card = (await screen.findByText('Every Day of the month')).closest('section');
-    expect(asked.at(-1)).toEqual({ view: 'Month', month: '2026-11' });
-    expect(within(card as HTMLElement).getByText('Present')).toBeTruthy();
-    expect(within(card as HTMLElement).getByText('Absent')).toBeTruthy();
-    expect(within(card as HTMLElement).getByText('Not Applicable')).toBeTruthy();
+describe('the Month choice', () => {
+  it('cannot go past this month', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
+
+    expect(screen.getByLabelText<HTMLInputElement>('Month').max).toBe('2026-11');
   });
 
-  it('shows how many Days of each Pooja Status a Student had in a month', async () => {
-    const monthRows: ReportRow[] = [
-      { studentId: '9001', name: 'Asha Rao', room: 'A-1', statuses: ['Present', 'Absent'] },
-    ];
-    const { source } = fakeSource(() => report({ rows: monthRows, hours: null }));
-    render(<ReportsPage source={source} today={TODAY} />);
-    await screen.findByText('Asha Rao');
+  it('loads the month the Rector changes it to', async () => {
+    const { asked } = show();
+    await screen.findByText('Month 2026-11');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Month' }));
+    fireEvent.change(screen.getByLabelText('Month'), { target: { value: '2026-10' } });
 
-    const row = (await screen.findByText('Days Present')).closest('table');
-    expect(within(row as HTMLElement).getAllByText('1')).toHaveLength(2);
+    expect(await screen.findByRole('heading', { name: 'Month 2026-10' })).toBeTruthy();
+    expect(asked).toContainEqual({ view: 'Month', month: '2026-10' });
   });
 
-  it('has no graph card for a date range', async () => {
-    const { source } = fakeSource(() => report({ hours: null, days: null }));
-    render(<ReportsPage source={source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('shows no Present, Not Applicable and Absent counts for a month', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Date range' }));
+    expect(screen.queryByText('Present', { selector: 'dt' })).toBeNull();
+  });
+});
 
-    await screen.findByLabelText('From');
-    expect(document.querySelectorAll('.report-card')).toHaveLength(1);
+describe('the Day choice', () => {
+  const chooseDay = async () => {
+    const result = show();
+    await screen.findByText('Month 2026-11');
+    fireEvent.click(chip('Day'));
+    return result;
+  };
+
+  it('starts on today, filled in, and loads that Day', async () => {
+    const { asked } = await chooseDay();
+
+    expect(await screen.findByRole('heading', { name: `Day ${TODAY}` })).toBeTruthy();
+    expect(asked).toContainEqual({ view: 'Day', day: TODAY });
+    expect(screen.getByLabelText<HTMLInputElement>('Day').value).toBe(TODAY);
   });
 
-  it('asks for the Report of a chosen Day and cannot choose a future Day', async () => {
-    const { source, asked } = fakeSource();
-    render(<ReportsPage source={source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
-    const dayInput = screen.getByLabelText('Day');
+  it('can be changed to another Day, but not to a Day after today', async () => {
+    const { asked } = await chooseDay();
+    await screen.findByText(`Day ${TODAY}`);
 
-    fireEvent.change(dayInput, { target: { value: '2026-10-30' } });
+    expect(screen.getByLabelText<HTMLInputElement>('Day').max).toBe(TODAY);
+    fireEvent.change(screen.getByLabelText('Day'), { target: { value: '2026-11-03' } });
 
-    expect(dayInput.getAttribute('max')).toBe(TODAY);
-    expect(asked.at(-1)).toEqual({ view: 'Day', day: '2026-10-30' });
+    expect(await screen.findByRole('heading', { name: 'Day 2026-11-03' })).toBeTruthy();
+    expect(asked).toContainEqual({ view: 'Day', day: '2026-11-03' });
   });
 
-  it('says Needs Review instead of Absent on a Day that is not Finalized', async () => {
-    const review: ReportRow[] = [
-      { studentId: '9001', name: 'Asha Rao', room: 'A-1', statuses: ['Needs Review'] },
-    ];
-    const { source } = fakeSource(() => report({ rows: review, isFinalized: false }));
-    render(<ReportsPage source={source} today={TODAY} />);
-    await screen.findByText('Asha Rao');
+  it('shows how many Students were Present, Not Applicable and Absent that Day', async () => {
+    await chooseDay();
+    await screen.findByText(`Day ${TODAY}`);
 
-    expect(screen.getByRole('button', { name: 'Needs Review' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Absent' })).toBeNull();
-    expect(screen.getByText(/Not Finalized/)).toBeTruthy();
+    // On the first Day: Asha, Bina and Deepa Present, Chitra Absent.
+    expect(countOf('Present')).toBe('3');
+    expect(countOf('Not Applicable')).toBe('0');
+    expect(countOf('Absent')).toBe('1');
   });
 
-  it('leaves the cell empty on a Day the Student was not Active', async () => {
-    const { source } = fakeSource(() =>
-      report({
-        rows: [{ studentId: '9001', name: 'Asha Rao', room: '101', statuses: [null] }],
-      }),
-    );
+  it('says only Finalized, not a count of Days', async () => {
+    await chooseDay();
 
-    render(<ReportsPage source={source} today={TODAY} />);
-
-    const row = (await screen.findByText('Asha Rao')).closest('tr');
-    expect(row && within(row).queryByText(/Present|Absent|Needs Review/)).toBeNull();
+    expect(await screen.findByText('Finalized')).toBeTruthy();
   });
 
-  it('says what to do when no Students match', async () => {
-    const { source } = fakeSource(() => report({ rows: rows.slice(0, 1) }));
-    render(<ReportsPage source={source} today={TODAY} />);
-    await screen.findByText('Bina Rao');
+  it('says Not Finalized, and counts Needs Review only if there is any', async () => {
+    show({ finalized: false });
+    await screen.findByText('Month 2026-11');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Absent' }));
+    fireEvent.click(chip('Day'));
 
-    expect(screen.getByText(/Choose All to see every Student/)).toBeTruthy();
+    expect(await screen.findByText('Not Finalized')).toBeTruthy();
+    expect(screen.queryByText('Needs Review', { selector: 'dt' })).toBeNull();
+  });
+
+  it('draws no chart for one Day', async () => {
+    await chooseDay();
+    await screen.findByText(`Day ${TODAY}`);
+
+    expect(screen.queryByText('Every Day')).toBeNull();
+  });
+
+  it('puts the counts on the same row as the title and the downloads', async () => {
+    await chooseDay();
+    const title = await screen.findByRole('heading', { name: `Day ${TODAY}` });
+
+    const row = title.parentElement?.parentElement as HTMLElement;
+
+    expect(within(row).getByText('Present', { selector: 'dt' })).toBeTruthy();
+    expect(within(row).getByLabelText('Rows')).toBeTruthy();
+    expect(within(row).getByRole('link', { name: 'Download the day as Excel' })).toBeTruthy();
+  });
+});
+
+describe('Pick dates', () => {
+  const pickDates = async () => {
+    const result = show();
+    await screen.findByText('Month 2026-11');
+    fireEvent.click(chip('Pick dates'));
+    return result;
+  };
+
+  it('starts on the 1st of this month to today, filled in', async () => {
+    const { asked } = await pickDates();
+
+    expect(await screen.findByRole('heading', { name: '2026-11-01 to 2026-11-07' })).toBeTruthy();
+    expect(asked).toContainEqual({ view: 'Date range', from: '2026-11-01', to: TODAY });
+    expect(screen.getByLabelText<HTMLInputElement>('From').value).toBe('2026-11-01');
+    expect(screen.getByLabelText<HTMLInputElement>('To').value).toBe(TODAY);
+  });
+
+  it('does not let To be a date before From', async () => {
+    await pickDates();
+    await screen.findByText('2026-11-01 to 2026-11-07');
+
+    expect(screen.getByLabelText<HTMLInputElement>('To').min).toBe('2026-11-01');
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-10-01' } });
+
+    expect(screen.getByLabelText<HTMLInputElement>('To').value).toBe('2026-11-01');
+  });
+
+  it('moves the least To along when From is changed', async () => {
+    await pickDates();
+    await screen.findByText('2026-11-01 to 2026-11-07');
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-11-03' } });
+
+    expect(screen.getByLabelText<HTMLInputElement>('To').min).toBe('2026-11-03');
+  });
+
+  it('cannot go past today', async () => {
+    await pickDates();
+    await screen.findByText('2026-11-01 to 2026-11-07');
+
+    expect(screen.getByLabelText<HTMLInputElement>('To').max).toBe(TODAY);
+  });
+
+  it('loads the range when From is changed', async () => {
+    const { asked } = await pickDates();
+    await screen.findByText('2026-11-01 to 2026-11-07');
+
+    fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-11-03' } });
+
+    await waitFor(() => {
+      expect(asked).toContainEqual({ view: 'Date range', from: '2026-11-03', to: TODAY });
+    });
+  });
+
+  it('can be a single Day, with From and To the same', async () => {
+    const { asked } = await pickDates();
+    await screen.findByText('2026-11-01 to 2026-11-07');
+
+    fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-11-01' } });
+
+    await waitFor(() => {
+      expect(asked).toContainEqual({ view: 'Date range', from: '2026-11-01', to: '2026-11-01' });
+    });
+  });
+});
+
+describe('the downloads', () => {
+  it('are one Excel and one CSV for the period shown', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
+
+    expect(
+      screen.getByRole('link', { name: 'Download the month as Excel' }).getAttribute('href'),
+    ).toBe('/xlsx/Month/All');
+    expect(
+      screen.getByRole('link', { name: 'Download the month as CSV' }).getAttribute('href'),
+    ).toBe('/csv/Month/All');
+  });
+
+  it('follow the period chosen, so a single Day can be downloaded', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
+
+    fireEvent.click(chip('Day'));
+
+    expect(
+      (await screen.findByRole('link', { name: 'Download the day as Excel' })).getAttribute('href'),
+    ).toBe('/xlsx/Day/All');
+  });
+
+  it('hold only the Students chosen in Rows', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
+
+    fireEvent.change(screen.getByLabelText('Rows'), { target: { value: 'Absent' } });
+
+    expect(
+      screen.getByRole('link', { name: 'Download the month as Excel' }).getAttribute('href'),
+    ).toBe('/xlsx/Month/Absent');
+    expect(
+      screen.getByRole('link', { name: 'Download the month as CSV' }).getAttribute('href'),
+    ).toBe('/csv/Month/Absent');
+  });
+
+  it('offer Every Student, Absent only, Not Applicable only and Present only in Rows', async () => {
+    show();
+    await screen.findByText('Month 2026-11');
+
+    const options = within(screen.getByLabelText('Rows')).getAllByRole('option');
+
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Every Student',
+      'Absent only',
+      'Not Applicable only',
+      'Present only',
+    ]);
   });
 });

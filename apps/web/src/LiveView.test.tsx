@@ -54,8 +54,7 @@ const dayReport = (rows: [string, string, string, PoojaStatusName][]): ReportSou
         room,
         statuses: [status],
       })),
-      hours: null,
-      days: null,
+      reportDays: [],
     }),
 });
 const NO_REPORT = dayReport([]);

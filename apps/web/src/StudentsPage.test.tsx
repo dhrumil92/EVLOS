@@ -106,8 +106,7 @@ function fakeReports() {
       return Promise.resolve({
         title: 'A month',
         isFinalized: false,
-        hours: null,
-        days: [],
+        reportDays: [],
         rows: [
           {
             studentId: '9002',
@@ -159,7 +158,12 @@ const rows = () =>
 const names = () => rows().map((row) => within(row).getByRole('button').textContent);
 const rowOf = (name: string) =>
   rows().find((row) => within(row).getByRole('button').textContent === name) as HTMLElement;
+// The filters and the floor and sort are in menus: open one, then use what is inside.
+const openMenu = (name: RegExp | string) => {
+  fireEvent.click(screen.getByRole('button', { name }));
+};
 const group = (name: RegExp) => {
+  openMenu(/^Filter:/);
   fireEvent.click(screen.getByRole('button', { name }));
 };
 
@@ -281,7 +285,8 @@ describe('the filter buttons', () => {
     show(mixed().source);
     await screen.findByText('Bina Rao');
 
-    const buttons = within(screen.getByRole('group', { name: 'Show' })).getAllByRole('button');
+    openMenu(/^Filter:/);
+    const buttons = within(screen.getByRole('group', { name: 'Filter' })).getAllByRole('button');
     expect(buttons.map((button) => button.textContent)).toEqual([
       'All Active 3',
       'In hostel 1',
@@ -338,6 +343,56 @@ describe('the filter buttons', () => {
   });
 });
 
+describe('the Filter and Floor and sort menus', () => {
+  it('start closed, and show the chosen filter on the button', async () => {
+    show(fakeSource().source);
+    await screen.findByText('Bina Rao');
+
+    expect(screen.queryByRole('group', { name: 'Filter' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Filter: All Active' })).toBeTruthy();
+  });
+
+  it('close after a filter is chosen, and the button names it', async () => {
+    show(fakeSource().source);
+    await screen.findByText('Bina Rao');
+
+    group(/^Away/);
+
+    expect(screen.queryByRole('group', { name: 'Filter' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Filter: Away' })).toBeTruthy();
+  });
+
+  it('close with Escape', async () => {
+    show(fakeSource().source);
+    await screen.findByText('Bina Rao');
+    openMenu('Floor and sort');
+
+    fireEvent.keyDown(screen.getByRole('group', { name: 'Floor and sort' }), { key: 'Escape' });
+
+    expect(screen.queryByRole('group', { name: 'Floor and sort' })).toBeNull();
+  });
+
+  it('close when the page is pressed outside them', async () => {
+    show(fakeSource().source);
+    await screen.findByText('Bina Rao');
+    openMenu(/^Filter:/);
+
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByRole('group', { name: 'Filter' })).toBeNull();
+  });
+
+  it('stay out of the page while the list is empty', async () => {
+    const { source, state } = fakeSource();
+    state.students = [];
+    show(source);
+
+    await screen.findByText(/No Students yet/);
+
+    expect(screen.queryByRole('button', { name: /^Filter:/ })).toBeNull();
+  });
+});
+
 describe('floor and sort', () => {
   const threeStudents = () => {
     const fake = fakeSource();
@@ -349,6 +404,7 @@ describe('floor and sort', () => {
     show(threeStudents().source);
     await screen.findByText('Bina Rao');
 
+    openMenu('Floor and sort');
     const options = within(screen.getByLabelText('Floor')).getAllByRole('option');
     expect(options.map((option) => option.textContent)).toEqual([
       'All floors',
@@ -361,6 +417,7 @@ describe('floor and sort', () => {
     show(threeStudents().source);
     await screen.findByText('Bina Rao');
 
+    openMenu('Floor and sort');
     type('Floor', '2');
 
     expect(names()).toEqual(['Bina Rao', 'Arjun Shah']);
@@ -371,6 +428,7 @@ describe('floor and sort', () => {
     show(threeStudents().source);
     await screen.findByText('Bina Rao');
 
+    openMenu('Floor and sort');
     type('Sort by', 'Name A to Z');
 
     expect(names()).toEqual(['Arjun Shah', 'Asha Rao', 'Bina Rao']);
@@ -379,6 +437,7 @@ describe('floor and sort', () => {
   it('keeps the floor and the search together', async () => {
     show(threeStudents().source);
     await screen.findByText('Bina Rao');
+    openMenu('Floor and sort');
     type('Floor', '2');
 
     type('Search by name, Student ID or room', 'arjun');
@@ -448,18 +507,31 @@ describe('the Student panel', () => {
     return screen.getByRole('region', { name });
   };
 
-  it('puts the search and filter card above both columns, and the list beside the panel', async () => {
+  it('puts Filter and Floor and sort before Add a Student, on the row of the title', async () => {
     show(fakeSource().source);
-    const toolbar = await screen.findByRole('region', { name: 'Find and filter' });
+    await screen.findByText('Bina Rao');
+    const filter = screen.getByRole('button', { name: /^Filter:/ });
+    const sort = screen.getByRole('button', { name: 'Floor and sort' });
+    const add = screen.getByRole('button', { name: 'Add a Student' });
 
-    const columns = screen.getByRole('region', { name: 'Students' }).parentElement;
+    expect(filter.compareDocumentPosition(sort) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sort.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Students' }).parentElement?.contains(add)).toBe(
+      true,
+    );
+  });
 
-    expect(columns?.contains(screen.getByRole('region', { name: 'Choose a Student' }))).toBe(true);
-    expect(columns?.contains(toolbar)).toBe(false);
+  it('puts the search in the list card, with the panel beside the list', async () => {
+    show(fakeSource().source);
+    const list = await screen.findByRole('region', { name: 'Students' });
+
+    const search = screen.getByRole('searchbox', { name: 'Search by name, Student ID or room' });
+
+    expect(list.contains(search)).toBe(true);
     expect(
-      toolbar.compareDocumentPosition(screen.getByRole('region', { name: 'Students' })) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      list.parentElement?.contains(screen.getByRole('region', { name: 'Choose a Student' })),
+    ).toBe(true);
+    expect(screen.queryByRole('region', { name: 'Find and filter' })).toBeNull();
   });
 
   it('keeps its place beside the list, saying what will appear there, before a name is pressed', async () => {
@@ -481,6 +553,25 @@ describe('the Student panel', () => {
 
     fireEvent.keyDown(await openPanel('Bina Rao'), { key: 'Escape' });
     expect(screen.queryByRole('region', { name: 'Bina Rao' })).toBeNull();
+  });
+
+  it('opens when the row is pressed anywhere, such as on the Email', async () => {
+    show(fakeSource().source);
+    await screen.findByText('Bina Rao');
+
+    fireEvent.click(within(rowOf('Bina Rao')).getByText('9002@example.com'));
+
+    expect(screen.getByRole('region', { name: 'Bina Rao' })).toBeTruthy();
+  });
+
+  it('does not open when only the tick box is pressed', async () => {
+    show(fakeSource().source);
+    await screen.findByText('Bina Rao');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Tick Bina Rao' }));
+
+    expect(screen.queryByRole('region', { name: 'Bina Rao' })).toBeNull();
+    expect(screen.getByText('1 Student ticked')).toBeTruthy();
   });
 
   it('shows the Leave state and the Record Leave form', async () => {
