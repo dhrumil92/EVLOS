@@ -390,6 +390,7 @@ describe('the Filter and Floor and sort menus', () => {
     await screen.findByText(/No Students yet/);
 
     expect(screen.queryByRole('button', { name: /^Filter:/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Vidyalaya Presence' })).toBeNull();
   });
 });
 
@@ -519,6 +520,33 @@ describe('the Student panel', () => {
     expect(screen.getByRole('heading', { name: 'Students' }).parentElement?.contains(add)).toBe(
       true,
     );
+  });
+
+  it('puts Vidyalaya Presence between Floor and sort and Add a Student', async () => {
+    show(fakeSource().source);
+    await screen.findByText('Bina Rao');
+    const sort = screen.getByRole('button', { name: 'Floor and sort' });
+    const presence = screen.getByRole('button', { name: 'Vidyalaya Presence' });
+    const add = screen.getByRole('button', { name: 'Add a Student' });
+
+    expect(sort.compareDocumentPosition(presence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(presence.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { name: 'Students' }).parentElement?.contains(presence),
+    ).toBe(true);
+  });
+
+  it('downloads Vidyalaya Presence for today, filled in, from the Students page', async () => {
+    show(fakeSource().source, '2026-11-03');
+    await screen.findByText('Bina Rao');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vidyalaya Presence' }));
+
+    expect(
+      screen
+        .getByRole('link', { name: 'Download Vidyalaya Presence as Excel' })
+        .getAttribute('href'),
+    ).toBe('/api/vidyalaya-presence/xlsx?view=Day&day=2026-11-03');
   });
 
   it('puts the search in the list card, with the panel beside the list', async () => {

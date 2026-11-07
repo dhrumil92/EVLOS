@@ -1,6 +1,6 @@
 import type { PoojaStatusName, ReportRequest, ReportSource } from './report-source.js';
 
-function DownloadIcon() {
+export function DownloadIcon() {
   return (
     <svg
       width="18"

@@ -45,10 +45,11 @@ async function setUp(reportRecipients: string[] = REPORT_RECIPIENTS) {
     clock: { now: () => NOW },
     outbox,
     reportRecipients,
+    // The Pooja Excel first, then Vidyalaya Presence as a second Excel file. No CSV.
     attachmentsOf: (request: object) =>
       Promise.resolve([
-        { filename: `${JSON.stringify(request)}.xlsx`, content: Buffer.from('xlsx') },
-        { filename: `${JSON.stringify(request)}.csv`, content: Buffer.from('csv') },
+        { filename: `${JSON.stringify(request)}.xlsx`, content: Buffer.from('pooja') },
+        { filename: `${JSON.stringify(request)} presence.xlsx`, content: Buffer.from('presence') },
       ]),
   };
   for (const [studentId, name, room] of [
@@ -73,7 +74,7 @@ async function setUp(reportRecipients: string[] = REPORT_RECIPIENTS) {
 }
 
 describe('queueMonthlyReport', () => {
-  it('queues the month for each Report Recipient, with its Report attached as Excel and CSV', async () => {
+  it('queues the month for each Report Recipient, with the Pooja Excel and Vidyalaya Presence attached', async () => {
     const { deps, queued } = await setUp();
 
     const count = await queueMonthlyReport(MONTH, deps);
@@ -85,9 +86,13 @@ describe('queueMonthlyReport', () => {
     ]);
     expect(queued[0]?.subject).toBe('Monthly Report: November 2026');
     expect(queued[0]?.attachments).toEqual([
-      { filename: '{"view":"Month","month":"2026-11"}.xlsx', content: Buffer.from('xlsx') },
-      { filename: '{"view":"Month","month":"2026-11"}.csv', content: Buffer.from('csv') },
+      { filename: '{"view":"Month","month":"2026-11"}.xlsx', content: Buffer.from('pooja') },
+      {
+        filename: '{"view":"Month","month":"2026-11"} presence.xlsx',
+        content: Buffer.from('presence'),
+      },
     ]);
+    expect(queued[0]?.attachments.map((one) => one.filename).join(' ')).not.toMatch(/csv/i);
   });
 
   it('counts every Pooja Status of the month and names the Days not Finalized', async () => {
@@ -103,8 +108,9 @@ describe('queueMonthlyReport', () => {
         'Needs Review: 1\n\n' +
         'Not Finalized: 2026-11-30. On a Day that is not Finalized, a Student with no Punch ' +
         'shows Needs Review, not Absent.\n\n' +
-        'The full Report is attached as an Excel file, with each Pooja Status in colour, and as a ' +
-        'CSV file, one row per Student and one column per Day.\n\n' +
+        'The full Report is attached as an Excel file, with each Pooja Status in colour.\n\n' +
+        'Vidyalaya Presence for the month is attached as a second Excel file: who was In hostel ' +
+        'and who was Away on each Day. It is worked out from the Leaves recorded so far.\n\n' +
         'EVLOS, hostel Pooja attendance',
     );
   });

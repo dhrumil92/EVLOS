@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactNode, SyntheticEvent } from 'react';
 import type { Book } from './LeavesPage.js';
 import { LeaveStateLabel } from './LeaveStatus.js';
+import { PresenceMenu } from './PresenceMenu.js';
 import { DETAIL_FIELDS, errorsFor, FieldInputs } from './student-fields.js';
 import type { FieldSpec } from './student-fields.js';
 import { StudentMenus } from './StudentMenus.js';
@@ -360,6 +361,7 @@ function summaryOf(students: readonly ListedStudent[]) {
 
 function Heading(props: {
   students: ListedStudent[] | null;
+  today: string;
   choices: ListChoices;
   onChoices: (change: Partial<ListChoices>) => void;
   adding: boolean;
@@ -374,7 +376,14 @@ function Heading(props: {
         </h1>
         <div className="flex flex-wrap items-center gap-3">
           {students && students.length > 0 && (
-            <StudentMenus students={students} choices={props.choices} onChoices={props.onChoices} />
+            <>
+              <StudentMenus
+                students={students}
+                choices={props.choices}
+                onChoices={props.onChoices}
+              />
+              <PresenceMenu today={props.today} />
+            </>
           )}
           <button className="btn min-h-12" type="button" onClick={props.onAdd}>
             {props.adding ? 'Close the form' : 'Add a Student'}
@@ -507,6 +516,7 @@ export function StudentsPage(props: {
   const change = (changed: Partial<ListChoices>) => {
     setChoices((old) => ({ ...old, ...changed }));
   };
+  const today = props.today ?? istToday();
   const open = adding ? null : (students?.find((s) => s.studentId === openId) ?? null);
 
   const changeActive = async (student: ListedStudent, change: ActiveChange) => {
@@ -521,6 +531,7 @@ export function StudentsPage(props: {
     <div className="grid gap-5">
       <Heading
         students={students}
+        today={today}
         choices={choices}
         onChoices={change}
         adding={adding}
@@ -556,7 +567,7 @@ export function StudentsPage(props: {
             open={open}
             source={source}
             reports={props.reports}
-            today={props.today ?? istToday()}
+            today={today}
             onAdded={(name) => {
               setMessage(`Added ${name}.`);
               void refresh();

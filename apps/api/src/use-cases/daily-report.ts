@@ -9,7 +9,7 @@ import { statusCounts, toEachAddress } from './report-email.js';
 export type DailyReportDeps = GetReportDeps & {
   outbox: Pick<OutboxRepository, 'queue'>;
   reportRecipients: readonly string[];
-  // The Report as files to attach: the coloured Excel file first, then the plain CSV.
+  // The files to attach: the Pooja Excel first, then Vidyalaya Presence as a second Excel file.
   attachmentsOf(request: ReportRequest, report: Report): Promise<Attachment[]>;
 };
 
@@ -26,13 +26,16 @@ function bodyOf(day: Day, report: Report): string {
     `Daily Report for ${dayInWords(day)}.`,
     countsOf(report),
     ...notFinalized,
-    'The full Report is attached as an Excel file, with each Pooja Status in colour, and as a CSV file.',
+    'The full Report is attached as an Excel file, with each Pooja Status in colour.',
+    'Vidyalaya Presence is attached as a second Excel file: who was In hostel and who was Away. ' +
+      'It is worked out from the Leaves recorded so far, so it can change if a Leave is recorded ' +
+      'later. The Monthly Report has the final one.',
     'EVLOS, hostel Pooja attendance',
   ].join('\n\n');
 }
 
 // The Daily Report (FR-11): queued at 23:30 IST for each Report Recipient, whether or
-// not the Day is Finalized, with the Day's Report attached as Excel and CSV. Queued once per
+// not the Day is Finalized, with the Day's Report and Vidyalaya Presence attached as Excel. Queued once per
 // Day and address, so running it again queues nothing. Returns how many were queued.
 export async function queueDailyReport(day: Day, deps: DailyReportDeps): Promise<number> {
   if (deps.reportRecipients.length === 0) return 0;

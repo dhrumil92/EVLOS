@@ -8,6 +8,7 @@ import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
 import { resetPageUrlFrom } from './adapters/http/public-url.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
 import { registerReportRecipientRoutes } from './adapters/http/report-recipient-routes.js';
+import { registerPresenceRoutes } from './adapters/http/presence-routes.js';
 import { registerReportRoutes } from './adapters/http/report-routes.js';
 import { registerReviewRoutes } from './adapters/http/review-routes.js';
 import { registerStudentRoutes } from './adapters/http/student-routes.js';
@@ -20,9 +21,7 @@ import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js
 import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
 import { PostgresReportRecipientRepository } from './adapters/postgres/report-recipient-repository.js';
 import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
-import { reportCsv } from './adapters/report/report-csv.js';
-import { reportFileName } from './adapters/report/report-table.js';
-import { reportXlsx } from './adapters/report/report-xlsx.js';
+import { reportAttachments } from './adapters/report/report-attachments.js';
 import { ScheduleLoop } from './adapters/scheduler/schedule-loop.js';
 import { addStudent } from './use-cases/add-student.js';
 import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-activate.js';
@@ -30,6 +29,7 @@ import { editStudent } from './use-cases/edit-student.js';
 import { getDeviceStatus } from './use-cases/device-status.js';
 import { getLiveView } from './use-cases/get-live-view.js';
 import { getReport } from './use-cases/get-report.js';
+import { getVidyalayaPresence } from './use-cases/get-vidyalaya-presence.js';
 import { finalizeDay, getReview, sendNotifications } from './use-cases/review.js';
 import { cancelLeave, editLeave, recordLeave, returnLeave } from './use-cases/leaves.js';
 import { recordLeaves, returnLeaves } from './use-cases/leaves-for-many.js';
@@ -47,7 +47,6 @@ import {
   listReportRecipients,
   removeReportRecipient,
 } from './use-cases/report-recipients.js';
-import type { Report, ReportRequest } from './use-cases/get-report.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl === undefined) {
@@ -116,6 +115,9 @@ registerLiveRoutes(pageApp, {
 registerReportRoutes(pageApp, {
   getReport: (request) => getReport(request, { students, leaves, punches, finalized, clock }),
 });
+registerPresenceRoutes(pageApp, {
+  getPresence: (request) => getVidyalayaPresence(request, { students, leaves, clock }),
+});
 const reviewDeps = { students, leaves, punches, finalized, clock };
 registerReviewRoutes(pageApp, {
   getReview: (day) => getReview(day, reviewDeps),
@@ -175,11 +177,10 @@ const reportEmailDeps = {
   finalized,
   clock,
   outbox,
-  // The full Report, as the coloured Excel file first, then the plain CSV.
-  attachmentsOf: async (request: ReportRequest, report: Report) => [
-    { filename: reportFileName(request, 'xlsx', null), content: await reportXlsx(report) },
-    { filename: reportFileName(request, 'csv', null), content: Buffer.from(reportCsv(report)) },
-  ],
+  // The Pooja Excel, then Vidyalaya Presence as a second Excel file. There is no CSV.
+  attachmentsOf: reportAttachments((request) =>
+    getVidyalayaPresence(request, { students, leaves, clock }),
+  ),
 };
 
 // Every minute: queue the scheduled emails that fell due, then send the due emails (FR-9).

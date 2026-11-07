@@ -44,6 +44,8 @@ The raw ChatGPT export is not committed: it contains device addresses, serial nu
 | 27 | 6 Nov | Claude | A Students table with a Today column and the Student before the Room. | **Changed** | It is a management page: Room first, Today removed, Email added. |
 | 28 | 6 Nov | Claude | Away in blue and Due Back in orange on the Live view and Students designs. | **Changed** | The glossary colours win: Away is red, Due Back is yellow, on every page. |
 | 29 | 7 Nov | Claude | Leave the per-Student history out of the Student panel, because no server data was thought to exist. | **Changed** | The author asked for a month calendar under the Student's name, in green, red and grey. The Month Report already holds each Student's Pooja Status for every Day, so the page uses it and the server is unchanged. |
+| 30 | 8 Nov | Claude | Show In hostel and Away (the glossary's words) in the new hostel Excel, and keep a CSV in the emails beside the Excel. | **Changed** | The author first preferred Present and Absent, then chose In hostel and Away after the glossary conflict was explained (Absent is only a Finalized Pooja Status). The author also removed the CSV from the Daily Report and Monthly Report emails, keeping it on the Reports page, and dropped the Student ID column. |
+| 31 | 8 Nov | Claude | Group Students by floor, with a heading for each floor, in the new Excel. | **Changed** | The author wants one plain list in ascending room order (101, 102 ... 110, 201), with no groups and no headings. |
 
 ## Accepted after discussion (for context)
 | Date | Tool | Suggestion | Note |
