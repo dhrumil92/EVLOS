@@ -21,6 +21,7 @@ export interface Notification {
   recipient: string;
   subject: string;
   body: string;
+  html?: string;
 }
 
 // queued: waiting to be sent, or being sent now. sent: the email has gone.

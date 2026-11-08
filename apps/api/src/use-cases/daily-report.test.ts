@@ -77,6 +77,17 @@ describe('queueDailyReport', () => {
     expect(queued[0]?.attachments.map((one) => one.filename).join(' ')).not.toMatch(/csv/i);
   });
 
+  it('also queues a formatted version, with the counts and the names of the attached files', async () => {
+    const { deps, queued } = await setUp();
+
+    await queueDailyReport(DAY, deps);
+
+    expect(queued[0]?.html).toContain('>Wednesday 4 November 2026<');
+    expect(queued[0]?.html).toContain('>Present<');
+    expect(queued[0]?.html).toContain('Day Report.xlsx');
+    expect(queued[0]?.html).toContain('Day Vidyalaya Presence.xlsx');
+  });
+
   it('counts Needs Review and says the Day is not Finalized, before Finalize', async () => {
     const { deps, queued } = await setUp();
 

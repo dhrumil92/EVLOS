@@ -1,4 +1,5 @@
 import type { Instant } from '@evlos/core';
+import type { StatusCount } from '../email-templates/report-email.js';
 import type { Attachment } from '../ports/notifier.js';
 import type { EmailKind, OutgoingEmail } from '../ports/outbox-repository.js';
 import type { PoojaStatusName, Report } from './get-report.js';
@@ -12,15 +13,23 @@ const COUNTED: PoojaStatusName[] = [
   'Not Applicable',
 ];
 
-// One line per Pooja Status, such as "Present: 30", counting one for each Student on each
-// Day of the Report.
-export function statusCounts(report: Report): string[] {
+// How many Pooja Statuses of each kind the Report has, counting one for each Student on each
+// Day. A Pooja Status no Student has is left out.
+export function statusCountList(report: Report): StatusCount[] {
   const statuses = report.rows.flatMap((row) => row.statuses);
   return COUNTED.flatMap((name) => {
     const count = statuses.filter((status) => status === name).length;
-    return count === 0 ? [] : [`${name}: ${String(count)}`];
+    return count === 0 ? [] : [{ name, count }];
   });
 }
+
+// One line per Pooja Status, such as "Present: 30".
+export const statusCounts = (report: Report): string[] =>
+  statusCountList(report).map(({ name, count }) => `${name}: ${String(count)}`);
+
+// The names of the files an email carries, in order, for the HTML version to list.
+export const fileNames = (attachments: readonly Attachment[]): string[] =>
+  attachments.map((file) => file.filename);
 
 export interface ReportEmail {
   kind: EmailKind;
@@ -28,6 +37,7 @@ export interface ReportEmail {
   about: string;
   subject: string;
   body: string;
+  html: string;
   attachments: Attachment[];
 }
 

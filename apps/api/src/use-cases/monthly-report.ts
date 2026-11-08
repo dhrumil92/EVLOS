@@ -1,9 +1,11 @@
 import type { Day } from '@evlos/core';
+import { reportEmailHtml } from '../email-templates/report-email.js';
+import type { Attachment } from '../ports/notifier.js';
 import type { DailyReportDeps } from './daily-report.js';
 import { monthInWords } from './day-in-words.js';
 import { getReport } from './get-report.js';
 import type { Report, ReportRequest } from './get-report.js';
-import { statusCounts, toEachAddress } from './report-email.js';
+import { fileNames, statusCountList, statusCounts, toEachAddress } from './report-email.js';
 
 // The same Report Recipients, outbox and attachments as the Daily Report.
 export type MonthlyReportDeps = DailyReportDeps;
@@ -28,19 +30,37 @@ function finalizedLine(report: Report): string {
   );
 }
 
+const NO_STUDENT = 'No Student was Active in the month.';
+const COUNTS_INTRO = 'Pooja Statuses in the month, one for each Student on each Day:';
+
+// The sentences after the counts. Both the plain text and the HTML version say these.
+const sentencesOf = (report: Report): string[] => [
+  finalizedLine(report),
+  'The full Report is attached as an Excel file, with each Pooja Status in colour.',
+  'Vidyalaya Presence for the month is attached as a second Excel file: who was In hostel and ' +
+    'who was Away on each Day. It is worked out from the Leaves recorded so far.',
+];
+
 function bodyOf(month: string, report: Report): string {
   const counts = statusCounts(report);
   return [
     `Monthly Report for ${monthInWords(month)}.`,
-    counts.length === 0
-      ? 'No Student was Active in the month.'
-      : ['Pooja Statuses in the month, one for each Student on each Day:', ...counts].join('\n'),
-    finalizedLine(report),
-    'The full Report is attached as an Excel file, with each Pooja Status in colour.',
-    'Vidyalaya Presence for the month is attached as a second Excel file: who was In hostel and ' +
-      'who was Away on each Day. It is worked out from the Leaves recorded so far.',
+    counts.length === 0 ? NO_STUDENT : [COUNTS_INTRO, ...counts].join('\n'),
+    ...sentencesOf(report),
     'EVLOS, hostel Pooja attendance',
   ].join('\n\n');
+}
+
+function htmlOf(month: string, report: Report, attachments: readonly Attachment[]): string {
+  return reportEmailHtml({
+    title: 'Monthly Report',
+    about: monthInWords(month),
+    intro: COUNTS_INTRO,
+    counts: statusCountList(report),
+    emptyText: NO_STUDENT,
+    paragraphs: sentencesOf(report),
+    files: fileNames(attachments),
+  });
 }
 
 // The Monthly Report (FR-12): queued at 09:00 IST on the 1st for the previous month, for each
@@ -51,12 +71,14 @@ export async function queueMonthlyReport(month: string, deps: MonthlyReportDeps)
   const request: ReportRequest = { view: 'Month', month };
   const report = await getReport(request, deps);
   if (report === null) return 0;
+  const attachments = await deps.attachmentsOf(request, report);
   const email = {
     kind: 'Monthly Report' as const,
     about: month,
     subject: `Monthly Report: ${monthInWords(month)}`,
     body: bodyOf(month, report),
-    attachments: await deps.attachmentsOf(request, report),
+    html: htmlOf(month, report, attachments),
+    attachments,
   };
   return deps.outbox.queue(toEachAddress(deps.reportRecipients, email, deps.clock.now()));
 }

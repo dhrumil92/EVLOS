@@ -9,6 +9,9 @@ export interface Email {
   recipient: string;
   subject: string;
   body: string;
+  // The same email with layout and colour. Sent beside the plain text, which stays for the
+  // programs and phones that show only text. Absent for an email with no layout.
+  html?: string;
   // In the order they are shown; empty when there is none.
   attachments: Attachment[];
 }

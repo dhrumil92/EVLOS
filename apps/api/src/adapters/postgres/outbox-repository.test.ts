@@ -69,6 +69,33 @@ describe('PostgresOutboxRepository', () => {
     expect((await rows())[0]).toMatchObject({ status: 'sending', attempts: 1 });
   });
 
+  it('keeps the HTML of a queued email and hands it back when the email is taken', async () => {
+    await repository.queue([
+      {
+        kind: 'Notification',
+        recipient: '9001@example.com',
+        subject: 'Pooja missed',
+        body: 'You did not punch at Pooja.',
+        html: '<p>You did not punch at Pooja.</p>',
+        attachments: [],
+        dedupeKey: 'Notification|2026-11-04|9001',
+        sendAfter: QUEUED_AT,
+      },
+    ]);
+
+    const taken = await repository.takeDue(NOW, 10);
+
+    expect(taken[0]?.html).toBe('<p>You did not punch at Pooja.</p>');
+  });
+
+  it('hands back no HTML for an email that was queued without any', async () => {
+    await queue('9001');
+
+    const taken = await repository.takeDue(NOW, 10);
+
+    expect(taken[0]).not.toHaveProperty('html');
+  });
+
   it('never takes the same email twice', async () => {
     await queue('9001');
     await repository.takeDue(NOW, 10);

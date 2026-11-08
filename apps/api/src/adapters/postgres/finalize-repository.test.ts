@@ -60,6 +60,21 @@ describe('PostgresFinalizeRepository', () => {
     await pool.end();
   });
 
+  it('keeps the HTML of a Notification in the outbox', async () => {
+    await repository.finalize(DAY, RESULTS, AT, RECTOR);
+
+    await repository.sendNotifications(
+      DAY,
+      [],
+      [{ ...notification('9002'), html: '<p>You missed Pooja.</p>' }],
+      AT,
+      RECTOR,
+    );
+
+    const saved = await pool.query<{ html: string | null }>('select html from outbox_emails');
+    expect(saved.rows).toEqual([{ html: '<p>You missed Pooja.</p>' }]);
+  });
+
   it('locks the Day with who Finalized it and when', async () => {
     const done = await repository.finalize(DAY, RESULTS, AT, RECTOR);
 

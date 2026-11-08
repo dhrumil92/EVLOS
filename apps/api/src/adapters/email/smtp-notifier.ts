@@ -1,5 +1,6 @@
 import { createTransport } from 'nodemailer';
-import type { Notifier } from '../../ports/notifier.js';
+import { INLINE_IMAGES } from '../../email-templates/email-images.js';
+import type { Email, Notifier } from '../../ports/notifier.js';
 
 export interface SmtpSettings {
   host: string;
@@ -11,12 +12,21 @@ export interface SmtpSettings {
   from: string;
 }
 
+// A file with the email. With a cid it is a picture shown inside the HTML, not a download.
+export interface MailFile {
+  filename: string;
+  content: Buffer;
+  cid?: string;
+  contentType?: string;
+}
+
 export interface MailMessage {
   from: string;
   to: string;
   subject: string;
   text: string;
-  attachments?: { filename: string; content: Buffer }[];
+  html?: string;
+  attachments?: MailFile[];
 }
 
 // The one thing EVLOS needs from a mail library. Rejects when the provider refuses the email.
@@ -61,13 +71,25 @@ export function smtpSettingsFrom(env: Record<string, string | undefined>): SmtpS
   };
 }
 
+// The files of an email: the ones that came with it, then, for an email with HTML, the logo
+// and the wordmark that the HTML shows.
+function filesOf(email: Email): MailFile[] {
+  const pictures = email.html === undefined ? [] : INLINE_IMAGES;
+  return [...email.attachments, ...pictures];
+}
+
 export function mailNotifier(transport: MailTransport, from: string): Notifier {
   return {
     async send(email) {
-      const message = { from, to: email.recipient, subject: email.subject, text: email.body };
-      await transport.sendMail(
-        email.attachments.length === 0 ? message : { ...message, attachments: email.attachments },
-      );
+      const message: MailMessage = {
+        from,
+        to: email.recipient,
+        subject: email.subject,
+        text: email.body,
+        ...(email.html === undefined ? {} : { html: email.html }),
+      };
+      const files = filesOf(email);
+      await transport.sendMail(files.length === 0 ? message : { ...message, attachments: files });
     },
   };
 }

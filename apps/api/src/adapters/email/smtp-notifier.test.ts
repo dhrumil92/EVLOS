@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { LOGO_CID, WORDMARK_CID } from '../../email-templates/email-images.js';
 import { mailNotifier, smtpSettingsFrom } from './smtp-notifier.js';
 import type { MailMessage } from './smtp-notifier.js';
 
@@ -106,6 +107,49 @@ describe('mailNotifier', () => {
     await notifier.send({ ...EMAIL, attachments });
 
     expect(handed[0]?.attachments).toEqual(attachments);
+  });
+
+  it('sends the HTML beside the plain text, with the logo and wordmark inside the email', async () => {
+    const handed: MailMessage[] = [];
+    const notifier = mailNotifier(
+      {
+        sendMail: (message) => {
+          handed.push(message);
+          return Promise.resolve();
+        },
+      },
+      FROM,
+    );
+
+    await notifier.send({ ...EMAIL, html: '<p>Hello</p>', attachments: [] });
+
+    expect(handed[0]).toMatchObject({ text: 'Body', html: '<p>Hello</p>' });
+    expect(handed[0]?.attachments).toEqual([
+      expect.objectContaining({ cid: LOGO_CID, contentType: 'image/png' }) as unknown,
+      expect.objectContaining({ cid: WORDMARK_CID, contentType: 'image/png' }) as unknown,
+    ]);
+  });
+
+  it('puts the inside images after the files, so the files keep their order', async () => {
+    const handed: MailMessage[] = [];
+    const notifier = mailNotifier(
+      {
+        sendMail: (message) => {
+          handed.push(message);
+          return Promise.resolve();
+        },
+      },
+      FROM,
+    );
+    const report = { filename: 'Report.xlsx', content: Buffer.from([0x50, 0x4b]) };
+
+    await notifier.send({ ...EMAIL, html: '<p>Hello</p>', attachments: [report] });
+
+    expect(handed[0]?.attachments?.map((file) => file.filename)).toEqual([
+      'Report.xlsx',
+      'logo.png',
+      'evlos.png',
+    ]);
   });
 
   it('fails when the email provider refuses the email', async () => {

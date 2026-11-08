@@ -51,6 +51,14 @@ describe('requestPasswordReset', () => {
     expect(sent[0]?.body).toContain('It works once, within 30 minutes.');
   });
 
+  it('sends the same link in a formatted version, as a button', async () => {
+    const { deps, sent } = await setUp();
+
+    await requestPasswordReset(EMAIL, deps);
+
+    expect(sent[0]?.html).toContain(`href="${RESET_PAGE}?token=token-3"`);
+  });
+
   it('keeps only a hash of the link, which works for 30 minutes', async () => {
     const { deps, resets } = await setUp();
 

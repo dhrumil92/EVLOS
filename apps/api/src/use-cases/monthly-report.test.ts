@@ -95,6 +95,17 @@ describe('queueMonthlyReport', () => {
     expect(queued[0]?.attachments.map((one) => one.filename).join(' ')).not.toMatch(/csv/i);
   });
 
+  it('also queues a formatted version, for the month, with the counts', async () => {
+    const { deps, queued } = await setUp();
+
+    await queueMonthlyReport(MONTH, deps);
+
+    expect(queued[0]?.html).toContain('>Monthly Report<');
+    expect(queued[0]?.html).toContain('>November 2026<');
+    expect(queued[0]?.html).toContain('>Present<');
+    expect(queued[0]?.html).toContain('>Absent<');
+  });
+
   it('counts every Pooja Status of the month and names the Days not Finalized', async () => {
     const { deps, queued } = await setUp();
 

@@ -1,4 +1,5 @@
 import type { Day } from '@evlos/core';
+import { reviewReminderHtml } from '../email-templates/review-reminder.js';
 import type { OutboxRepository } from '../ports/outbox-repository.js';
 import { dayInWords } from './day-in-words.js';
 import { toEachAddress } from './report-email.js';
@@ -44,6 +45,7 @@ export async function queueReviewReminder(day: Day, deps: ReviewReminderDeps): P
     about: day,
     subject: `Review Reminder: ${studentCount(review.needsReview.length)} on Needs Review for ${dayInWords(day)}`,
     body: bodyOf(day, review.needsReview),
+    html: reviewReminderHtml({ day, students: [...review.needsReview].sort(byRoomThenName) }),
     attachments: [],
   };
   return deps.outbox.queue(toEachAddress(deps.reportRecipients, email, deps.clock.now()));
