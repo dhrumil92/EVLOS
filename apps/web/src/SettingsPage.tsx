@@ -1,206 +1,111 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { SyntheticEvent } from 'react';
-import { Confirm } from './ReviewPage.js';
+import { useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import type { DeviceStatusSource } from './device-status-source.js';
+import { DeviceTimesCard } from './DeviceTimesCard.js';
+import { PasswordCard } from './PasswordCard.js';
+import { RecipientsCard } from './RecipientsCard.js';
 import type { SettingsSource } from './settings-source.js';
 
-const NO_ONE =
-  'No one will receive the Review Reminder, Daily Report or Monthly Report. Add an address below.';
-const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
+type Section = 'recipients' | 'password' | 'device';
 
-function RecipientList(props: { emails: string[]; onRemove: (email: string) => void }) {
-  const [asking, setAsking] = useState<string | null>(null);
-  return (
-    <ul aria-label="Report Recipients" className="grid gap-2">
-      {props.emails.map((email) => (
-        <li key={email} className="grid gap-2 border-t border-line pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="font-semibold">{email}</span>
-            <button
-              type="button"
-              className="btn-quiet"
-              aria-label={`Remove ${email}`}
-              onClick={() => {
-                setAsking(email);
-              }}
-            >
-              Remove
-            </button>
-          </div>
-          {asking === email && (
-            <Confirm
-              question={`Remove ${email}? It will no longer receive the Report emails.`}
-              yes="Yes, remove"
-              onYes={() => {
-                setAsking(null);
-                props.onRemove(email);
-              }}
-              onNo={() => {
-                setAsking(null);
-              }}
-            />
-          )}
-        </li>
-      ))}
-    </ul>
-  );
-}
+const ICON = {
+  width: 20,
+  height: 20,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+} as const;
 
-function AddForm(props: { onAdd: (email: string) => Promise<boolean> }) {
-  const [email, setEmail] = useState('');
-  const submit = (event: SyntheticEvent) => {
-    event.preventDefault();
-    void props.onAdd(email).then((added) => {
-      if (added) setEmail('');
-    });
+const MENU: { key: Section; label: string; icon: ReactNode }[] = [
+  {
+    key: 'recipients',
+    label: 'Report Recipients',
+    icon: (
+      <svg {...ICON}>
+        <path d="M3 6h18v12H3z" />
+        <path d="M3 7l9 6 9-6" />
+      </svg>
+    ),
+  },
+  {
+    key: 'password',
+    label: 'Your password',
+    icon: (
+      <svg {...ICON}>
+        <rect x="5" y="11" width="14" height="9" rx="2" />
+        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      </svg>
+    ),
+  },
+  {
+    key: 'device',
+    label: 'Device and times',
+    icon: (
+      <svg {...ICON}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    ),
+  },
+];
+
+// The Rector's settings: who receives the Report emails, the password, and the fixed rules.
+// The title and the menu are one column at the side, and stay in view beside the cards on a wide
+// screen; the cards start at the top of the page. The menu scrolls to a card and does not change
+// the web address.
+export function SettingsPage(props: { source: SettingsSource; device: DeviceStatusSource }) {
+  const [current, setCurrent] = useState<Section>('recipients');
+  const places = {
+    recipients: useRef<HTMLDivElement>(null),
+    password: useRef<HTMLDivElement>(null),
+    device: useRef<HTMLDivElement>(null),
   };
-  // noValidate: the server checks the address, so every refusal reads the same way.
-  return (
-    <form className="flex flex-wrap items-end gap-3" noValidate onSubmit={submit}>
-      <label className="grid gap-1 text-mist">
-        Email address
-        <input
-          className="field"
-          type="email"
-          value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-          }}
-        />
-      </label>
-      <button className="btn" type="submit">
-        Add
-      </button>
-    </form>
-  );
-}
-
-// The Report Recipients receive the Review Reminder, Daily Report and Monthly Report.
-function ReportRecipientsCard({ source }: { source: SettingsSource }) {
-  const [emails, setEmails] = useState<string[] | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  const load = useCallback(() => {
-    source.reportRecipients().then(setEmails, () => {
-      setFailed(true);
-    });
-  }, [source]);
-  useEffect(load, [load]);
-
-  // Shows the server's reason, or reloads the list once the change is saved.
-  const act = async (change: Promise<string>) => {
-    const answer = await change.catch(() => SERVER_FAILED);
-    setMessage(answer === 'done' ? null : answer);
-    if (answer === 'done') load();
-    return answer === 'done';
+  const goTo = (section: Section) => {
+    setCurrent(section);
+    places[section].current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
-    <section className="report-card grid gap-4" aria-label="Report Recipients">
-      <div>
-        <h2 className="font-display text-2xl font-semibold">Report Recipients</h2>
-        <p className="text-mist">
-          These addresses receive the Review Reminder (23:00), the Daily Report (23:30) and the
-          Monthly Report (09:00 on the 1st).
-        </p>
+    <div className="flex flex-wrap items-start gap-6">
+      <div className="grid max-w-full flex-[1_1_14rem] gap-3 lg:sticky lg:top-[4.5rem]">
+        <h1 className="font-display text-[2.75rem] leading-tight font-extrabold tracking-tight">
+          Settings
+        </h1>
+        <nav aria-label="Settings sections" className="grid gap-1">
+          {MENU.map((item) => {
+            const isCurrent = item.key === current;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                aria-current={isCurrent ? 'true' : undefined}
+                onClick={() => {
+                  goTo(item.key);
+                }}
+                className={`flex min-h-12 items-center gap-3 rounded-xl border-[1.5px] px-3.5 text-left ${isCurrent ? 'border-primary bg-surface font-bold' : 'border-transparent hover:bg-tint'}`}
+              >
+                <span className={isCurrent ? 'text-primary' : 'text-muted'}>{item.icon}</span>
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
       </div>
-      {failed && <p className="notice">The Report Recipients could not load. Reload the page.</p>}
-      {emails?.length === 0 && (
-        <p className="notice" role="status">
-          {NO_ONE}
-        </p>
-      )}
-      {emails && (
-        <RecipientList
-          emails={emails}
-          onRemove={(email) => void act(source.removeReportRecipient(email))}
-        />
-      )}
-      <AddForm onAdd={(email) => act(source.addReportRecipient(email))} />
-      {message && (
-        <p className="field-error" role="alert">
-          {message}
-        </p>
-      )}
-    </section>
-  );
-}
-
-const PASSWORD_BOXES = ['Current password', 'New password', 'New password again'] as const;
-const AUTOCOMPLETE = ['current-password', 'new-password', 'new-password'];
-const EMPTY: [string, string, string] = ['', '', ''];
-
-// The logged-in Rector changes the password. The new one is typed twice, and the two are
-// compared here, so a typing slip never becomes the password.
-function ChangePasswordCard({ source }: { source: SettingsSource }) {
-  const [typed, setTyped] = useState(EMPTY);
-  const [answer, setAnswer] = useState<{ done: boolean; text: string } | null>(null);
-
-  const submit = async (event: SyntheticEvent) => {
-    event.preventDefault();
-    const [current, first, again] = typed;
-    if (first !== again) {
-      setAnswer({ done: false, text: 'The two new passwords are not the same.' });
-      return;
-    }
-    const reply = await source.changePassword(current, first).catch(() => SERVER_FAILED);
-    if (reply === 'done') setTyped(EMPTY);
-    setAnswer(
-      reply === 'done'
-        ? { done: true, text: 'Password changed. Every other login has been ended.' }
-        : { done: false, text: reply },
-    );
-  };
-
-  return (
-    <section className="report-card grid gap-4" aria-label="Change password">
-      <div>
-        <h2 className="font-display text-2xl font-semibold">Change password</h2>
-        <p className="text-mist">
-          The new password needs at least 12 characters. Changing it ends every other login, such as
-          on a phone; this one stays.
-        </p>
+      <div className="grid min-w-0 flex-[999_1_40rem] gap-6">
+        <div ref={places.recipients} className="scroll-mt-[4.5rem]">
+          <RecipientsCard source={props.source} />
+        </div>
+        <div ref={places.password} className="scroll-mt-[4.5rem]">
+          <PasswordCard source={props.source} />
+        </div>
+        <div ref={places.device} className="scroll-mt-[4.5rem]">
+          <DeviceTimesCard device={props.device} />
+        </div>
       </div>
-      <form className="grid max-w-md gap-3" noValidate onSubmit={(event) => void submit(event)}>
-        {PASSWORD_BOXES.map((label, index) => (
-          <label key={label} className="grid gap-1 text-mist">
-            {label}
-            <input
-              className="field"
-              type="password"
-              autoComplete={AUTOCOMPLETE[index]}
-              value={typed[index]}
-              onChange={(event) => {
-                const next: [string, string, string] = [...typed];
-                next[index] = event.target.value;
-                setTyped(next);
-              }}
-            />
-          </label>
-        ))}
-        <button className="btn justify-self-start" type="submit">
-          Change password
-        </button>
-      </form>
-      {answer && (
-        <p
-          className={answer.done ? 'notice' : 'field-error'}
-          role={answer.done ? 'status' : 'alert'}
-        >
-          {answer.text}
-        </p>
-      )}
-    </section>
-  );
-}
-
-// The Rector's settings: who receives the Report emails, and the password.
-export function SettingsPage({ source }: { source: SettingsSource }) {
-  return (
-    <div className="grid gap-5">
-      <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">Settings</h1>
-      <ReportRecipientsCard source={source} />
-      <ChangePasswordCard source={source} />
     </div>
   );
 }

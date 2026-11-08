@@ -1,320 +1,176 @@
 import { useCallback, useEffect, useState } from 'react';
-import { DeviceLastSeen, useDeviceStatus } from './DeviceLastSeen.js';
+import { dayAfter, dayBefore } from './calendar-day.js';
+import { useDeviceStatus } from './DeviceLastSeen.js';
 import { httpDeviceStatusSource } from './device-status-source.js';
 import type { DeviceStatus, DeviceStatusSource } from './device-status-source.js';
-import type { NotificationState, Review, ReviewSource, ReviewStudent } from './review-source.js';
-
-const IST = { timeZone: 'Asia/Kolkata' } as const;
-const dayWords = new Intl.DateTimeFormat('en-GB', {
-  ...IST,
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-});
-const timeWords = new Intl.DateTimeFormat('en-GB', {
-  ...IST,
-  hour: '2-digit',
-  minute: '2-digit',
-  hourCycle: 'h23',
-});
-const inWords = (day: string) =>
-  dayWords.format(new Date(`${day}T12:00:00+05:30`)).replace(',', '');
+import { ExcludeAndSend } from './ExcludeAndSend.js';
+import { dayInWords as inWords, timeOfDay } from './ist-words.js';
+import { NeedsReview, WINDOW_OPEN } from './NeedsReview.js';
+import type { PoojaStatusName, ReportSource } from './report-source.js';
+import type { Review, ReviewSource } from './review-source.js';
+import { ReviewSteps } from './ReviewSteps.js';
 
 const plural = (count: number, word: string) => `${String(count)} ${word}${count === 1 ? '' : 's'}`;
 
 const REFUSALS: Record<string, string> = {
-  'pooja-window-open': 'Finalize is available after 18:00, when the Pooja Window closes.',
+  'pooja-window-open': WINDOW_OPEN,
   'already-finalized': 'This Day is already Finalized.',
   'not-finalized': 'Finalize the Day before sending Notifications.',
 };
 const refusalText = (reason: string) => REFUSALS[reason] ?? 'Nothing changed. Reload the page.';
-const NOTIFICATION_TEXT: Record<NotificationState, string> = {
-  queued: 'Notification queued',
-  sent: 'Notification sent',
-  failed: 'Notification not sent',
-};
-const QUIET_DEVICE =
-  'The Device has not been in touch for 10 minutes or more, so Punches may still be on it. ';
 // The server failed part way, so the page cannot know what was saved.
 const SERVER_FAILED = 'The server could not finish this. Reload the page to see what was saved.';
 
-// Asks before a change that cannot be undone from the page. Also used on the Settings page.
-export function Confirm(props: {
-  question: string;
-  yes: string;
-  onYes: () => void;
-  onNo: () => void;
-}) {
+function Arrow(props: { label: string; disabled: boolean; path: string; onClick: () => void }) {
   return (
-    <div className="danger-zone grid gap-3" role="group" aria-label="Confirm">
-      <p className="font-display text-xl font-semibold">{props.question}</p>
-      <div className="flex flex-wrap gap-3">
-        <button className="btn" type="button" onClick={props.onYes}>
-          {props.yes}
-        </button>
-        <button className="btn-quiet" type="button" onClick={props.onNo}>
-          Cancel
-        </button>
+    <button
+      className="gear border-[1.5px] border-line-strong bg-surface disabled:cursor-not-allowed disabled:opacity-40"
+      type="button"
+      aria-label={props.label}
+      disabled={props.disabled}
+      onClick={props.onClick}
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <path d={props.path} />
+      </svg>
+    </button>
+  );
+}
+
+// The Day, with arrows for the day before and after; no Day after today (FR-8).
+function DaySwitcher(props: {
+  day: string;
+  today: string;
+  finalizedAt: number | null;
+  onDay: (day: string) => void;
+}) {
+  const { day } = props;
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+      <p
+        className={`text-sm font-bold ${props.finalizedAt === null ? 'text-review-ink' : 'text-ok'}`}
+      >
+        {props.finalizedAt === null
+          ? 'Not Finalized'
+          : `Finalized at ${timeOfDay(props.finalizedAt)}`}
+      </p>
+      <div className="flex items-center gap-2">
+        <Arrow
+          label="Previous Day"
+          disabled={false}
+          path="M15 6l-6 6 6 6"
+          onClick={() => {
+            props.onDay(dayBefore(day));
+          }}
+        />
+        <input
+          aria-label="Day"
+          className="field"
+          type="date"
+          max={props.today}
+          value={day}
+          onChange={(event) => {
+            if (event.target.value) props.onDay(event.target.value);
+          }}
+        />
+        <Arrow
+          label="Next Day"
+          disabled={day >= props.today}
+          path="M9 6l6 6-6 6"
+          onClick={() => {
+            props.onDay(dayAfter(day));
+          }}
+        />
       </div>
     </div>
   );
 }
 
-function StudentTable(props: { label: string; students: ReviewStudent[] }) {
-  return (
-    <div className="student-scroll">
-      <table className="student-table" aria-label={props.label}>
-        <thead>
-          <tr>
-            <th>Room</th>
-            <th>Student</th>
-            <th>Student ID</th>
-          </tr>
-        </thead>
-        <tbody>
-          {props.students.map((student) => (
-            <tr key={student.studentId}>
-              <td>{student.room}</td>
-              <td className="font-semibold">{student.name}</td>
-              <td>{student.studentId}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// Before Finalize: the Device's Last Seen, the Needs Review list and the Finalize button
-// (FR-8). A quiet Device is named in the question, as Punches may still be on it.
-function BeforeFinalize(props: {
-  review: Review;
-  device: DeviceStatus | null;
-  onFinalize: () => Promise<void>;
-}) {
-  const [asking, setAsking] = useState(false);
-  const { review } = props;
-  if (!review.canFinalize) {
-    return <p className="text-mist">{REFUSALS['pooja-window-open']}</p>;
-  }
-  const count = review.needsReview.length;
-  return (
-    <div className="grid gap-4">
-      <p className="notice">
-        Before you Finalize, check the Leave Notes and both books, and record any missing Leaves and
-        Returns. A Student with a Leave is Not Applicable, never Absent.
-      </p>
-      <DeviceLastSeen status={props.device} />
-      {count === 0 ? (
-        <p className="text-mist">
-          No Student is on Needs Review. Every Student punched or was Away.
-        </p>
-      ) : (
-        <StudentTable label="Needs Review" students={review.needsReview} />
-      )}
-      {asking ? (
-        <Confirm
-          question={`${props.device?.isQuiet ? QUIET_DEVICE : ''}${plural(count, 'Student')} will be Absent. The Day will be locked.`}
-          yes="Yes, Finalize"
-          onYes={() => void props.onFinalize()}
-          onNo={() => {
-            setAsking(false);
-          }}
-        />
-      ) : (
-        <div>
-          <button
-            className="btn"
-            type="button"
-            onClick={() => {
-              setAsking(true);
-            }}
-          >
-            Finalize the Day
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// The Student's name, with a Punch After Finalize under it when one arrived (FR-2).
-function AbsentName({ student }: { student: Review['absent'][number] }) {
-  return (
-    <span className="grid">
-      <span className="font-semibold">{student.name}</span>
-      {student.punchAfterFinalize !== null && (
-        <span className="text-sm text-note-ink">
-          Punched at {timeWords.format(student.punchAfterFinalize)}, arrived after Finalize
-        </span>
-      )}
-    </span>
-  );
-}
-
-function AbsentRow(props: {
-  student: Review['absent'][number];
-  isCrossed: boolean;
-  onToggle: () => void;
-}) {
-  const { student, isCrossed } = props;
-  const state = student.notification
-    ? NOTIFICATION_TEXT[student.notification]
-    : student.isExcluded
-      ? 'Excluded'
-      : null;
-  return (
-    <li className={`email-row ${isCrossed || student.isExcluded ? 'email-row-excluded' : ''}`}>
-      <span className="text-mist">{student.room}</span>
-      <AbsentName student={student} />
-      {state ? (
-        <span className="text-mist">{state}</span>
-      ) : (
-        <button
-          className={isCrossed ? 'link-button' : 'cross'}
-          type="button"
-          aria-label={isCrossed ? `Include ${student.name} again` : `Exclude ${student.name}`}
-          title={isCrossed ? 'Include again' : 'Exclude from the email'}
-          onClick={props.onToggle}
-        >
-          {isCrossed ? 'Undo' : '×'}
-        </button>
-      )}
-    </li>
-  );
-}
-
-// After Finalize: the email list with a cross for each Absent Student (FR-9).
-function AfterFinalize(props: { review: Review; onSend: (excluded: string[]) => Promise<void> }) {
-  const { review } = props;
-  const [crossed, setCrossed] = useState<string[]>([]);
-  const [asking, setAsking] = useState(false);
-  const toSend = review.absent.filter(
-    (one) => one.notification === null && !one.isExcluded && !crossed.includes(one.studentId),
-  ).length;
-  const toggle = (studentId: string) => {
-    setCrossed((old) =>
-      old.includes(studentId) ? old.filter((id) => id !== studentId) : [...old, studentId],
-    );
-  };
-  const button = `Send Notifications to ${plural(toSend, 'Student')}`;
-  // A Punch After Finalize may mean the Student was at Pooja (FR-2); only unsent ones matter.
-  const punchedLater = review.absent.filter(
-    (one) => one.punchAfterFinalize !== null && one.notification === null,
-  ).length;
-  return (
-    <div className="grid gap-4">
-      {punchedLater > 0 && (
-        <p className="notice" role="status">
-          {plural(punchedLater, 'Student')} punched in the Pooja Window, but the Punch arrived after
-          Finalize. Check before you Send Notifications, and Exclude a Student who was at Pooja.
-        </p>
-      )}
-      {review.absent.length === 0 ? (
-        <p className="text-mist">No Student is Absent on this Day.</p>
-      ) : (
-        <>
-          <p className="text-mist">
-            Absent Students get one email each. Press the cross to Exclude a Student who explained
-            why he missed Pooja. He stays Absent in Reports.
-          </p>
-          <ul className="grid" aria-label="Email list">
-            {review.absent.map((student) => (
-              <AbsentRow
-                key={student.studentId}
-                student={student}
-                isCrossed={crossed.includes(student.studentId)}
-                onToggle={() => {
-                  toggle(student.studentId);
-                }}
-              />
-            ))}
-          </ul>
-        </>
-      )}
-      {asking ? (
-        <Confirm
-          question={`${button}?`}
-          yes="Yes, send"
-          onYes={() => {
-            setAsking(false);
-            void props.onSend(crossed).then(() => {
-              setCrossed([]);
-            });
-          }}
-          onNo={() => {
-            setAsking(false);
-          }}
-        />
-      ) : (
-        <div>
-          <button
-            className="btn"
-            type="button"
-            disabled={toSend === 0}
-            onClick={() => {
-              setAsking(true);
-            }}
-          >
-            {button}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DayChooser(props: {
-  review: Review | null;
-  day: string;
-  today: string;
-  onDay: (day: string) => void;
-}) {
+function EarlierDays(props: { review: Review | null; day: string; onDay: (day: string) => void }) {
   const others = (props.review?.notFinalizedDays ?? []).filter((day) => day !== props.day);
+  if (others.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-      <label className="grid gap-1 text-mist">
-        Day
-        <input
-          className="field"
-          type="date"
-          max={props.today}
-          value={props.day}
-          onChange={(event) => {
-            if (event.target.value) props.onDay(event.target.value);
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-muted">Earlier Days not Finalized:</span>
+      {others.map((day) => (
+        <button
+          key={day}
+          className="btn-quiet"
+          type="button"
+          onClick={() => {
+            props.onDay(day);
           }}
-        />
-      </label>
-      {others.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-mist">Not Finalized yet:</span>
-          {others.map((day) => (
-            <button
-              key={day}
-              className="btn-quiet"
-              type="button"
-              onClick={() => {
-                props.onDay(day);
-              }}
-            >
-              {inWords(day)}
-            </button>
-          ))}
-        </div>
-      )}
+        >
+          {inWords(day)}
+        </button>
+      ))}
     </div>
   );
 }
 
-// The Review and Finalize page: Needs Review, Finalize, Exclude, Send Notifications.
-export function ReviewPage(props: {
-  source: ReviewSource;
-  today: string;
-  device?: DeviceStatusSource;
-}) {
-  const { source } = props;
-  const device = useDeviceStatus(props.device ?? httpDeviceStatusSource);
-  const [day, setDay] = useState(props.today);
+// The Pooja Statuses of the Day, from its Day Report. Reloaded whenever the Review changes,
+// so the counts follow a Finalize.
+function useDayStatuses(reports: ReportSource | undefined, day: string, review: Review | null) {
+  const [statuses, setStatuses] = useState<PoojaStatusName[] | null>(null);
+  useEffect(() => {
+    if (reports === undefined || review === null) return;
+    let isCurrent = true;
+    reports
+      .load({ view: 'Day', day })
+      .then((report) => {
+        if (!isCurrent) return;
+        setStatuses(report.rows.flatMap((row) => (row.statuses[0] ? [row.statuses[0]] : [])));
+      })
+      .catch(() => {
+        if (isCurrent) setStatuses(null);
+      });
+    return () => {
+      isCurrent = false;
+    };
+  }, [reports, day, review]);
+  return statuses;
+}
+
+function DayCounts(props: { review: Review; statuses: PoojaStatusName[] }) {
+  const { review, statuses } = props;
+  const third: PoojaStatusName = review.finalization
+    ? 'Absent'
+    : review.canFinalize
+      ? 'Needs Review'
+      : 'Pending';
+  const count = (status: PoojaStatusName) => statuses.filter((one) => one === status).length;
+  const cells = [
+    { label: 'Present', value: count('Present'), tone: 'text-present-ink' },
+    { label: 'Not Applicable (on Leave)', value: count('Not Applicable'), tone: 'text-muted' },
+    { label: third, value: count(third), tone: 'text-review-ink' },
+    { label: 'Active Students', value: statuses.length, tone: 'text-ink' },
+  ];
+  return (
+    <section
+      aria-label="Pooja Status for this Day"
+      className="grid grid-cols-2 overflow-hidden rounded-[20px] border border-line bg-surface md:grid-cols-4"
+    >
+      {cells.map((cell) => (
+        <div key={cell.label} className="grid border-r border-line px-5 py-4">
+          <span className="text-sm text-muted">{cell.label}</span>
+          <span className={`font-display text-4xl font-extrabold ${cell.tone}`}>{cell.value}</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// Loads the Day's Review and runs Finalize and Send Notifications for it.
+function useReview(source: ReviewSource, day: string) {
   const [review, setReview] = useState<Review | null>(null);
   const [note, setNote] = useState('');
 
@@ -357,39 +213,93 @@ export function ReviewPage(props: {
         : refusalText(answer.reason);
     });
 
-  const finalization = review?.day === day ? review.finalization : null;
+  // A Review loaded for another Day is never shown for this one.
+  return { review, current: review?.day === day ? review : null, note, finalize, send };
+}
+
+// The Day's steps, counts and either the Needs Review list or the email list.
+function DayBody(props: {
+  review: Review;
+  day: string;
+  statuses: PoojaStatusName[] | null;
+  device: DeviceStatus | null;
+  onFinalize: () => Promise<void>;
+  onSend: (excluded: string[]) => Promise<void>;
+  onOpenLeaves?: (() => void) | undefined;
+}) {
+  const { review, day } = props;
+  const { finalization } = review;
+  return (
+    <>
+      {props.statuses && <DayCounts review={review} statuses={props.statuses} />}
+      {finalization ? (
+        <ExcludeAndSend
+          key={day}
+          review={review}
+          finalizedLine={`Finalized at ${timeOfDay(finalization.finalizedAt)} by ${finalization.finalizedBy}.`}
+          onSend={props.onSend}
+        />
+      ) : (
+        <NeedsReview
+          key={day}
+          review={review}
+          dayWords={inWords(day)}
+          device={props.device}
+          onFinalize={props.onFinalize}
+          onOpenLeaves={props.onOpenLeaves}
+        />
+      )}
+    </>
+  );
+}
+
+// The Review and Finalize page: Needs Review, Finalize, Exclude, Send Notifications.
+export function ReviewPage(props: {
+  source: ReviewSource;
+  today: string;
+  device?: DeviceStatusSource;
+  reports?: ReportSource;
+  onOpenLeaves?: (() => void) | undefined;
+}) {
+  const device = useDeviceStatus(props.device ?? httpDeviceStatusSource);
+  const [day, setDay] = useState(props.today);
+  const { review, current, note, finalize, send } = useReview(props.source, day);
+  const statuses = useDayStatuses(props.reports, day, review);
   return (
     <div className="grid gap-5">
       <div>
-        <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
-          Review and Finalize
-        </h1>
-        <p className="text-mist">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <h1 className="font-display text-[2.75rem] leading-tight font-extrabold tracking-tight">
+            Review and Finalize
+          </h1>
+          <DaySwitcher
+            day={day}
+            today={props.today}
+            finalizedAt={current?.finalization?.finalizedAt ?? null}
+            onDay={setDay}
+          />
+        </div>
+        <p className="text-muted">
           Review the Needs Review list, Finalize the Day, then Send Notifications.
         </p>
       </div>
-      <DayChooser review={review} day={day} today={props.today} onDay={setDay} />
+      <EarlierDays review={review} day={day} onDay={setDay} />
+      {current && <ReviewSteps review={current} />}
       {note && (
         <p className="notice" role="status">
           {note}
         </p>
       )}
-      {review && (
-        <section className="report-card grid gap-4" aria-label={inWords(day)}>
-          <div>
-            <h2 className="font-display text-2xl font-semibold">{inWords(day)}</h2>
-            <p className="text-mist">
-              {finalization
-                ? `Finalized at ${timeWords.format(finalization.finalizedAt)} by ${finalization.finalizedBy}.`
-                : 'Not Finalized.'}
-            </p>
-          </div>
-          {finalization ? (
-            <AfterFinalize key={day} review={review} onSend={send} />
-          ) : (
-            <BeforeFinalize key={day} review={review} device={device} onFinalize={finalize} />
-          )}
-        </section>
+      {current && (
+        <DayBody
+          review={current}
+          day={day}
+          statuses={statuses}
+          device={device}
+          onFinalize={finalize}
+          onSend={send}
+          onOpenLeaves={props.onOpenLeaves}
+        />
       )}
     </div>
   );

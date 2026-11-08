@@ -40,13 +40,11 @@ async function setUp(reportRecipients: string[] = REPORT_RECIPIENTS) {
     clock: { now: () => NOW },
     outbox,
     reportRecipients,
-    attachmentsOf: (request: { view: string }, report: { rows: unknown[] }) =>
+    // The Pooja Excel first, then Vidyalaya Presence as a second Excel file. No CSV.
+    attachmentsOf: (request: { view: string }) =>
       Promise.resolve([
-        { filename: `${request.view} Report.xlsx`, content: Buffer.from('xlsx') },
-        {
-          filename: `${request.view} Report.csv`,
-          content: Buffer.from(`${String(report.rows.length)} rows`),
-        },
+        { filename: `${request.view} Report.xlsx`, content: Buffer.from('pooja') },
+        { filename: `${request.view} Vidyalaya Presence.xlsx`, content: Buffer.from('presence') },
       ]),
   };
   for (const [studentId, name, room] of [
@@ -62,7 +60,7 @@ async function setUp(reportRecipients: string[] = REPORT_RECIPIENTS) {
 }
 
 describe('queueDailyReport', () => {
-  it('queues the Daily Report for each Report Recipient, with the Report attached as Excel and CSV', async () => {
+  it('queues the Daily Report for each Report Recipient, with the Pooja Excel and Vidyalaya Presence attached', async () => {
     const { deps, queued } = await setUp();
 
     const count = await queueDailyReport(DAY, deps);
@@ -73,9 +71,10 @@ describe('queueDailyReport', () => {
       ['Daily Report', 'office@example.com', `Daily Report|${DAY}|office@example.com`, NOW],
     ]);
     expect(queued[0]?.attachments).toEqual([
-      { filename: 'Day Report.xlsx', content: Buffer.from('xlsx') },
-      { filename: 'Day Report.csv', content: Buffer.from('2 rows') },
+      { filename: 'Day Report.xlsx', content: Buffer.from('pooja') },
+      { filename: 'Day Vidyalaya Presence.xlsx', content: Buffer.from('presence') },
     ]);
+    expect(queued[0]?.attachments.map((one) => one.filename).join(' ')).not.toMatch(/csv/i);
   });
 
   it('counts Needs Review and says the Day is not Finalized, before Finalize', async () => {
@@ -89,8 +88,10 @@ describe('queueDailyReport', () => {
         'Present: 1\n' +
         'Needs Review: 1\n\n' +
         'This Day is not Finalized yet, so a Student with no Punch shows Needs Review, not Absent.\n\n' +
-        'The full Report is attached as an Excel file, with each Pooja Status in colour, ' +
-        'and as a CSV file.\n\n' +
+        'The full Report is attached as an Excel file, with each Pooja Status in colour.\n\n' +
+        'Vidyalaya Presence is attached as a second Excel file: who was In hostel and who was ' +
+        'Away. It is worked out from the Leaves recorded so far, so it can change if a Leave is ' +
+        'recorded later. The Monthly Report has the final one.\n\n' +
         'EVLOS, hostel Pooja attendance',
     );
   });

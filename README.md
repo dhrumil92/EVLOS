@@ -14,25 +14,31 @@ Students of a 360-Student hostel must attend Pooja every day between 05:30 and 1
 
 **The Rector's day**
 - **Live view.** Each Punch appears within seconds, with a count of Students Present so far and when the Device was last seen.
-- **Students.** Add, edit, Deactivate and Activate Students; list them by floor, room or name.
+- **Students.** Add, edit, Deactivate and Activate Students; find and filter them, list them by floor, room or name, and see each Student's month of Pooja Statuses.
+- **Vidyalaya Presence.** For a Day or a month, an Excel register of who was In hostel or Away, worked out from the Leaves, with the Days In hostel and the Days Away for each Student.
 - **Leaves and Returns.** For one Student, or for 30 to 40 at once before a holiday, exactly as written in the hostel's books.
 - **Review and Finalize.** After the Pooja Window closes, only the Students on Needs Review are shown. Finalize locks the Day and turns them Absent; it warns first if the Device has been quiet, as Punches may still be on it.
 - **Exclude and Send Notifications.** The Rector leaves out any Student who explained, then sends one email to each remaining Absent Student. A Punch that arrived after Finalize is shown beside the Student, so no one is emailed by mistake.
 
+**For the Students**
+- **Public Live View** at `/live`, with no login: "42 of 100 have done Pooja" today and the 15-minute Punch bars, updated every 30 seconds. Numbers only, never a name.
+
 **Emails**
 - A **Notification** to each Absent Student, at most once per Day, only after Finalize.
 - A **Review Reminder** at 23:00 IST when a Day still has Students on Needs Review.
-- A **Daily Report** at 23:30 IST and a **Monthly Report** at 09:00 IST on the 1st, with the Report attached as a coloured Excel file and as a CSV.
+- A **Daily Report** at 23:30 IST and a **Monthly Report** at 09:00 IST on the 1st, with the Pooja Report and Vidyalaya Presence attached as two Excel files.
 - Every email goes through an outbox: it is never sent twice, and it is tried again when the email service is unreachable.
 
 **Reports**
-- Any Day, month or date range, sorted by room or name and filtered by Pooja Status, with a graph of the Day or month.
+- Opens on this month with nothing to press. Choose a Day (with how many Students were Present, Not Applicable and Absent), a Month, or Pick dates.
+- Three bars for each Day (Present, Not Applicable, Absent) on a scale that fits the tallest bar; press a Day to see who was Absent.
+- Every Student's period as a row of small squares, one for each Day, the most Absent first, with a Floor choice.
 - Download as CSV or as an Excel file with each Pooja Status in colour, either for every Student or only for the Present, Absent or Not Applicable ones.
 
 **Settings and security**
 - The **Report Recipients** who receive the Reminder and the Reports are kept on a Settings page, so no address is written in the code.
 - Rector login with HttpOnly session cookies and Argon2 password hashes; change the password on the Settings page, or reset a forgotten one with a one-time link by email.
-- Login and password tries are limited, and every change by the Rector is recorded in an audit log.
+- Login and password tries are limited (five in 15 minutes), every other request is limited per address so a flood is refused, and every change by the Rector is recorded in an audit log.
 - No fingerprints are ever stored: they stay on the Device.
 
 ## The five rules
@@ -51,6 +57,7 @@ Each rule is a pure function in `packages/core` with its own tests; `TESTING.md`
 |-------|------|-------|
 | 0 to 4 | Rules, Device, live view, Students, Leaves, Review and Finalize | Done |
 | 5 | Emails, Reports, Settings, password change and reset | Done 5 Nov 2026 |
+| 5b | Every page rebuilt in the Dawn design (phone menu included), Vidyalaya Presence | Done 8 Nov 2026 |
 | 6 | Deploy on a Google Cloud VM over HTTPS, pilot with the Rector | Next, by 16 Nov 2026 |
 | 7 | Documents and freeze | 20 to 25 Nov 2026 |
 
@@ -102,8 +109,8 @@ Run from the repository root.
 
 | Command | What it does |
 |---------|--------------|
-| `npm run dev` | Build and start the server: Device endpoints on `DEVICE_PORT`, page API on `PAGE_PORT`. |
-| `npm run dev:web` | Start the page at http://localhost:5173. |
+| `npm run dev` | Build and start the server: Device endpoints on `DEVICE_PORT`, page API on `PAGE_PORT`, Public Live View on `PUBLIC_PORT`. |
+| `npm run dev:web` | Start the page at http://localhost:5173 (the Public Live View at http://localhost:5173/live). |
 | `npm run db:setup` | Apply every migration to `evlos` and `evlos_test`. Safe to run again. |
 | `npm run rector:create -- <email>` | Create a Rector's login; the password (12 characters or more) is asked at a hidden prompt. Run it once per Rector. |
 | `npm run rector:password -- <email>` | Set a new password for a Rector who is locked out and cannot use the emailed reset link; every login of that Rector ends. |
@@ -120,7 +127,7 @@ Every setting is an environment variable, read from `.env`; `.env.example` expla
 | Variable | What it is |
 |----------|------------|
 | `DATABASE_URL`, `TEST_DATABASE_URL` | The development and test databases. |
-| `DEVICE_PORT`, `PAGE_PORT` | The ports for the Device and for the page API. |
+| `DEVICE_PORT`, `PAGE_PORT`, `PUBLIC_PORT` | The ports for the Device, for the page API, and for the Public Live View. |
 | `COOKIE_SECURE` | `true` only when the site runs on HTTPS. |
 | `PUBLIC_URL` | The address the Rector opens EVLOS at; password reset links point to it. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` | The email service. With no `SMTP_HOST`, emails wait in the outbox. |
@@ -141,7 +148,7 @@ docs                 requirements, architecture, schedule, AI log
 
 ## Testing
 
-About 770 tests run with `npm test`: the rules as pure functions, the use cases with in-memory fakes, the HTTP routes with Fastify `inject`, and the PostgreSQL repositories against the real `evlos_test` database, which they refuse to run anywhere else. CI runs lint, typecheck, the format check and every test on each push to `main` and each pull request. See `TESTING.md`.
+About 1,100 tests run with `npm test`: the rules as pure functions, the use cases with in-memory fakes, the HTTP routes with Fastify `inject`, and the PostgreSQL repositories against the real `evlos_test` database, which they refuse to run anywhere else. CI runs lint, typecheck, the format check and every test on each push to `main` and each pull request. See `TESTING.md`.
 
 ## Privacy
 

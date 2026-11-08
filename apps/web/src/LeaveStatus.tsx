@@ -56,7 +56,7 @@ function DateTime(props: {
 }) {
   return (
     <div className="flex flex-wrap gap-3">
-      <label className="grid gap-1 text-mist">
+      <label className="grid gap-1 text-muted">
         {props.label} date
         <input
           className="field"
@@ -69,7 +69,7 @@ function DateTime(props: {
           }}
         />
       </label>
-      <label className="grid gap-1 text-mist">
+      <label className="grid gap-1 text-muted">
         {props.label} time
         <input
           className="field"
@@ -152,11 +152,37 @@ function savedTimes(student: ListedStudent): LeaveForm {
   };
 }
 
+function ChangeLeaveButtons(props: { onView: (view: View) => void }) {
+  return (
+    <>
+      <button
+        className="btn-quiet"
+        type="button"
+        onClick={() => {
+          props.onView('edit');
+        }}
+      >
+        Edit Leave
+      </button>
+      <button
+        className="btn-outline-danger"
+        type="button"
+        onClick={() => {
+          props.onView('confirm-cancel');
+        }}
+      >
+        Cancel Leave
+      </button>
+    </>
+  );
+}
+
 function AwayActions(props: {
   student: ListedStudent;
   today: string;
   run: (action: () => Promise<LeaveAnswer>, done: string) => Promise<void>;
   source: StudentSource;
+  offerReturn: boolean;
 }) {
   const { student, source, run } = props;
   const [view, setView] = useState<View>('main');
@@ -208,6 +234,13 @@ function AwayActions(props: {
       </div>
     );
   }
+  if (!props.offerReturn) {
+    return (
+      <div className="flex flex-wrap gap-3">
+        <ChangeLeaveButtons onView={setView} />
+      </div>
+    );
+  }
   return (
     <SaveForm
       button="Record Return"
@@ -217,28 +250,7 @@ function AwayActions(props: {
           'Return recorded. He is in hostel.',
         )
       }
-      extra={
-        <>
-          <button
-            className="btn-quiet"
-            type="button"
-            onClick={() => {
-              setView('edit');
-            }}
-          >
-            Edit Leave
-          </button>
-          <button
-            className="btn-outline-danger"
-            type="button"
-            onClick={() => {
-              setView('confirm-cancel');
-            }}
-          >
-            Cancel Leave
-          </button>
-        </>
-      }
+      extra={<ChangeLeaveButtons onView={setView} />}
     >
       <DateTime
         label="Return"
@@ -280,11 +292,13 @@ function RecordLeave(props: {
 }
 
 // The gear's Leave status tab: his state, then record a Leave or his Return (FR-4, FR-5).
+// The Back-from-Home Book records Returns itself, so it asks for Edit and Cancel only.
 export function LeaveStatus(props: {
   student: ListedStudent;
   source: StudentSource;
   today: string;
   onChanged: () => void;
+  offerReturn?: boolean;
 }) {
   const { student } = props;
   const [note, setNote] = useState({ text: '', isProblem: false });
@@ -323,6 +337,7 @@ export function LeaveStatus(props: {
           today={props.today}
           source={props.source}
           run={run}
+          offerReturn={props.offerReturn ?? true}
         />
       ) : (
         <RecordLeave student={student} today={props.today} source={props.source} run={run} />

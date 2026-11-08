@@ -1,24 +1,15 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App.js';
-import type { DeviceStatusSource } from './device-status-source.js';
 import type { LiveView, LiveViewSource } from './live-view-source.js';
 import type { ReportSource } from './report-source.js';
 import type { ReviewSource } from './review-source.js';
 import type { SettingsSource } from './settings-source.js';
+import type { ListedStudent, StudentSource } from './student-source.js';
 
-const NOTE = 'Outside Pooja Window (05:30–18:00)';
-const AT_0700_IST = Date.UTC(2026, 10, 2, 1, 30, 0);
-const AT_2200_IST = Date.UTC(2026, 10, 2, 16, 30, 0);
-
-const counted = {
-  studentId: '9001',
-  name: 'Asha Rao',
-  punchedAt: AT_0700_IST,
-  isCounted: true,
-  notCountedBecause: null,
-};
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+const ist = (date: number, hour: number) => Date.UTC(2026, 10, date, hour) - IST_OFFSET_MS;
 
 const view = (facts: Partial<LiveView> = {}): LiveView => ({
   day: '2026-11-02',
@@ -51,181 +42,26 @@ const reports: ReportSource = {
         { studentId: '9001', name: 'Asha Rao', room: '101', statuses: ['Present'] },
         { studentId: '9002', name: 'Bina Rao', room: '205', statuses: ['Needs Review'] },
       ],
-      hours: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      days: null,
+      reportDays: [],
     }),
 };
 
-// jsdom has no canvas, and the smoke animation is not what these tests check.
-HTMLCanvasElement.prototype.getContext = () => null;
+// A Review of a Day that is not Finalized, for the tests that open Reports or Review and Finalize.
+const review: ReviewSource = {
+  load: (day) =>
+    Promise.resolve({
+      day,
+      canFinalize: false,
+      finalization: null,
+      needsReview: [],
+      absent: [],
+      notFinalizedDays: [],
+    }),
+  finalize: () => Promise.resolve({ reason: 'pooja-window-open' }),
+  send: () => Promise.resolve({ reason: 'not-finalized' }),
+};
 
 afterEach(cleanup);
-
-describe('live view', () => {
-  it('shows how many Students are Present so far', async () => {
-    render(<App reports={reports} source={fakeSource(view({ studentsPresent: 214 })).source} />);
-
-    expect(await screen.findByText('214')).toBeTruthy();
-    expect(screen.getByText('Students Present so far')).toBeTruthy();
-  });
-
-  it("shows the Device's Last Seen on the live view", async () => {
-    const device: DeviceStatusSource = {
-      load: () => Promise.resolve({ lastSeenAt: AT_0700_IST, isQuiet: false }),
-    };
-    render(<App reports={reports} device={device} source={fakeSource(view()).source} />);
-
-    expect(await screen.findByText('Device last seen 2 Nov, 07:00.')).toBeTruthy();
-  });
-
-  it('shows the Day in words', async () => {
-    render(<App reports={reports} source={fakeSource(view()).source} />);
-
-    expect(await screen.findByText(/2 November 2026/)).toBeTruthy();
-  });
-
-  it('shows a Punch with its Student ID and IST time', async () => {
-    const punches = [counted];
-
-    render(<App reports={reports} source={fakeSource(view({ punches })).source} />);
-
-    const row = (await screen.findByText('Student ID 9001')).closest('li');
-    expect(row).toBeTruthy();
-    expect(within(row as HTMLElement).getByText('07:00:00')).toBeTruthy();
-    expect(within(row as HTMLElement).getByText('Present')).toBeTruthy();
-  });
-
-  it('shows the Student name with the Student ID', async () => {
-    render(<App reports={reports} source={fakeSource(view({ punches: [counted] })).source} />);
-
-    const row = (await screen.findByText('Asha Rao')).closest('li');
-    expect(within(row as HTMLElement).getByText('Student ID 9001')).toBeTruthy();
-  });
-
-  it.each([
-    ['unknown-student', 'Not a Student'],
-    ['not-active', 'Not Active'],
-  ] as const)('labels a Punch that does not count because of %s', async (reason, label) => {
-    const punch = { ...counted, name: null, isCounted: false, notCountedBecause: reason };
-
-    render(<App reports={reports} source={fakeSource(view({ punches: [punch] })).source} />);
-
-    const row = (await screen.findByText(label)).closest('li');
-    expect(within(row as HTMLElement).queryByText('Present')).toBeNull();
-  });
-
-  it('shows the count out of the Active Students', async () => {
-    render(<App reports={reports} source={fakeSource(view({ activeStudents: 42 })).source} />);
-
-    expect(await screen.findByText('out of 42 Active Students')).toBeTruthy();
-  });
-
-  it('notes a Punch outside the Pooja Window instead of calling it Present', async () => {
-    const punches = [
-      {
-        ...counted,
-        punchedAt: AT_2200_IST,
-        isCounted: false,
-        notCountedBecause: 'outside-pooja-window' as const,
-      },
-    ];
-
-    render(<App reports={reports} source={fakeSource(view({ punches })).source} />);
-
-    const row = (await screen.findByText(NOTE)).closest('li');
-    expect(within(row as HTMLElement).queryByText('Present')).toBeNull();
-  });
-
-  it('shows a new Punch without reloading the page', async () => {
-    const { source, state } = fakeSource(view());
-    render(<App reports={reports} source={source} />);
-    await screen.findByText(/No Punches yet/);
-
-    state.view = view({
-      studentsPresent: 1,
-      punches: [counted],
-    });
-    await act(async () => {
-      state.listeners.forEach((listener) => {
-        listener();
-      });
-      await Promise.resolve();
-    });
-
-    expect(await screen.findByText('Student ID 9001')).toBeTruthy();
-    expect(screen.queryByText(/No Punches yet/)).toBeNull();
-  });
-
-  it('says what to expect when there are no Punches yet', async () => {
-    render(<App reports={reports} source={fakeSource(view()).source} />);
-
-    expect(await screen.findByText(/No Punches yet today/)).toBeTruthy();
-  });
-
-  it('says how to fix it when the server cannot be reached', async () => {
-    const { source, state } = fakeSource(view());
-    state.failing = true;
-
-    render(<App reports={reports} source={source} />);
-
-    expect(await screen.findByText(/Start it with npm run dev/)).toBeTruthy();
-  });
-
-  it('stops listening when the page closes', async () => {
-    const { source, state } = fakeSource(view());
-    const { unmount } = render(<App reports={reports} source={source} />);
-    await screen.findByText(/No Punches yet/);
-
-    unmount();
-
-    expect(state.listeners.size).toBe(0);
-  });
-});
-
-describe('live view lists', () => {
-  const punches = [counted];
-  const pressed = (name: string) =>
-    screen.getByRole('button', { name }).getAttribute('aria-pressed');
-
-  it('opens on Latest Punches', async () => {
-    render(<App reports={reports} source={fakeSource(view({ punches })).source} />);
-
-    expect(await screen.findByText('Student ID 9001')).toBeTruthy();
-    expect(pressed('Latest Punches')).toBe('true');
-    expect(pressed('Every Student')).toBe('false');
-  });
-
-  it('switches to Every Student with sort and filter', async () => {
-    render(<App reports={reports} source={fakeSource(view({ punches })).source} />);
-    await screen.findByText('Student ID 9001');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Every Student' }));
-
-    expect(await screen.findByText('Showing 2 of 2 Students')).toBeTruthy();
-    expect(screen.getByLabelText('Sort by')).toBeTruthy();
-    expect(screen.queryByText('Student ID 9001')).toBeNull();
-  });
-
-  it('goes back to Latest Punches', async () => {
-    render(<App reports={reports} source={fakeSource(view({ punches })).source} />);
-    await screen.findByText('Student ID 9001');
-    fireEvent.click(screen.getByRole('button', { name: 'Every Student' }));
-    await screen.findByText('Showing 2 of 2 Students');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Latest Punches' }));
-
-    expect(await screen.findByText('Student ID 9001')).toBeTruthy();
-  });
-
-  it('keeps the live list on the live view page only', async () => {
-    render(<App reports={reports} source={fakeSource(view()).source} />);
-    await screen.findByText(/No Punches yet/);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Students' }));
-
-    expect(screen.queryByRole('button', { name: 'Latest Punches' })).toBeNull();
-  });
-});
 
 describe('menu', () => {
   it('lists the five pages with Live view current', async () => {
@@ -242,6 +78,127 @@ describe('menu', () => {
       'Reports',
     ]);
     expect(items[0]?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('keeps the menu bar in view while the page scrolls', async () => {
+    render(<App reports={reports} source={fakeSource(view()).source} />);
+    await screen.findByText(/No Punches yet/);
+
+    expect(screen.getByRole('banner').classList.contains('sticky')).toBe(true);
+  });
+
+  describe('on a phone', () => {
+    const open = async (onLogOut?: () => void) => {
+      render(<App reports={reports} source={fakeSource(view()).source} onLogOut={onLogOut} />);
+      await screen.findByText(/No Punches yet/);
+      fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+      return screen.getByRole('navigation', { name: 'Pages' });
+    };
+
+    it('has a three-line button, and the side panel is closed at first', async () => {
+      render(<App reports={reports} source={fakeSource(view()).source} />);
+      await screen.findByText(/No Punches yet/);
+
+      const button = screen.getByRole('button', { name: 'Menu' });
+
+      expect(button.getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+      expect(screen.queryByRole('navigation', { name: 'Pages' })).toBeNull();
+    });
+
+    it('slides in a panel with the pages when the button is pressed', async () => {
+      const pages = await open();
+
+      expect(screen.getByRole('dialog', { name: 'Menu' }).contains(pages)).toBe(true);
+      expect(
+        within(pages)
+          .getAllByRole('button')
+          .map((item) => item.textContent)
+          .filter((text) => text !== ''),
+      ).toEqual(['Live view', 'Students', 'Leaves', 'Review and Finalize', 'Reports', 'Settings']);
+    });
+
+    it('puts Settings and Log out at the bottom, after the pages', async () => {
+      const pages = await open(() => undefined);
+
+      const buttons = within(pages)
+        .getAllByRole('button')
+        .map((item) => item.textContent);
+
+      expect(buttons.slice(-2)).toEqual(['Settings', 'Log out']);
+      expect(buttons.indexOf('Reports')).toBeLessThan(buttons.indexOf('Settings'));
+      const bottom = within(pages).getByRole('button', { name: 'Settings' }).parentElement;
+      expect(bottom?.classList.contains('mt-auto')).toBe(true);
+    });
+
+    it('marks the page the Rector is on', async () => {
+      const pages = await open();
+
+      expect(
+        within(pages).getByRole('button', { name: 'Live view' }).getAttribute('aria-current'),
+      ).toBe('page');
+      expect(
+        within(pages).getByRole('button', { name: 'Students' }).getAttribute('aria-current'),
+      ).toBeNull();
+    });
+
+    it('opens the page pressed, and closes the panel', async () => {
+      const pages = await open();
+
+      fireEvent.click(within(pages).getByRole('button', { name: 'Leaves' }));
+
+      expect(screen.getByRole('heading', { name: 'Leaves', level: 1 })).toBeTruthy();
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Menu' }).getAttribute('aria-expanded')).toBe(
+        'false',
+      );
+    });
+
+    it('opens Settings from the bottom of the panel', async () => {
+      const pages = await open();
+
+      fireEvent.click(within(pages).getByRole('button', { name: 'Settings' }));
+
+      expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeTruthy();
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+    });
+
+    it('logs the Rector out from the panel, and closes it', async () => {
+      let loggedOut = 0;
+      const pages = await open(() => {
+        loggedOut++;
+      });
+
+      fireEvent.click(within(pages).getByRole('button', { name: 'Log out' }));
+
+      expect(loggedOut).toBe(1);
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+    });
+
+    it('closes with its cross, with the dimmed strip of the page, and with Escape', async () => {
+      await open();
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Close menu' }));
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+      fireEvent.keyDown(screen.getByRole('navigation', { name: 'Pages' }), { key: 'Escape' });
+      expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+    });
+
+    it('puts the cross in reach, and stops the page behind from scrolling while open', async () => {
+      await open();
+
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
+      expect(document.body.style.overflow).toBe('hidden');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+      expect(document.body.style.overflow).not.toBe('hidden');
+    });
   });
 
   it('logs the Rector out from the menu', async () => {
@@ -268,7 +225,7 @@ describe('menu', () => {
     const header = screen.getByRole('banner');
     const outsideMenu = within(header)
       .getAllByRole('button')
-      .filter((button) => !button.closest('nav'))
+      .filter((button) => !button.closest('nav') && button.getAttribute('aria-label') !== 'Menu')
       .map((button) => button.textContent);
 
     expect(outsideMenu).toEqual(['Settings', 'Log out']);
@@ -292,31 +249,19 @@ describe('menu', () => {
     );
   });
 
-  it('opens the Reports page with its two cards', async () => {
+  it('opens the Reports page on this month, with its period choices', async () => {
     render(<App reports={reports} source={fakeSource(view()).source} />);
     await screen.findByText(/No Punches yet/);
 
     fireEvent.click(screen.getByRole('button', { name: 'Reports' }));
 
     expect(await screen.findByRole('heading', { name: 'Reports' })).toBeTruthy();
-    expect(await screen.findByText('Students by hour')).toBeTruthy();
-    expect(screen.getByText('Showing 2 of 2 Students')).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Month report' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Month' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('region', { name: 'Last night' })).toBeNull();
   });
 
   it('opens the Review and Finalize page', async () => {
-    const review: ReviewSource = {
-      load: (day) =>
-        Promise.resolve({
-          day,
-          canFinalize: false,
-          finalization: null,
-          needsReview: [],
-          absent: [],
-          notFinalizedDays: [],
-        }),
-      finalize: () => Promise.resolve({ reason: 'pooja-window-open' }),
-      send: () => Promise.resolve({ reason: 'not-finalized' }),
-    };
     render(<App reports={reports} review={review} source={fakeSource(view()).source} />);
     await screen.findByText(/No Punches yet/);
 
@@ -334,5 +279,29 @@ describe('menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Leaves' }));
 
     expect(screen.getByRole('heading', { name: 'Leaves', level: 1 })).toBeTruthy();
+  });
+
+  it('Return on the Live view opens the Back-from-Home Book with that Student ticked', async () => {
+    const asha: ListedStudent = {
+      studentId: '9001',
+      name: 'Asha Rao',
+      room: '101',
+      email: 'asha@example.com',
+      phone: null,
+      isActive: true,
+      floor: 1,
+      leaveState: 'Away',
+      openLeave: { outAt: ist(1, 16), expectedReturnAt: ist(9, 18) },
+    };
+    const students = { list: () => Promise.resolve([asha]) } as unknown as StudentSource;
+    render(<App reports={reports} students={students} source={fakeSource(view()).source} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Record Return for Asha Rao' }));
+
+    expect(screen.getByRole('heading', { name: 'Leaves', level: 1 })).toBeTruthy();
+    expect(await screen.findByRole('checkbox', { name: 'Asha Rao came back' })).toHaveProperty(
+      'checked',
+      true,
+    );
   });
 });

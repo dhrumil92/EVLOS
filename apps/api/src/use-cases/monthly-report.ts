@@ -36,14 +36,15 @@ function bodyOf(month: string, report: Report): string {
       ? 'No Student was Active in the month.'
       : ['Pooja Statuses in the month, one for each Student on each Day:', ...counts].join('\n'),
     finalizedLine(report),
-    'The full Report is attached as an Excel file, with each Pooja Status in colour, and as a ' +
-      'CSV file, one row per Student and one column per Day.',
+    'The full Report is attached as an Excel file, with each Pooja Status in colour.',
+    'Vidyalaya Presence for the month is attached as a second Excel file: who was In hostel and ' +
+      'who was Away on each Day. It is worked out from the Leaves recorded so far.',
     'EVLOS, hostel Pooja attendance',
   ].join('\n\n');
 }
 
 // The Monthly Report (FR-12): queued at 09:00 IST on the 1st for the previous month, for each
-// Report Recipient, with the month's Report attached as Excel and CSV. Queued once per
+// Report Recipient, with the month's Report and Vidyalaya Presence attached as Excel. Queued once per
 // month and address, so running it again queues nothing. Returns how many were queued.
 export async function queueMonthlyReport(month: string, deps: MonthlyReportDeps): Promise<number> {
   if (deps.reportRecipients.length === 0) return 0;

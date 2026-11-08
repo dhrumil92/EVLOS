@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { DeviceStatusSource } from './device-status-source.js';
+import type { ReportSource } from './report-source.js';
 import type { Review, ReviewSource } from './review-source.js';
 import { ReviewPage } from './ReviewPage.js';
 
@@ -69,6 +70,32 @@ function fakeSource(first: Review) {
   return { source, state };
 }
 
+// A Day Report: 3 Present, 1 Not Applicable, 2 Needs Review.
+const DAY_STATUSES = [
+  'Present',
+  'Present',
+  'Present',
+  'Not Applicable',
+  'Needs Review',
+  'Needs Review',
+] as const;
+const dayReport: ReportSource = {
+  load: () =>
+    Promise.resolve({
+      title: 'Tuesday 3 November 2026',
+      isFinalized: false,
+      rows: DAY_STATUSES.map((status, index) => ({
+        studentId: String(9001 + index),
+        name: `Student ${String(index)}`,
+        room: '101',
+        statuses: [status],
+      })),
+      reportDays: [],
+    }),
+  csvUrl: () => '',
+  xlsxUrl: () => '',
+};
+
 // A Device last seen at 23:05, quiet or not.
 const deviceSeen = (isQuiet: boolean): DeviceStatusSource => ({
   load: () => Promise.resolve({ lastSeenAt: AT_2305_IST, isQuiet }),
@@ -77,26 +104,54 @@ const deviceSeen = (isQuiet: boolean): DeviceStatusSource => ({
 afterEach(cleanup);
 
 describe('Review and Finalize, before Finalize', () => {
-  it('lists the Needs Review Students and reminds to check the books first', async () => {
+  it('lists the Needs Review Students and reminds to check both books first', async () => {
     render(<ReviewPage source={fakeSource(open).source} today={TODAY} />);
 
     const list = await screen.findByRole('table', { name: 'Needs Review' });
     expect(within(list).getByText('Bina Rao')).toBeTruthy();
     expect(within(list).getByText('Chitra Rao')).toBeTruthy();
-    expect(screen.getByText(/check the Leave Notes and both books/)).toBeTruthy();
+    expect(screen.getByText('2 Students Need Review')).toBeTruthy();
+    expect(screen.getByText(/Check the Leave Notes and both books/)).toBeTruthy();
   });
 
-  it('shows a summary and asks before it Finalizes', async () => {
+  it('shows the four steps, with Review as the current one', async () => {
+    render(<ReviewPage source={fakeSource(open).source} today={TODAY} />);
+
+    const steps = await screen.findByRole('list', { name: 'Steps for this Day' });
+    const items = within(steps).getAllByRole('listitem');
+    const current = items.filter((step) => step.getAttribute('aria-current') === 'step');
+    expect(items).toHaveLength(4);
+    expect(current).toHaveLength(1);
+    expect(current[0]?.textContent).toContain('Review');
+  });
+
+  it('counts Present, Not Applicable and Needs Review for the Day', async () => {
+    render(<ReviewPage source={fakeSource(open).source} reports={dayReport} today={TODAY} />);
+
+    const counts = await screen.findByRole('region', { name: 'Pooja Status for this Day' });
+    await within(counts).findByText('3');
+    const count = (label: string) => within(counts).getByText(label).nextSibling?.textContent;
+    expect(count('Present')).toBe('3');
+    expect(count('Not Applicable (on Leave)')).toBe('1');
+    expect(count('Needs Review')).toBe('2');
+    expect(count('Active Students')).toBe('6');
+  });
+
+  it('the Finalize confirmation names the Students who become Absent, and Finalizes on Yes', async () => {
     const { source, state } = fakeSource(open);
     render(<ReviewPage source={source} today={TODAY} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Finalize the Day' }));
-    expect(screen.getByText('2 Students will be Absent. The Day will be locked.')).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: 'Finalize Tuesday 3 November?' });
+    expect(within(dialog).getByText('These 2 Students become Absent:')).toBeTruthy();
+    expect(within(dialog).getByText('Bina Rao')).toBeTruthy();
+    expect(within(dialog).getByText('Chitra Rao')).toBeTruthy();
     expect(state.finalized).toEqual([]);
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, Finalize' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes, Finalize the Day' }));
 
     expect(await screen.findByText(/Finalized at 23:05 by rector@example.com/)).toBeTruthy();
     expect(state.finalized).toEqual([TODAY]);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it("shows the Device's Last Seen before Finalize", async () => {
@@ -107,17 +162,34 @@ describe('Review and Finalize, before Finalize', () => {
     expect(await screen.findByText('Device last seen 3 Nov, 23:05.')).toBeTruthy();
   });
 
-  it('warns in the Finalize question when the Device has gone quiet', async () => {
-    render(<ReviewPage source={fakeSource(open).source} device={deviceSeen(true)} today={TODAY} />);
+  it('a quiet Device warns in the confirmation and makes going back the main choice', async () => {
+    const { source, state } = fakeSource(open);
+    render(<ReviewPage source={source} device={deviceSeen(true)} today={TODAY} />);
+    await screen.findByText(/Device last seen/);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Finalize the Day' }));
-
+    const dialog = screen.getByRole('dialog');
     expect(
-      screen.getByText(
-        'The Device has not been in touch for 10 minutes or more, so Punches may still be on ' +
-          'it. 2 Students will be Absent. The Day will be locked.',
+      within(dialog).getByText(
+        'The Device has not been in touch for 10 minutes or more, so Punches may still be on it.',
       ),
     ).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Finalize anyway' })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Go back and check the Device' }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(state.finalized).toEqual([]);
+  });
+
+  it('Escape closes the confirmation without Finalizing', async () => {
+    const { source, state } = fakeSource(open);
+    render(<ReviewPage source={source} today={TODAY} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Finalize the Day' }));
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(state.finalized).toEqual([]);
   });
 
   it('says so when the server cannot finish Finalize, instead of showing nothing', async () => {
@@ -128,7 +200,7 @@ describe('Review and Finalize, before Finalize', () => {
     render(<ReviewPage source={source} today={TODAY} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Finalize the Day' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, Finalize' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, Finalize the Day' }));
 
     expect(await screen.findByText(SERVER_FAILED)).toBeTruthy();
   });
@@ -155,16 +227,92 @@ describe('Review and Finalize, before Finalize', () => {
 
     expect(state.asked.at(-1)).toBe('2026-11-01');
   });
+
+  it('the previous-Day arrow opens the day before, and the next-Day arrow stops at today', async () => {
+    const { source, state } = fakeSource(open);
+    render(<ReviewPage source={source} today={TODAY} />);
+    await screen.findByRole('table', { name: 'Needs Review' });
+    expect(screen.getByRole('button', { name: 'Next Day' })).toHaveProperty('disabled', true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous Day' }));
+    expect(state.asked.at(-1)).toBe('2026-11-02');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next Day' }));
+    expect(state.asked.at(-1)).toBe(TODAY);
+  });
+
+  it('Record a missed Leave opens the Leaves page', async () => {
+    let opened = 0;
+    render(
+      <ReviewPage
+        source={fakeSource(open).source}
+        today={TODAY}
+        onOpenLeaves={() => {
+          opened++;
+        }}
+      />,
+    );
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Record a missed Leave for Bina Rao' }),
+    );
+
+    expect(opened).toBe(1);
+  });
 });
 
 describe('Review and Finalize, after Finalize', () => {
-  it('Excludes a Student with his cross, and the cross can be undone', async () => {
+  it('shows Review and Finalize as done, and Exclude as the current step', async () => {
+    render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
+
+    const steps = await screen.findByRole('list', { name: 'Steps for this Day' });
+    const current = within(steps)
+      .getAllByRole('listitem')
+      .find((step) => step.getAttribute('aria-current') === 'step');
+    expect(current?.textContent).toContain('Exclude if needed');
+  });
+
+  it('Excludes a Student, and Include again undoes it', async () => {
     render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Exclude Bina Rao' }));
     expect(screen.getByRole('button', { name: 'Send Notifications to 1 Student' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Include Bina Rao again' }));
+    expect(screen.getByRole('button', { name: 'Send Notifications to 2 Students' })).toBeTruthy();
+  });
+
+  it('the Email column says who will get the email and who is Excluded', async () => {
+    render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
+    const list = await screen.findByRole('table', { name: 'Email list' });
+
+    fireEvent.click(within(list).getByRole('button', { name: 'Exclude Bina Rao' }));
+
+    const row = (name: string) => within(list).getByText(name).closest('tr') as HTMLElement;
+    expect(within(row('Bina Rao')).getByText('Excluded')).toBeTruthy();
+    expect(within(row('Chitra Rao')).getByText('Will get the email')).toBeTruthy();
+  });
+
+  it('the bottom bar counts who will get the email and who is Excluded', async () => {
+    render(<ReviewPage source={fakeSource(finalized).source} today={TODAY} />);
+    expect(await screen.findByText('2 Students will get the email.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exclude Bina Rao' }));
+
+    expect(screen.getByText('1 Student will get the email. 1 is Excluded.')).toBeTruthy();
+  });
+
+  it('Go back leaves the Notifications unsent', async () => {
+    const { source, state } = fakeSource(finalized);
+    render(<ReviewPage source={source} today={TODAY} />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Send Notifications to 2 Students' }),
+    );
+    expect(screen.getByText('Send 2 emails now?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
+
+    expect(state.sent).toEqual([]);
     expect(screen.getByRole('button', { name: 'Send Notifications to 2 Students' })).toBeTruthy();
   });
 
@@ -209,7 +357,7 @@ describe('Review and Finalize, after Finalize', () => {
     expect(await screen.findByText(SERVER_FAILED)).toBeTruthy();
   });
 
-  it('shows how far each Notification has got, or Excluded, and offers no cross for them', async () => {
+  it('shows how far each Notification has got, or Excluded, and offers no Exclude for them', async () => {
     render(
       <ReviewPage
         source={
@@ -258,40 +406,49 @@ describe('Review and Finalize, after Finalize', () => {
     );
   });
 
-  it('labels a Punch After Finalize and asks to check before sending', async () => {
-    render(
-      <ReviewPage
-        source={
-          fakeSource({
-            ...finalized,
-            absent: [
-              {
-                ...student('9002', 'Bina Rao', '205'),
-                isExcluded: false,
-                notification: null,
-                punchAfterFinalize: AT_0700_IST,
-              },
-              {
-                ...student('9003', 'Chitra Rao', '310'),
-                isExcluded: false,
-                notification: null,
-                punchAfterFinalize: null,
-              },
-            ],
-          }).source
-        }
-        today={TODAY}
-      />,
-    );
+  const punchedLate: Review = {
+    ...finalized,
+    absent: [
+      {
+        ...student('9002', 'Bina Rao', '205'),
+        isExcluded: false,
+        notification: null,
+        punchAfterFinalize: AT_0700_IST,
+      },
+      {
+        ...student('9003', 'Chitra Rao', '310'),
+        isExcluded: false,
+        notification: null,
+        punchAfterFinalize: null,
+      },
+    ],
+  };
 
-    const list = await screen.findByRole('list', { name: 'Email list' });
+  it('labels a Punch After Finalize in the list and in a banner above it', async () => {
+    render(<ReviewPage source={fakeSource(punchedLate).source} today={TODAY} />);
+
+    const list = await screen.findByRole('table', { name: 'Email list' });
     expect(within(list).getByText('Punched at 07:00, arrived after Finalize')).toBeTruthy();
     expect(within(list).getAllByText(/arrived after Finalize/)).toHaveLength(1);
+    const banner = screen.getByRole('region', { name: 'Punch After Finalize' });
     expect(
-      screen.getByText(
-        '1 Student punched in the Pooja Window, but the Punch arrived after Finalize. ' +
-          'Check before you Send Notifications, and Exclude a Student who was at Pooja.',
+      within(banner).getByText(
+        'Bina Rao punched at 07:00 in the Pooja Window, but the Punch reached EVLOS after you Finalized. The Student stays Absent in Reports.',
       ),
     ).toBeTruthy();
+  });
+
+  it('the Punch After Finalize banner Excludes that Student in one click', async () => {
+    render(<ReviewPage source={fakeSource(punchedLate).source} today={TODAY} />);
+    const banner = await screen.findByRole('region', { name: 'Punch After Finalize' });
+
+    fireEvent.click(
+      within(banner).getByRole('button', {
+        name: 'Exclude Bina Rao, whose Punch arrived after Finalize',
+      }),
+    );
+
+    expect(within(banner).getByText('Excluded. No email will go out.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Send Notifications to 1 Student' })).toBeTruthy();
   });
 });

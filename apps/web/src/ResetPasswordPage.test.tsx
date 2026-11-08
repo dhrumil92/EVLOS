@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { AuthSource } from './auth-source.js';
 import { ResetPasswordPage } from './ResetPasswordPage.js';
@@ -23,14 +23,15 @@ function fakeAuth() {
   return { auth, used };
 }
 
-function typeTwice(first: string, again: string) {
-  fireEvent.change(screen.getByLabelText('New password'), { target: { value: first } });
-  fireEvent.change(screen.getByLabelText('New password again'), { target: { value: again } });
-  fireEvent.click(screen.getByRole('button', { name: 'Set new password' }));
-}
+const type = (label: string, value: string) => {
+  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+};
 
-// jsdom has no canvas, and the smoke animation is not what these tests check.
-HTMLCanvasElement.prototype.getContext = () => null;
+function typeTwice(first: string, again: string) {
+  type('New password', first);
+  type('New password again', again);
+  fireEvent.click(screen.getByRole('button', { name: 'Save new password' }));
+}
 
 afterEach(cleanup);
 
@@ -76,6 +77,77 @@ describe('Reset password page', () => {
     expect(
       screen.getByText('This link is not complete. Ask for a new one from the login page.'),
     ).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Set new password' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save new password' })).toBeNull();
+  });
+});
+
+describe('the Set a new password screen', () => {
+  it('has the title, and says what saving does', () => {
+    render(<ResetPasswordPage auth={fakeAuth().auth} token="the-token" />);
+
+    expect(screen.getByRole('heading', { name: 'Set a new password', level: 1 })).toBeTruthy();
+    expect(
+      screen.getByText(
+        'At least 12 characters. Saving ends every login, so you log in again with the new one.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('keeps the panel about EVLOS beside the form', () => {
+    render(<ResetPasswordPage auth={fakeAuth().auth} token="the-token" />);
+
+    expect(screen.getByRole('complementary', { name: 'About EVLOS' })).toBeTruthy();
+  });
+
+  it('says how many more characters are needed, as the new password is typed', () => {
+    render(<ResetPasswordPage auth={fakeAuth().auth} token="the-token" />);
+
+    expect(screen.getByText('At least 12 characters.')).toBeTruthy();
+    type('New password', 'abcdefghi');
+
+    expect(screen.getByText('3 more characters needed')).toBeTruthy();
+  });
+
+  it('says when the new password is long enough, and fills the bar', () => {
+    render(<ResetPasswordPage auth={fakeAuth().auth} token="the-token" />);
+
+    type('New password', 'morning pooja at 6');
+
+    expect(screen.getByText('18 characters, long enough')).toBeTruthy();
+    const bar = screen.getByTestId('length-bar');
+    expect(bar.querySelectorAll('[data-filled="true"]')).toHaveLength(12);
+  });
+
+  it('shows the new password only while Show is on', () => {
+    render(<ResetPasswordPage auth={fakeAuth().auth} token="the-token" />);
+    const box = screen.getByLabelText<HTMLInputElement>('New password');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    expect(box.type).toBe('text');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    expect(box.type).toBe('password');
+  });
+
+  it('says the two passwords match, or not yet, as the second is typed', () => {
+    render(<ResetPasswordPage auth={fakeAuth().auth} token="the-token" />);
+    type('New password', 'a new long password');
+
+    type('New password again', 'a new long');
+    expect(screen.getByText('Not the same as the new password yet')).toBeTruthy();
+    expect(screen.getByLabelText('New password again').getAttribute('aria-invalid')).toBe('true');
+
+    type('New password again', 'a new long password');
+    expect(screen.getByText('The two passwords match')).toBeTruthy();
+  });
+
+  it('has one form with both password boxes and the Save new password button', () => {
+    render(<ResetPasswordPage auth={fakeAuth().auth} token="the-token" />);
+
+    const form = screen.getByRole('form', { name: 'Set a new password' });
+
+    expect(within(form).getByLabelText('New password')).toBeTruthy();
+    expect(within(form).getByLabelText('New password again')).toBeTruthy();
+    expect(within(form).getByRole('button', { name: 'Save new password' })).toBeTruthy();
   });
 });

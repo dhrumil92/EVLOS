@@ -8,26 +8,23 @@ export interface ReportRow {
   statuses: (PoojaStatusName | null)[];
 }
 
-export interface DayTotals {
-  day: number;
-  present: number;
-  absent: number;
-  notApplicable: number;
-}
-
 export type ReportRequest =
   | { view: 'Day'; day: string }
   | { view: 'Month'; month: string }
   | { view: 'Date range'; from: string; to: string };
 
+// A Day the Report covers, and whether it was Finalized.
+export interface ReportDay {
+  day: string;
+  isFinalized: boolean;
+}
+
 export interface Report {
   title: string;
   isFinalized: boolean;
   rows: ReportRow[];
-  // Students by hour of first Punch, from 05:30, for a Day Report.
-  hours: number[] | null;
-  // Totals for each Day, for a month Report.
-  days: DayTotals[] | null;
+  // The Days the Report covers, in order: each Student's statuses follow the same order.
+  reportDays: ReportDay[];
 }
 
 export interface ReportSource {

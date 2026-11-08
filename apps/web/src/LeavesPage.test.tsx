@@ -74,15 +74,62 @@ describe('Leaves page', () => {
     expect(await screen.findByText('No Student is Away.')).toBeTruthy();
   });
 
-  it('opens Leave for many Students and Return for many Students', async () => {
+  it('opens on the Going-to-Home Book', async () => {
     render(<LeavesPage today="2026-11-03" source={sourceOf([])} />);
     await screen.findByText('No Student is Away.');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Leave for many Students' }));
-    expect(screen.getByRole('form', { name: 'Leave for many Students' })).toBeTruthy();
+    expect(
+      screen.getByRole('tab', { name: /^Going-to-Home Book/ }).getAttribute('aria-selected'),
+    ).toBe('true');
+    expect(screen.getByRole('region', { name: 'Lines from the Going-to-Home Book' })).toBeTruthy();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Return for many Students' }));
-    expect(screen.getByRole('form', { name: 'Return for many Students' })).toBeTruthy();
-    expect(screen.queryByRole('form', { name: 'Leave for many Students' })).toBeNull();
+  it('switches to the Back-from-Home Book', async () => {
+    render(<LeavesPage today="2026-11-03" source={sourceOf([])} />);
+    await screen.findByText('No Student is Away.');
+
+    fireEvent.click(screen.getByRole('tab', { name: /^Back-from-Home Book/ }));
+
+    expect(
+      screen.getByRole('tab', { name: /^Back-from-Home Book/ }).getAttribute('aria-selected'),
+    ).toBe('true');
+    expect(screen.getByRole('region', { name: 'Students who are Away' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Lines from the Going-to-Home Book' })).toBeNull();
+  });
+
+  it('opens the Back-from-Home Book with that Student ticked, from a line for a Student who is already Away', async () => {
+    render(
+      <LeavesPage
+        today="2026-11-03"
+        source={sourceOf([student('9001', 'Asha Rao', 'Away', ist(9, 18))])}
+      />,
+    );
+    await screen.findByRole('list', { name: 'Away Students' });
+
+    fireEvent.change(screen.getByLabelText('Room, line 1'), { target: { value: '101' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Asha Rao, room 101/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Record Return for Asha Rao' }));
+
+    expect(
+      screen.getByRole('tab', { name: /^Back-from-Home Book/ }).getAttribute('aria-selected'),
+    ).toBe('true');
+    expect(screen.getByRole('checkbox', { name: 'Asha Rao came back' })).toHaveProperty(
+      'checked',
+      true,
+    );
+  });
+
+  it('opens the Back-from-Home Book from the Away now list', async () => {
+    render(
+      <LeavesPage
+        today="2026-11-03"
+        source={sourceOf([student('9001', 'Asha Rao', 'Away', ist(9, 18))])}
+      />,
+    );
+    await screen.findByRole('list', { name: 'Away Students' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open the Back-from-Home Book' }));
+
+    expect(screen.getByRole('region', { name: 'Students who are Away' })).toBeTruthy();
   });
 });

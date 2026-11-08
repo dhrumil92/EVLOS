@@ -8,6 +8,8 @@ import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
 import { resetPageUrlFrom } from './adapters/http/public-url.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
 import { registerReportRecipientRoutes } from './adapters/http/report-recipient-routes.js';
+import { registerPresenceRoutes } from './adapters/http/presence-routes.js';
+import { registerPublicRoutes } from './adapters/http/public-routes.js';
 import { registerReportRoutes } from './adapters/http/report-routes.js';
 import { registerReviewRoutes } from './adapters/http/review-routes.js';
 import { registerStudentRoutes } from './adapters/http/student-routes.js';
@@ -20,16 +22,16 @@ import { PostgresPunchRepository } from './adapters/postgres/punch-repository.js
 import { PostgresRectorRepository } from './adapters/postgres/rector-repository.js';
 import { PostgresReportRecipientRepository } from './adapters/postgres/report-recipient-repository.js';
 import { PostgresStudentRepository } from './adapters/postgres/student-repository.js';
-import { reportCsv } from './adapters/report/report-csv.js';
-import { reportFileName } from './adapters/report/report-table.js';
-import { reportXlsx } from './adapters/report/report-xlsx.js';
+import { reportAttachments } from './adapters/report/report-attachments.js';
 import { ScheduleLoop } from './adapters/scheduler/schedule-loop.js';
 import { addStudent } from './use-cases/add-student.js';
 import { activateStudent, deactivateStudent } from './use-cases/deactivate-and-activate.js';
 import { editStudent } from './use-cases/edit-student.js';
 import { getDeviceStatus } from './use-cases/device-status.js';
 import { getLiveView } from './use-cases/get-live-view.js';
+import { getPublicLiveView } from './use-cases/get-public-live-view.js';
 import { getReport } from './use-cases/get-report.js';
+import { getVidyalayaPresence } from './use-cases/get-vidyalaya-presence.js';
 import { finalizeDay, getReview, sendNotifications } from './use-cases/review.js';
 import { cancelLeave, editLeave, recordLeave, returnLeave } from './use-cases/leaves.js';
 import { recordLeaves, returnLeaves } from './use-cases/leaves-for-many.js';
@@ -47,7 +49,6 @@ import {
   listReportRecipients,
   removeReportRecipient,
 } from './use-cases/report-recipients.js';
-import type { Report, ReportRequest } from './use-cases/get-report.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (databaseUrl === undefined) {
@@ -55,6 +56,10 @@ if (databaseUrl === undefined) {
 }
 const devicePort = Number(process.env.DEVICE_PORT ?? '8081');
 const pagePort = Number(process.env.PAGE_PORT ?? '3000');
+const publicPort = Number(process.env.PUBLIC_PORT ?? '3001');
+// true on the VM, where Caddy is in front: the limits then count each visitor by the address
+// Caddy passes on, not Caddy's own address, which every visitor would share.
+const trustProxy = process.env.TRUST_PROXY === 'true';
 const secureCookie = process.env.COOKIE_SECURE === 'true';
 // Read before anything starts, so a wrong email setting stops the server at once.
 const smtp = smtpSettingsFrom(process.env);
@@ -86,7 +91,7 @@ registerDeviceRoutes(deviceApp, {
     recordPunches(deviceSerial, uploaded, { punches, clock, liveFeed: viewers }),
 });
 
-const pageApp = Fastify({ logger: true });
+const pageApp = Fastify({ logger: true, trustProxy });
 // First, so every page route after it needs a login (FR-13).
 await registerAuth(pageApp, {
   logIn: (email, password) => logIn(email, password, login),
@@ -115,6 +120,9 @@ registerLiveRoutes(pageApp, {
 });
 registerReportRoutes(pageApp, {
   getReport: (request) => getReport(request, { students, leaves, punches, finalized, clock }),
+});
+registerPresenceRoutes(pageApp, {
+  getPresence: (request) => getVidyalayaPresence(request, { students, leaves, clock }),
 });
 const reviewDeps = { students, leaves, punches, finalized, clock };
 registerReviewRoutes(pageApp, {
@@ -155,6 +163,15 @@ await deviceApp.listen({ port: devicePort, host: '0.0.0.0' });
 // 127.0.0.1 only until deployment, where Caddy adds HTTPS in front of it.
 await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
 
+// The Public Live View (FR-17) on a server of its own: no login, no cookie, and no Rector route
+// on it, only one read-only route that answers with numbers.
+const publicApp = Fastify({ logger: true, trustProxy });
+await registerPublicRoutes(publicApp, {
+  getPublicLiveView: () => getPublicLiveView({ students, leaves, punches, finalized, clock }),
+  now: () => clock.now(),
+});
+await publicApp.listen({ port: publicPort, host: '127.0.0.1' });
+
 if (smtp === null) {
   pageApp.log.warn('SMTP_HOST is not set, so emails stay queued. See .env.example.');
 }
@@ -175,11 +192,10 @@ const reportEmailDeps = {
   finalized,
   clock,
   outbox,
-  // The full Report, as the coloured Excel file first, then the plain CSV.
-  attachmentsOf: async (request: ReportRequest, report: Report) => [
-    { filename: reportFileName(request, 'xlsx', null), content: await reportXlsx(report) },
-    { filename: reportFileName(request, 'csv', null), content: Buffer.from(reportCsv(report)) },
-  ],
+  // The Pooja Excel, then Vidyalaya Presence as a second Excel file. There is no CSV.
+  attachmentsOf: reportAttachments((request) =>
+    getVidyalayaPresence(request, { students, leaves, clock }),
+  ),
 };
 
 // Every minute: queue the scheduled emails that fell due, then send the due emails (FR-9).

@@ -1,34 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Altar } from './Altar.js';
-import { DeviceLastSeen, useDeviceStatus } from './DeviceLastSeen.js';
 import { httpDeviceStatusSource } from './device-status-source.js';
-import type { DeviceStatus, DeviceStatusSource } from './device-status-source.js';
+import type { DeviceStatusSource } from './device-status-source.js';
 import { httpReportSource } from './http-report-source.js';
+import { LeavesPage } from './LeavesPage.js';
+import type { Book } from './LeavesPage.js';
+import type { LiveViewSource } from './live-view-source.js';
+import { LiveViewPage } from './LiveView.js';
+import type { ReportSource } from './report-source.js';
+import { ReportsPage } from './ReportsPage.js';
 import { httpReviewSource } from './review-source.js';
 import type { ReviewSource } from './review-source.js';
 import { ReviewPage } from './ReviewPage.js';
-import { LeavesPage } from './LeavesPage.js';
-import type { LiveViewPunch, LiveViewSource, NotCountedBecause } from './live-view-source.js';
-import { PoojaRing } from './PoojaRing.js';
-import type { ReportSource } from './report-source.js';
-import { EveryStudent, ReportsPage, Segments } from './ReportsPage.js';
 import { httpSettingsSource } from './settings-source.js';
 import type { SettingsSource } from './settings-source.js';
 import { SettingsPage } from './SettingsPage.js';
 import { httpStudentSource } from './student-source.js';
 import type { StudentSource } from './student-source.js';
 import { StudentsPage } from './StudentsPage.js';
-import { punchKey, useLiveView } from './use-live-view.js';
-import type { LiveViewState } from './use-live-view.js';
 
-const NOTE = 'Outside Pooja Window (05:30–18:00)';
-// Why a Punch is shown but not counted (FR-2).
-const NOT_COUNTED: Record<NotCountedBecause, string> = {
-  'outside-pooja-window': NOTE,
-  'unknown-student': 'Not a Student',
-  'not-active': 'Not Active',
-};
 const LIVE_VIEW = 'Live view';
 const REPORTS = 'Reports';
 const STUDENTS = 'Students';
@@ -41,111 +31,220 @@ const SETTINGS = 'Settings';
 const istToday = () =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(Date.now());
 
-const istTime = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Kolkata',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hourCycle: 'h23',
-});
-const istDate = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Asia/Kolkata',
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-const dayInWords = (day: string) =>
-  istDate.format(new Date(`${day}T12:00:00+05:30`)).replace(',', '');
+// Which book the Leaves page opens on, and the Students it starts with. "times" remounts the
+// page, so pressing Return twice for different Students opens the book fresh each time.
+interface LeavesOpening {
+  book: Book;
+  students: readonly string[];
+  times: number;
+}
 
-function PunchRow({ punch, isNew }: { punch: LiveViewPunch; isNew: boolean }) {
+function PageButton(props: {
+  name: string;
+  isCurrent: boolean;
+  className: string;
+  onClick: () => void;
+}) {
   return (
-    <li
-      className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 border-t border-line px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto_auto] ${isNew ? 'just-arrived' : ''}`}
+    <button
+      type="button"
+      aria-current={props.isCurrent ? 'page' : undefined}
+      onClick={props.onClick}
+      className={props.className}
     >
-      <span className="grid">
-        <span className="text-lg font-semibold">
-          {punch.name ?? `Student ID ${punch.studentId}`}
-        </span>
-        {punch.name && <span className="text-sm text-mist">Student ID {punch.studentId}</span>}
-      </span>
-      <span className="font-semibold">{istTime.format(punch.punchedAt)}</span>
-      <span
-        className={`col-span-2 justify-self-start rounded-full px-3 py-0.5 text-sm font-semibold sm:col-span-1 ${punch.isCounted ? 'bg-gold/20 text-gold' : 'bg-note text-note-ink'}`}
-      >
-        {punch.notCountedBecause ? NOT_COUNTED[punch.notCountedBecause] : 'Present'}
-      </span>
-    </li>
+      {props.name}
+    </button>
   );
 }
 
-function Punches({ live }: { live: LiveViewState }) {
-  if (live.failed) {
-    return (
-      <p className="px-3 pb-4 text-mist">
-        The live view cannot reach the EVLOS server. Start it with npm run dev, then reload this
-        page.
-      </p>
-    );
-  }
-  if (live.view === null) {
-    return <p className="px-3 pb-4 text-mist">Loading today's Punches.</p>;
-  }
-  if (live.view.punches.length === 0) {
-    return (
-      <p className="px-3 pb-4 text-mist">
-        No Punches yet today. Each Punch appears here as soon as the Device sends it.
-      </p>
-    );
-  }
+// The three-line button of a phone.
+function MenuIcon() {
   return (
-    <ol className="max-h-[27rem] overflow-y-auto">
-      {live.view.punches.map((punch) => (
-        <PunchRow key={punchKey(punch)} punch={punch} isNew={punchKey(punch) === live.newestKey} />
-      ))}
-    </ol>
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
   );
 }
 
-function TodaysCount({ live, device }: { live: LiveViewState; device: DeviceStatus | null }) {
+// On a phone: a panel that slides in from the right edge with the pages, and Settings and Log out
+// at the bottom.
+// A strip of the page is left at the other edge, dimmed; pressing it, the cross or Escape closes.
+function PhoneDrawer(props: {
+  page: string;
+  onPage: (page: string) => void;
+  onLogOut?: (() => void) | undefined;
+  onClose: () => void;
+}) {
+  const closeButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    closeButton.current?.focus();
+    // The page behind does not scroll while the panel is open.
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = before;
+    };
+  }, []);
+  const row = (isCurrent: boolean) =>
+    `flex min-h-12 items-center border-t border-line pr-4 text-left ${isCurrent ? 'border-l-[3px] border-l-primary pl-4 font-bold text-ink' : 'pl-[19px] text-muted'}`;
+  const go = (page: string) => () => {
+    props.onPage(page);
+    props.onClose();
+  };
   return (
-    <section aria-label="Today's count">
-      <h1 className="font-display text-[2.5rem] leading-tight font-bold text-gold">
-        Today's Pooja
-      </h1>
-      <p className="mt-1 mb-5 text-mist">
-        {live.view ? `${dayInWords(live.view.day)}. Pooja Window 05:30 to 18:00.` : ' '}
-      </p>
-      <PoojaRing
-        present={live.view?.studentsPresent ?? null}
-        active={live.view?.activeStudents ?? null}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Menu"
+      className="fixed inset-0 z-50 md:hidden"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') props.onClose();
+      }}
+    >
+      <button
+        type="button"
+        aria-label="Close menu"
+        tabIndex={-1}
+        className="absolute inset-0 bg-overlay"
+        onClick={props.onClose}
       />
-      <div className="mt-4">
-        <DeviceLastSeen status={device} />
-      </div>
-    </section>
+      <nav
+        aria-label="Pages"
+        className="drawer absolute inset-y-0 right-0 flex w-[82%] max-w-80 flex-col overflow-y-auto bg-surface"
+      >
+        <div className="flex min-h-14 items-center justify-between pl-4 pr-2">
+          <span className="font-display text-[1.65rem] font-extrabold tracking-tight text-primary lowercase">
+            EVLOS
+          </span>
+          <button
+            ref={closeButton}
+            type="button"
+            className="gear"
+            aria-label="Close"
+            onClick={props.onClose}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        {PAGES.map((name) => (
+          <PageButton
+            key={name}
+            name={name}
+            isCurrent={name === props.page}
+            className={row(name === props.page)}
+            onClick={go(name)}
+          />
+        ))}
+        <div className="mt-auto grid">
+          <PageButton
+            name={SETTINGS}
+            isCurrent={props.page === SETTINGS}
+            className={row(props.page === SETTINGS)}
+            onClick={go(SETTINGS)}
+          />
+          {props.onLogOut && (
+            <button
+              type="button"
+              className={row(false)}
+              onClick={() => {
+                props.onLogOut?.();
+                props.onClose();
+              }}
+            >
+              Log out
+            </button>
+          )}
+        </div>
+      </nav>
+    </div>
   );
 }
 
-const LATEST_PUNCHES = 'Latest Punches';
-const LIVE_LISTS = [LATEST_PUNCHES, 'Every Student'] as const;
-
-function LiveLists(props: { live: LiveViewState; reports: ReportSource; today: string }) {
-  const [list, setList] = useState<(typeof LIVE_LISTS)[number]>(LATEST_PUNCHES);
+// The bar stays at the top while the page scrolls. On a wide screen the pages are in the bar;
+// on a phone a three-line button slides them in from the side.
+function Menu(props: {
+  page: string;
+  onPage: (page: string) => void;
+  onLogOut?: (() => void) | undefined;
+}) {
+  const [isOpen, setOpen] = useState(false);
   return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-2">
-        <h2 className="font-display text-2xl font-semibold">{list}</h2>
-        <Segments label="List" options={LIVE_LISTS} value={list} onChange={setList} />
-      </div>
-      {list === LATEST_PUNCHES ? (
-        <div aria-live="polite">
-          <Punches live={props.live} />
+    <header className="gutter sticky top-0 z-30 border-b border-line bg-surface">
+      <div className="mx-auto flex min-h-14 max-w-[80rem] items-center gap-x-8 md:min-h-0">
+        <div className="font-display text-[1.65rem] font-extrabold tracking-tight text-primary lowercase">
+          EVLOS
         </div>
-      ) : (
-        <EveryStudent source={props.reports} today={props.today} />
+        <nav aria-label="Main menu" className="hidden min-w-0 gap-6 md:flex">
+          {PAGES.map((name) => (
+            <PageButton
+              key={name}
+              name={name}
+              isCurrent={name === props.page}
+              className="menu-item"
+              onClick={() => {
+                props.onPage(name);
+              }}
+            />
+          ))}
+        </nav>
+        <div className="ml-auto hidden gap-5 md:flex">
+          <PageButton
+            name={SETTINGS}
+            isCurrent={props.page === SETTINGS}
+            className="menu-item"
+            onClick={() => {
+              props.onPage(SETTINGS);
+            }}
+          />
+          {props.onLogOut && (
+            <button type="button" className="menu-item" onClick={props.onLogOut}>
+              Log out
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          className="gear ml-auto md:hidden"
+          aria-label="Menu"
+          aria-expanded={isOpen}
+          onClick={() => {
+            setOpen((old) => !old);
+          }}
+        >
+          <MenuIcon />
+        </button>
+      </div>
+      {isOpen && (
+        <PhoneDrawer
+          page={props.page}
+          onPage={props.onPage}
+          onLogOut={props.onLogOut}
+          onClose={() => {
+            setOpen(false);
+          }}
+        />
       )}
-    </>
+    </header>
   );
 }
 
@@ -156,80 +255,66 @@ export function App(props: {
   review?: ReviewSource;
   settings?: SettingsSource;
   device?: DeviceStatusSource;
-  onLogOut?: () => void;
+  onLogOut?: (() => void) | undefined;
 }) {
   const { source, students = httpStudentSource, reports = httpReportSource } = props;
   const [page, setPage] = useState(LIVE_VIEW);
-  const live = useLiveView(source);
+  const [leaves, setLeaves] = useState<LeavesOpening>({
+    book: 'Going-to-Home Book',
+    students: [],
+    times: 0,
+  });
   const deviceSource = props.device ?? httpDeviceStatusSource;
-  const device = useDeviceStatus(deviceSource);
   const [today] = useState(istToday);
-  const widePages: Record<string, ReactNode> = {
-    [REPORTS]: <ReportsPage source={reports} today={today} />,
-    [STUDENTS]: <StudentsPage source={students} today={today} />,
-    [LEAVES]: <LeavesPage source={students} today={today} />,
-    [REVIEW]: (
-      <ReviewPage source={props.review ?? httpReviewSource} device={deviceSource} today={today} />
+  const openLeaves = (book: Book, students: readonly string[] = []) => {
+    setLeaves((old) => ({ book, students, times: old.times + 1 }));
+    setPage(LEAVES);
+  };
+  const pages: Record<string, ReactNode> = {
+    [LIVE_VIEW]: (
+      <LiveViewPage
+        source={source}
+        reports={reports}
+        students={students}
+        device={deviceSource}
+        onOpenLeaves={openLeaves}
+      />
     ),
-    [SETTINGS]: <SettingsPage source={props.settings ?? httpSettingsSource} />,
+    [REPORTS]: <ReportsPage source={reports} today={today} />,
+    [STUDENTS]: (
+      <StudentsPage source={students} reports={reports} today={today} onOpenLeaves={openLeaves} />
+    ),
+    [LEAVES]: (
+      <LeavesPage
+        key={leaves.times}
+        source={students}
+        today={today}
+        startBook={leaves.book}
+        startStudents={leaves.students}
+      />
+    ),
+    [REVIEW]: (
+      <ReviewPage
+        source={props.review ?? httpReviewSource}
+        device={deviceSource}
+        reports={reports}
+        today={today}
+        onOpenLeaves={() => {
+          openLeaves('Going-to-Home Book');
+        }}
+      />
+    ),
+    [SETTINGS]: (
+      <SettingsPage source={props.settings ?? httpSettingsSource} device={deviceSource} />
+    ),
   };
 
   return (
     <div className="screen">
-      <header className="gutter relative z-10 border-b border-line">
-        <div className="mx-auto flex max-w-[70rem] flex-wrap items-center gap-x-7 pt-2 md:flex-nowrap md:pt-0">
-          <div className="font-display text-3xl font-bold text-gold">EVLOS</div>
-          <nav
-            aria-label="Main menu"
-            className="flex min-w-0 basis-full gap-1 overflow-x-auto py-2 md:basis-auto"
-          >
-            {PAGES.map((name) => (
-              <button
-                key={name}
-                type="button"
-                aria-current={name === page ? 'page' : undefined}
-                onClick={() => {
-                  setPage(name);
-                }}
-                className="menu-item"
-              >
-                {name}
-              </button>
-            ))}
-          </nav>
-          <button
-            type="button"
-            aria-current={page === SETTINGS ? 'page' : undefined}
-            onClick={() => {
-              setPage(SETTINGS);
-            }}
-            className="menu-item ml-auto"
-          >
-            {SETTINGS}
-          </button>
-          {props.onLogOut && (
-            <button type="button" className="menu-item" onClick={props.onLogOut}>
-              Log out
-            </button>
-          )}
-        </div>
-      </header>
-
-      <div className="gutter relative z-10">
-        {widePages[page] ? (
-          <main className="mx-auto max-w-[70rem] pt-8 pb-2">{widePages[page]}</main>
-        ) : (
-          <main className="mx-auto grid max-w-[70rem] gap-7 pt-8 pb-2 md:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] md:gap-10">
-            <TodaysCount live={live} device={device} />
-
-            <section className="min-w-0 rounded-2xl border border-line bg-night/60 p-2">
-              <LiveLists live={live} reports={reports} today={today} />
-            </section>
-          </main>
-        )}
+      <Menu page={page} onPage={setPage} onLogOut={props.onLogOut} />
+      <div className="gutter">
+        <main className="mx-auto max-w-[80rem] pt-4 pb-2">{pages[page]}</main>
       </div>
-
-      <Altar flareKey={live.newestKey} />
     </div>
   );
 }
