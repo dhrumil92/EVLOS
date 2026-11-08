@@ -130,6 +130,7 @@ export class PostgresFinalizeRepository implements FinalizeRepository {
                   recipient: one.recipient,
                   subject: one.subject,
                   body: one.body,
+                  html: one.html ?? null,
                   dedupeKey: dedupeKeyOf(day, one.studentId),
                   sendAfter: doneAt,
                 })),

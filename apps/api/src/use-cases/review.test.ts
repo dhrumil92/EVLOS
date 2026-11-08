@@ -251,6 +251,16 @@ describe('sendNotifications', () => {
     expect(queued[0]?.body).toMatch(/^Dear Asha Rao,/);
   });
 
+  it('sends a formatted version of the same email, to the Student by name', async () => {
+    const { deps, queued } = await setUp();
+    await finalizeDay(DAY, RECTOR, deps);
+
+    await sendNotifications(DAY, [], RECTOR, deps);
+
+    expect(queued[0]?.html).toContain('Dear Asha Rao,');
+    expect(queued[0]?.html).toContain('Tuesday 3 November 2026');
+  });
+
   it('queues nothing more on a second click', async () => {
     const { deps, queued } = await setUp();
     await finalizeDay(DAY, RECTOR, deps);

@@ -33,6 +33,7 @@ export class PostgresOutboxRepository implements OutboxRepository {
             recipient: email.recipient,
             subject: email.subject,
             body: email.body,
+            html: email.html ?? null,
             dedupeKey: email.dedupeKey,
             sendAfter: new Date(email.sendAfter),
           })),
@@ -84,11 +85,17 @@ export class PostgresOutboxRepository implements OutboxRepository {
         recipient: outboxEmails.recipient,
         subject: outboxEmails.subject,
         body: outboxEmails.body,
+        html: outboxEmails.html,
       });
     const files = await this.attachmentsOf(taken.map((email) => email.id));
     return taken
       .sort((first, second) => first.id - second.id)
-      .map((email) => ({ ...email, attachments: files.get(email.id) ?? [] }));
+      .map(({ html, ...email }) => ({
+        ...email,
+        // An email queued before the layout existed has no HTML and goes out as plain text.
+        ...(html === null ? {} : { html }),
+        attachments: files.get(email.id) ?? [],
+      }));
   }
 
   // The attachments of the given emails, by email id, each list in position order.

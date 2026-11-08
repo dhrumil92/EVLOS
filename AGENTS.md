@@ -38,6 +38,7 @@ Run from the repo root.
 | `npm run rector:password -- <email>` | Set a new password for a Rector who is locked out and cannot use the emailed reset link (reads `.env`). Asks twice at a hidden prompt; ends every login of that Rector and closes any open reset link. |
 | `npm run students:load -- <file.csv> [--save]` | First load of the Rector's list into `evlos` (reads `.env`). Without `--save` it only checks; with it, all Students are saved or none. Columns as in `sample-roster.csv`. |
 | `npm run email:test -- <email>` | Send one test email through the SMTP settings in `.env`, to check them. Touches no database. On failure it prints the error code and reason, never the password. |
+| `npm run email:preview -- <email> ["Name"]` | Send one sample of the Student's Notification, in the real design and wording with a made-up Student, to the address given (reads `.env`). Touches no database. |
 | `npm test` | Run every test once. Database tests use `evlos_test` only and empty it first. |
 | `npm run lint` | ESLint, including the complexity limit (10) and the pure-core rules. |
 | `npm run typecheck` | Strict TypeScript for all workspaces. |

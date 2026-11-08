@@ -14,6 +14,7 @@ import type {
   NotificationState,
   PoojaResult,
 } from '../ports/finalize-repository.js';
+import { studentNotificationHtml } from '../email-templates/student-notification.js';
 import { computedStatus, firstPunchOn, loadEvidence } from './day-evidence.js';
 import { dayInWords } from './day-in-words.js';
 import type { EvidenceDeps } from './day-evidence.js';
@@ -164,7 +165,7 @@ export async function finalizeDay(
   return { outcome: 'finalized', absent: results.filter((r) => r.status === 'Absent').length };
 }
 
-function notificationFor(day: Day, student: Student): Notification {
+export function notificationFor(day: Day, student: Student): Notification {
   return {
     studentId: student.studentId,
     recipient: student.email,
@@ -174,6 +175,7 @@ function notificationFor(day: Day, student: Student): Notification {
       `You did not punch at Pooja on ${dayInWords(day)}, and you were in the hostel that day.\n` +
       'If you think this is a mistake, please speak to the Rector.\n\n' +
       'EVLOS, hostel Pooja attendance',
+    html: studentNotificationHtml({ name: student.name, day }),
   };
 }
 

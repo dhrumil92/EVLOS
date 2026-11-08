@@ -1,0 +1,1 @@
+ALTER TABLE "outbox_emails" ADD COLUMN "html" text;

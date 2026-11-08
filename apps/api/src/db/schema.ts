@@ -101,6 +101,8 @@ export const outboxEmails = pgTable('outbox_emails', {
   recipient: text('recipient').notNull(),
   subject: text('subject').notNull(),
   body: text('body').notNull(),
+  // The email with layout and colour; null for an email sent as plain text only.
+  html: text('html'),
   dedupeKey: text('dedupe_key').notNull().unique(),
   status: text('status').notNull().default('queued'),
   attempts: integer('attempts').notNull().default(0),

@@ -85,6 +85,13 @@
       "when": 1793876230455,
       "tag": "0011_add_device_last_seen",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794119021963,
+      "tag": "0012_outbox_email_html",
+      "breakpoints": true
     }
   ]
 }

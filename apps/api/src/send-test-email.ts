@@ -3,6 +3,7 @@
 // It does not touch the database or the outbox. The SMTP password is never printed.
 import { isEmailAddress } from '@evlos/core';
 import { smtpNotifier, smtpSettingsFrom } from './adapters/email/smtp-notifier.js';
+import { testEmailHtml } from './email-templates/test-email.js';
 
 const recipient = process.argv[2];
 if (recipient === undefined || !isEmailAddress(recipient)) {
@@ -24,6 +25,7 @@ try {
     body:
       `This is a test email from EVLOS, sent through ${where} as ${smtp.from}.\n\n` +
       'If it arrived, the email settings work.',
+    html: testEmailHtml({ where, from: smtp.from }),
     attachments: [],
   });
   console.log(`Sent through ${where}. Check the inbox of ${recipient}, and its spam folder.`);
