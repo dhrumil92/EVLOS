@@ -19,14 +19,14 @@ Status: a choice is confirmed once it is used in the repo; versions are pinned e
 | Auth | Session cookies, Argon2 password hashing | No hand-rolled crypto. |
 | Tests | Vitest, Fastify `inject`, a real PostgreSQL test database for repository tests, React Testing Library for the pages | Rules are pure and fast to test; see `TESTING.md`. Playwright browser tests were planned for one or two flows and dropped on 2026-11-05 to keep time for deployment: the whole flow was instead run by hand on a real Day (4 Nov). One may be added in Phase 7 if time allows. |
 | Quality | ESLint with the `complexity` rule on, Prettier, strict TypeScript | The course measures complexity. |
-| Delivery | GitHub Actions (lint, typecheck, test with a Postgres service container, deploy); Docker Compose and Caddy (HTTPS) on the VM only | Repeatable deploys to one small VM. |
-| Operations | Pino logs, `/health`, an uptime check, nightly database backup | NFR-9. |
+| Delivery | GitHub Actions (lint, typecheck, format check, test with a Postgres service container); Docker Compose and Caddy (HTTPS) on the VM only, updated by hand with `git pull` and `docker compose up -d --build` | Repeatable deploys to one small VM. An automatic deploy on merge was cut from Phase 6. |
+| Operations | Pino logs, an uptime check on `/api/public/live`, nightly database backup (not built yet) | NFR-9. The Public Live View route reads the database, so it doubles as the health check and needed no new route. |
 | Hosting | Google Cloud free-tier VM (e2-micro, 1 GB RAM), after Phase 4 | The Device speaks plain HTTP on its own port; the scheduler needs a long-running process. |
 
 ## Environments
 - **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit) for tests, or to real inboxes through Gmail when `.env` has the Gmail settings. The Device pushes to the PC over the same Wi-Fi. The page's API listens on `127.0.0.1` only and needs a Rector login; on the VM it is reached only through Caddy over HTTPS.
 - **CI (GitHub Actions):** a Postgres service container; no Docker on the author's PC is involved.
-- **Production (GCP VM, from Phase 6):** Docker Compose with `api` and `caddy`; PostgreSQL on the VM or a free managed tier, with its own database and user for EVLOS. Caddy must answer any page address that is not a file, such as `/reset-password`, with `index.html`, as Vite does locally, and `PUBLIC_URL` must be the HTTPS address, so the link in a reset email opens.
+- **Production (GCP VM, from Phase 6):** Docker Compose with `postgres`, `api` and `web` (`deploy/docker-compose.yml`), and a separate edge Caddy (`deploy/edge`) that alone holds ports 80 and 443; PostgreSQL 16 in its own container with its own volume. Caddy must answer any page address that is not a file, such as `/reset-password`, with `index.html`, as Vite does locally, and `PUBLIC_URL` must be the HTTPS address, so the link in a reset email opens.
 
 ## 1. Context
 ```
@@ -134,11 +134,13 @@ Each job writes a row with a `dedupe_key`, so running twice does not send twice.
 **First load.** `npm run students:load -- <file.csv>` reads the Rector's list (Student IDs, names, rooms, emails), saved from Excel as "CSV UTF-8" with the columns of `sample-roster.csv`. It checks every row like the form and reports problems by line; with `--save` it adds every Student in one transaction, or none. Real data stays out of the repo.
 
 ## 5. Deployment (Phase 6)
-- Docker Compose on the VM: `api` and `caddy` (and PostgreSQL if kept local to the VM).
-- Caddy serves the UI over HTTPS. A separate plain-HTTP port (8081) exposes only the Device endpoints.
-- GitHub Actions runs lint, typecheck and tests on every pull request and deploys on merge to `main`.
-- Config in environment variables. Nightly database backup. Health endpoint and an uptime check.
-- Free tier note: one e2-micro with 1 GB RAM, so keep the app lean; stop unrelated containers or use a separate account. Run `free -m` and confirm the region (us-west1, us-central1 or us-east1) before relying on it.
+The full steps are in `docs/DEPLOY.md`; running more projects on the VM is in `docs/VM_MULTI_PROJECT.md`.
+- Docker Compose on the VM: `postgres`, `api` and `web`. The Dockerfile has two targets, `api` (the server and the migrations) and `web` (the built page as plain files). Images are built on the VM.
+- An edge Caddy, in its own Compose project, is the only thing on ports 80 and 443. It gets the HTTPS certificate for `evlos.34-55-12-141.sslip.io` and sends `/api/public` to port 3001, `/api` to port 3000 and everything else to `web`. It is separate from EVLOS so that later projects on the same VM join the shared `edge` network and add one block to its Caddyfile. A Vercel front page was considered and not used: Vercel cannot host the Device endpoint, the schedule loop or PostgreSQL, and a rewrite to the VM would leave that hop unencrypted.
+- A separate plain-HTTP port (8081) exposes only the Device endpoints. The page server and the Public Live View listen on `PAGE_HOST` and `PUBLIC_HOST` (127.0.0.1 locally, 0.0.0.0 inside the container); Compose publishes neither port.
+- GitHub Actions runs lint, typecheck and tests on every push and pull request. The VM is updated by hand; an automatic deploy on merge was cut.
+- Config in environment variables (`deploy/.env` on the VM, never committed). The uptime check reads `/api/public/live`. A nightly database backup is still to be built: snapshots are off because they are not free.
+- Free tier: one e2-micro with 1 GB RAM and 2 GB of swap, a 30 GB standard disk, no snapshots, no Ops Agent, a static IP kept attached, in us-central1. EVLOS uses about 480 MB, leaving about 470 MB available. Run `free -m` before adding a project.
 
 ## 6. Security and privacy
 - The Rector site requires login, uses HTTPS and session cookies, and hashes passwords with Argon2.

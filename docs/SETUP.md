@@ -1,6 +1,6 @@
 # SETUP: running EVLOS on your own machine
 
-This guide takes a fresh Windows, macOS or Linux machine to a running EVLOS: the database, the server (backend), the Rector's page (frontend), the Rector's login, email, and the fingerprint Device. Every step is a command you can copy. Deployment on the server comes in Phase 6 and has its own guide.
+This guide takes a fresh Windows, macOS or Linux machine to a running EVLOS: the database, the server (backend), the Rector's page (frontend), the Rector's login, email, and the fingerprint Device. Every step is a command you can copy. Deployment on the server has its own guide, `docs/DEPLOY.md`.
 
 ## What you will run
 
