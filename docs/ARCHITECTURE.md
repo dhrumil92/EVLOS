@@ -14,7 +14,7 @@ Status: a choice is confirmed once it is used in the repo; versions are pinned e
 | Database | PostgreSQL 17 with Drizzle ORM and SQL migrations | Constraints for uniqueness and idempotency; light on a 1 GB VM. |
 | Live updates | Server-Sent Events | One-way push of new Punches; simpler than WebSockets. |
 | Scheduler | In-process loop in Asia/Kolkata plus the `outbox_emails` table | Enough at this scale and easy to explain. |
-| Email | Nodemailer through an SMTP provider on port 587: Gmail with an app password (chosen 4 Nov; about 500 emails a day), Mailpit on this machine for tests. `npm run email:test` checks the settings. | GCP blocks outbound port 25, and mail sent straight from a VM IP usually lands in spam. Any SMTP provider can replace Gmail through `.env` alone. |
+| Email | Nodemailer through an SMTP provider on port 587: Gmail with an app password (chosen 4 Nov; about 500 emails a day), Mailpit on this machine for tests. Every email is sent as HTML and as plain text together. `npm run email:test` checks the settings; `npm run email:preview` sends a sample of any email to an address. | GCP blocks outbound port 25, and mail sent straight from a VM IP usually lands in spam. Any SMTP provider can replace Gmail through `.env` alone. |
 | Reports | CSV by hand; Excel with `write-excel-file` (one dependency; `read-excel-file` only in tests, to read the file back) | Needed for FR-11. ExcelJS was set aside: no release since 2023 and many dependencies. |
 | Auth | Session cookies, Argon2 password hashing | No hand-rolled crypto. |
 | Tests | Vitest, Fastify `inject`, a real PostgreSQL test database for repository tests, React Testing Library for the pages | Rules are pure and fast to test; see `TESTING.md`. Playwright browser tests were planned for one or two flows and dropped on 2026-11-05 to keep time for deployment: the whole flow was instead run by hand on a real Day (4 Nov). One may be added in Phase 7 if time allows. |
@@ -63,9 +63,17 @@ apps/api
   adapters         device (Device protocol parser and routes), postgres (Drizzle),
                    http routes (and PUBLIC_URL for reset links), login (Argon2
                    and session tokens), roster (CSV reader for the first load),
-                   email (Nodemailer over SMTP), scheduler (the schedule loop),
-                   report (one shared table, written as CSV or coloured Excel;
-                   the Vidyalaya Presence Excel; the files for the emails)
+                   email (Nodemailer over SMTP, which also attaches the logo and
+                   the evlos wordmark inside each HTML email), scheduler (the
+                   schedule loop), report (one shared table, written as CSV or
+                   coloured Excel; the Vidyalaya Presence Excel; the files for
+                   the emails)
+  email-templates  the HTML of every email in the Tiles design: one layout (indigo
+                   header, white card, no colour around it) and a function for each
+                   email (Student Notification, Daily and Monthly Report, Review
+                   Reminder, password reset, test email). Layout only, no rules.
+                   Text from a person is escaped. The plain-text body is still
+                   written in the use case, so both versions say the same words.
 apps/web           React UI for the Rector in the Dawn design: login (with
                    forgot password), live view, Students (each Student's month,
                    Vidyalaya Presence download), Leaves (the two books),
@@ -88,7 +96,7 @@ Facts are stored; statuses are computed. Only the Rector's decisions are stored 
 | `leaves` | `id` PK, `student_id`, `out_at`, `expected_return_at`, `returned_at` null, `cancelled_at` null | Open while `returned_at` and `cancelled_at` are null. Away and Due Back are derived. |
 | `day_finalizations` | `day` PK, finalized by, finalized at | Locks a Day. |
 | `pooja_results` | `day`, `student_id` PK; status, first punch time, `excluded_at` null | Written at Finalize only. Before Finalize the status is computed on read. `excluded_at` is set when the Rector Excludes an Absent Student. |
-| `outbox_emails` | kind, recipient, subject, body, `dedupe_key` unique, status, attempts, `send_after`, `sent_at` | Kinds: Notification, Review Reminder, Daily Report, Monthly Report. `status` goes queued -> sending -> sent; a refused email goes back to queued for a retry, or to failed after the third refusal. |
+| `outbox_emails` | kind, recipient, subject, body, `html` (nullable), `dedupe_key` unique, status, attempts, `send_after`, `sent_at` | Kinds: Notification, Review Reminder, Daily Report, Monthly Report. `body` is the plain text and `html` the same email with layout; an email queued before migration 0012 has no `html` and goes out as plain text. The password-reset email is not queued, so its link is never stored. `status` goes queued -> sending -> sent; a refused email goes back to queued for a retry, or to failed after the third refusal. |
 | `outbox_attachments` | `outbox_email_id`, `position` PK; file name, `content` (bytes) | The files sent with an outbox email, in order: a Daily Report and a Monthly Report carry the Pooja Excel file, then the Vidyalaya Presence Excel file. Kept as bytes, since an Excel file is not text. Saved in the same transaction as the email, and only for a new `dedupe_key`. Migration 0008 moved the CSVs from the old `attachment` column here. |
 | `rectors`, `rector_sessions` | email, Argon2 password hash; SHA-256 hash of the session token, expiry | Each Rector's account is made with `npm run rector:create`, once per Rector; a locked-out Rector gets a new password with `npm run rector:password`, which ends all the Rector's sessions, closes open reset links and writes a Reset Password audit row with the detail "command line". Named after the glossary, not "users". A password change (`POST /api/password`) saves the new hash, deletes the Rector's other sessions and writes the audit row in one transaction; the session that asked stays. |
 | `password_resets` | `token_hash` PK (SHA-256 of the link's token), `rector_id`, `expires_at` (30 minutes after asking), `used_at` null | Forgot password links. Using one is a single update that checks it is unused and not expired, then, in the same transaction, saves the new hash, closes the Rector's other links, deletes all the Rector's sessions and writes a Reset Password audit row. |
