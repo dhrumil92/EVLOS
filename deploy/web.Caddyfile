@@ -1,0 +1,13 @@
+# Serves the built page inside the web container, on port 80 of the private Docker network.
+# HTTPS is the edge Caddy's job (deploy/edge/Caddyfile), so this one turns it off.
+{
+	auto_https off
+}
+
+:80 {
+	root * /srv
+	# Any page address that is not a file, such as /reset-password, gets index.html, as Vite does.
+	try_files {path} /index.html
+	file_server
+	encode gzip
+}

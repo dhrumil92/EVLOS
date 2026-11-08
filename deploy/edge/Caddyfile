@@ -1,0 +1,20 @@
+# One block per project. The name decides which project answers; Caddy gets the certificate.
+evlos.34-55-12-141.sslip.io {
+	encode gzip
+
+	# The Public Live View's own server, listed first because its address is the longer one.
+	@public path /api/public /api/public/*
+	handle @public {
+		reverse_proxy evlos-api:3001
+	}
+
+	# The Rector's page API, behind login.
+	handle /api/* {
+		reverse_proxy evlos-api:3000
+	}
+
+	# Everything else is the page itself.
+	handle {
+		reverse_proxy evlos-web:80
+	}
+}

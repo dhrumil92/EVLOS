@@ -1,0 +1,66 @@
+# EVLOS on the VM: the database, the server and the page files. HTTPS is the edge Caddy's job
+# (deploy/edge), which reaches api and web by name over the shared `edge` network.
+# Run from this folder: docker compose up -d --build   (settings come from deploy/.env)
+name: evlos
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evlos
+      POSTGRES_DB: evlos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    # Small settings for a 1 GB VM that also runs the server and Caddy.
+    command: ['postgres', '-c', 'shared_buffers=32MB', '-c', 'max_connections=20']
+    volumes:
+      - evlos-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U evlos -d evlos']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 200m
+
+  api:
+    build:
+      context: ..
+      target: api
+    container_name: evlos-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://evlos:${POSTGRES_PASSWORD}@postgres:5432/evlos
+      # Listen on every address inside the container, so the edge Caddy can reach 3000 and 3001.
+      # Compose publishes neither of them to the internet.
+      PAGE_HOST: 0.0.0.0
+      PUBLIC_HOST: 0.0.0.0
+      NODE_OPTIONS: --max-old-space-size=160
+    ports:
+      # The Device: plain HTTP on its own port (the GCP firewall rule evlos-device opens it).
+      - '8081:8081'
+    networks:
+      - default
+      - edge
+    mem_limit: 250m
+
+  web:
+    build:
+      context: ..
+      target: web
+    container_name: evlos-web
+    restart: unless-stopped
+    networks:
+      - edge
+    mem_limit: 32m
+
+volumes:
+  evlos-db:
+
+networks:
+  # Created by deploy/edge; start that project first.
+  edge:
+    external: true

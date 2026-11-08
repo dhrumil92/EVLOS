@@ -1,0 +1,23 @@
+# Keeps the build small and keeps secrets and real data out of every image.
+.git
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+coverage
+
+# environment and secrets
+.env
+.env.*
+
+# real data and Device captures never go into an image
+*.csv
+*.xlsx
+*.xls
+biometric-test
+graphify-out
+
+# not needed to build
+docs
+*.md
+.github

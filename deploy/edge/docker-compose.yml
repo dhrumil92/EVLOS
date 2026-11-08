@@ -1,0 +1,29 @@
+# The one Caddy on the VM: it alone listens on ports 80 and 443, gets the HTTPS certificates, and
+# sends each name to the right project over the `edge` network. A later project joins that
+# network and gets a block in the Caddyfile; nothing in EVLOS changes.
+# Run from this folder: docker compose up -d
+name: edge
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates live here; losing it only means asking Let's Encrypt again.
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - edge
+    mem_limit: 64m
+
+volumes:
+  caddy-data:
+  caddy-config:
+
+networks:
+  edge:
+    name: edge
