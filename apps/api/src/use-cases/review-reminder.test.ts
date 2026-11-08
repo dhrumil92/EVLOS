@@ -60,6 +60,17 @@ async function setUp(
 }
 
 describe('queueReviewReminder', () => {
+  it('also queues a formatted version, with the Students by room', async () => {
+    const { deps, queued } = await setUp();
+
+    await queueReviewReminder(DAY, deps);
+
+    const html = queued[0]?.html ?? '';
+    expect(html).toContain('Wednesday 4 November 2026 is not Finalized yet.');
+    expect(html.indexOf('Bina Rao')).toBeGreaterThan(-1);
+    expect(html.indexOf('Bina Rao')).toBeLessThan(html.indexOf('Chitra Rao'));
+  });
+
   it('lists the Needs Review Students, by room, to each Report Recipient', async () => {
     const { deps, queued } = await setUp();
 

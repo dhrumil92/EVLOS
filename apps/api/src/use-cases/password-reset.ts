@@ -1,4 +1,5 @@
 import { resetLinkExpiresAt } from '@evlos/core';
+import { passwordResetHtml } from '../email-templates/password-reset.js';
 import type { Notifier } from '../ports/notifier.js';
 import { cleanEmail, MIN_PASSWORD_LENGTH } from './rector-login.js';
 import type { RectorLoginDeps } from './rector-login.js';
@@ -35,10 +36,12 @@ export async function requestPasswordReset(
   const token = deps.tokens.create();
   const expiresAt = resetLinkExpiresAt(deps.clock.now());
   await deps.rectors.addPasswordReset(deps.tokens.hashOf(token), account.rector.id, expiresAt);
+  const link = `${deps.resetPageUrl}?token=${encodeURIComponent(token)}`;
   await deps.notifier.send({
     recipient: account.rector.email,
     subject: 'EVLOS password reset',
-    body: bodyOf(`${deps.resetPageUrl}?token=${encodeURIComponent(token)}`),
+    body: bodyOf(link),
+    html: passwordResetHtml({ link }),
     attachments: [],
   });
   return 'sent';

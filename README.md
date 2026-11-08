@@ -116,7 +116,7 @@ Run from the repository root.
 | `npm run rector:password -- <email>` | Set a new password for a Rector who is locked out and cannot use the emailed reset link; every login of that Rector ends. |
 | `npm run students:load -- <file.csv> [--save]` | First load of the Rector's list of Students. Checks only, unless `--save`; then all are saved or none. Columns as in `sample-roster.csv`. |
 | `npm run email:test -- <email>` | Send one test email through the SMTP settings in `.env`. |
-| `npm run email:preview -- <email> ["Name"]` | Send one sample of the Student's Notification (real design and wording, made-up Student) to that address. |
+| `npm run email:preview -- <email> [student\|daily\|monthly\|reminder\|reset]` | Send one sample email (real design, made-up Students and numbers) to that address. |
 | `npm test` | Run every test once. |
 | `npm run lint` / `npm run typecheck` | ESLint and strict TypeScript for every workspace. |
 | `npm run format` / `npm run format:check` | Apply or check Prettier formatting. |
