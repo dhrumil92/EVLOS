@@ -1,9 +1,9 @@
 # Two images from one build: `api` (the server) and `web` (the Rector's page as plain files).
 # Built on the VM with `docker compose build`, see deploy/docker-compose.yml.
-# Tags follow the major line; run `docker image inspect` and note the exact version in docs/DEPLOY.md.
+# Exact versions, as read from the running containers on 9 Nov 2026 (node -v, caddy version).
 
 # ---- build: install everything, compile the server, build the page ----
-FROM node:22-bookworm-slim AS build
+FROM node:22.23.4-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json .npmrc tsconfig.base.json tsconfig.json ./
 COPY packages/core/package.json packages/core/
@@ -16,7 +16,7 @@ COPY apps apps
 RUN npx tsc -b && npx vite build apps/web
 
 # ---- api: only what the server runs ----
-FROM node:22-bookworm-slim AS api
+FROM node:22.23.4-bookworm-slim AS api
 ENV NODE_ENV=production
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
@@ -34,6 +34,6 @@ EXPOSE 8081 3000 3001
 CMD ["node", "apps/api/dist/index.js"]
 
 # ---- web: the built page, served as files; the edge Caddy sends the pages here ----
-FROM caddy:2-alpine AS web
+FROM caddy:2.11.9-alpine AS web
 COPY deploy/web.Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/apps/web/dist/site /srv
