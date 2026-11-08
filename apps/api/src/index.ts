@@ -5,6 +5,7 @@ import { registerDeviceRoutes } from './adapters/device/device-routes.js';
 import { smtpNotifier, smtpSettingsFrom } from './adapters/email/smtp-notifier.js';
 import { registerAuth } from './adapters/http/auth-routes.js';
 import { registerLeaveRoutes } from './adapters/http/leave-routes.js';
+import { listenHostFrom } from './adapters/http/listen-host.js';
 import { resetPageUrlFrom } from './adapters/http/public-url.js';
 import { LiveViewers, registerLiveRoutes } from './adapters/http/live-routes.js';
 import { registerReportRecipientRoutes } from './adapters/http/report-recipient-routes.js';
@@ -57,6 +58,8 @@ if (databaseUrl === undefined) {
 const devicePort = Number(process.env.DEVICE_PORT ?? '8081');
 const pagePort = Number(process.env.PAGE_PORT ?? '3000');
 const publicPort = Number(process.env.PUBLIC_PORT ?? '3001');
+const pageHost = listenHostFrom(process.env, 'PAGE_HOST');
+const publicHost = listenHostFrom(process.env, 'PUBLIC_HOST');
 // true on the VM, where Caddy is in front: the limits then count each visitor by the address
 // Caddy passes on, not Caddy's own address, which every visitor would share.
 const trustProxy = process.env.TRUST_PROXY === 'true';
@@ -160,8 +163,8 @@ registerLeaveRoutes(pageApp, {
 
 // 0.0.0.0 so the Device on the same network can reach this machine.
 await deviceApp.listen({ port: devicePort, host: '0.0.0.0' });
-// 127.0.0.1 only until deployment, where Caddy adds HTTPS in front of it.
-await pageApp.listen({ port: pagePort, host: '127.0.0.1' });
+// 127.0.0.1 unless PAGE_HOST says otherwise (0.0.0.0 in the VM's container, for Caddy).
+await pageApp.listen({ port: pagePort, host: pageHost });
 
 // The Public Live View (FR-17) on a server of its own: no login, no cookie, and no Rector route
 // on it, only one read-only route that answers with numbers.
@@ -170,7 +173,7 @@ await registerPublicRoutes(publicApp, {
   getPublicLiveView: () => getPublicLiveView({ students, leaves, punches, finalized, clock }),
   now: () => clock.now(),
 });
-await publicApp.listen({ port: publicPort, host: '127.0.0.1' });
+await publicApp.listen({ port: publicPort, host: publicHost });
 
 if (smtp === null) {
   pageApp.log.warn('SMTP_HOST is not set, so emails stay queued. See .env.example.');
