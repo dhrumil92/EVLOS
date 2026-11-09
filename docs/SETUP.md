@@ -92,6 +92,7 @@ Open `.env` and put your `evlos` password into both database addresses (replace 
 | `DEVICE_PORT` | `8081` | Where the Device sends Punches. |
 | `PAGE_PORT` | `3000` | Where the page's API listens (this machine only). |
 | `PUBLIC_PORT` | `3001` | Where the Public Live View's server listens (this machine only; no login). |
+| `PAGE_HOST`, `PUBLIC_HOST` | `127.0.0.1` | The address the page API and the Public Live View listen on. Keep `127.0.0.1` on your PC; only the server's container uses `0.0.0.0`. |
 | `TRUST_PROXY` | `false` | `true` only on the VM, behind Caddy, so the request limits count each visitor's own address. Keep `false` on your PC. |
 | `COOKIE_SECURE` | `false` | `true` only on the HTTPS server. |
 | `PUBLIC_URL` | `http://localhost:5173` | Password reset links point here. |
@@ -112,7 +113,7 @@ This builds the code and applies every migration in `apps/api/migrations` to bot
 ## 6. Check that everything works
 
 ```bash
-npm test             # about 1,100 tests: rules, server, database, pages
+npm test             # 1,157 tests (8 Nov): rules, server, database, pages
 npm run lint
 npm run typecheck
 ```
@@ -178,7 +179,7 @@ Use two terminals, both in the `EVLOS` folder.
 npm run dev          # terminal 1: the backend
 ```
 
-It logs that it listens on port 8081 (Device) and 3000 (page API). Warnings at start tell you what is not set up yet, such as "No Report Recipients yet". Keep it running: it also sends the scheduled emails (23:00 Review Reminder, 23:30 Daily Report, 09:00 Monthly Report on the 1st).
+It logs that it listens on port 8081 (Device), 3000 (page API) and 3001 (Public Live View). Warnings at start tell you what is not set up yet, such as "No Report Recipients yet". Keep it running: it also sends the scheduled emails (23:00 Review Reminder, 23:30 Daily Report, 09:00 Monthly Report on the 1st).
 
 ```bash
 npm run dev:web      # terminal 2: the frontend

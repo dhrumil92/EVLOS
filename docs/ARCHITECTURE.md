@@ -1,9 +1,9 @@
 # ARCHITECTURE
 
-How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Checked against the code on 2026-11-05 (end of Phase 5); anything not built yet is marked with the phase that brings it.
+How the system is put together. The graded design rules, decisions and boundary live in `DESIGN.md`. Names follow `UBIQUITOUS_LANGUAGE.md`. Checked against the code and the server on 2026-11-09 (Phase 6, deployed); anything not built yet is marked.
 
 ## Tech stack
-Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL 17 with Drizzle, Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Gmail with an app password; Mailpit for local tests), write-excel-file for Excel Reports, Vitest, ESLint, Prettier, GitHub Actions CI. Dropped on 2026-11-05: Playwright (see the Tests row). Not yet: Docker Compose, Caddy, hosting, `/health`, backups and the uptime check (Phase 6).
+Status: a choice is confirmed once it is used in the repo; versions are pinned exactly when each is added. In use now: TypeScript, Node 22, Fastify, React with Vite and Tailwind, PostgreSQL with Drizzle (17 on the author's PC and in CI, 16 on the VM), Server-Sent Events, session cookies with Argon2, Nodemailer over SMTP (Gmail with an app password; Mailpit for local tests), write-excel-file for Excel Reports, Vitest, ESLint, Prettier, GitHub Actions CI, and on the VM Docker Compose, Caddy and a nightly backup (since 9 Nov). Dropped on 2026-11-05: Playwright (see the Tests row). Not yet: an uptime monitor (optional; it would read `/api/public/live`).
 
 | Layer | Choice | Why |
 |-------|--------|-----|
@@ -11,7 +11,7 @@ Status: a choice is confirmed once it is used in the repo; versions are pinned e
 | Runtime | Node.js 22 LTS | Already used for the Device test server. |
 | API | Fastify | Small, fast, easy to test with `inject`; serves the Device endpoints too. |
 | Web | React with Vite and Tailwind (plain components; shadcn/ui was not needed) | Quick to build a clear table-and-panel UI. |
-| Database | PostgreSQL 17 with Drizzle ORM and SQL migrations | Constraints for uniqueness and idempotency; light on a 1 GB VM. |
+| Database | PostgreSQL with Drizzle ORM and SQL migrations: 17 on the PC and in CI, 16.15 in a container on the VM | Constraints for uniqueness and idempotency; light on a 1 GB VM. Every migration applied cleanly on 16 on 9 Nov. |
 | Live updates | Server-Sent Events | One-way push of new Punches; simpler than WebSockets. |
 | Scheduler | In-process loop in Asia/Kolkata plus the `outbox_emails` table | Enough at this scale and easy to explain. |
 | Email | Nodemailer through an SMTP provider on port 587: Gmail with an app password (chosen 4 Nov; about 500 emails a day), Mailpit on this machine for tests. Every email is sent as HTML and as plain text together. `npm run email:test` checks the settings; `npm run email:preview` sends a sample of any email to an address. | GCP blocks outbound port 25, and mail sent straight from a VM IP usually lands in spam. Any SMTP provider can replace Gmail through `.env` alone. |
@@ -20,11 +20,11 @@ Status: a choice is confirmed once it is used in the repo; versions are pinned e
 | Tests | Vitest, Fastify `inject`, a real PostgreSQL test database for repository tests, React Testing Library for the pages | Rules are pure and fast to test; see `TESTING.md`. Playwright browser tests were planned for one or two flows and dropped on 2026-11-05 to keep time for deployment: the whole flow was instead run by hand on a real Day (4 Nov). One may be added in Phase 7 if time allows. |
 | Quality | ESLint with the `complexity` rule on, Prettier, strict TypeScript | The course measures complexity. |
 | Delivery | GitHub Actions (lint, typecheck, format check, test with a Postgres service container); Docker Compose and Caddy (HTTPS) on the VM only, updated by hand with `git pull` and `docker compose up -d --build` | Repeatable deploys to one small VM. An automatic deploy on merge was cut from Phase 6. |
-| Operations | Pino logs, an uptime check on `/api/public/live`, nightly database backup (not built yet) | NFR-9. The Public Live View route reads the database, so it doubles as the health check and needed no new route. |
-| Hosting | Google Cloud free-tier VM (e2-micro, 1 GB RAM), after Phase 4 | The Device speaks plain HTTP on its own port; the scheduler needs a long-running process. |
+| Operations | Pino logs; a nightly database backup at 00:30 IST (`deploy/backup.sh`, the newest 90 kept, restore tested); `/api/public/live` as the health check, for an uptime monitor still to be set up | NFR-9. The Public Live View route reads the database, so it doubles as the health check and needed no new route. |
+| Hosting | Google Cloud Always Free VM (e2-micro, 1 GB RAM, us-central1), live since 9 Nov | The Device speaks plain HTTP on its own port; the scheduler needs a long-running process. |
 
 ## Environments
-- **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit) for tests, or to real inboxes through Gmail when `.env` has the Gmail settings. The Device pushes to the PC over the same Wi-Fi. The page's API listens on `127.0.0.1` only and needs a Rector login; on the VM it is reached only through Caddy over HTTPS.
+- **Local (the author's PC, Phases 1 to 5):** the PostgreSQL already installed on the machine, with a user `evlos` and databases `evlos` (development) and `evlos_test` (tests, may be wiped). Emails go to a local mail catcher (Mailpit) for tests, or to real inboxes through Gmail when `.env` has the Gmail settings. The Device pushes to the PC over the same Wi-Fi. The page's API listens on `127.0.0.1` only (`PAGE_HOST`) and needs a Rector login; on the VM it listens inside its container and is reached only through Caddy over HTTPS.
 - **CI (GitHub Actions):** a Postgres service container; no Docker on the author's PC is involved.
 - **Production (GCP VM, from Phase 6):** Docker Compose with `postgres`, `api` and `web` (`deploy/docker-compose.yml`), and a separate edge Caddy (`deploy/edge`) that alone holds ports 80 and 443; PostgreSQL 16 in its own container with its own volume. Caddy must answer any page address that is not a file, such as `/reset-password`, with `index.html`, as Vite does locally, and `PUBLIC_URL` must be the HTTPS address, so the link in a reset email opens.
 
@@ -36,7 +36,7 @@ Rector's browser --(HTTPS, login)--> Caddy -------->|  |-- live updates to the b
                                                     |
                                                     +--> email (SMTP, port 587)
 ```
-In production, one small VM runs Caddy and the API. The Device keeps its own Punches and re-uploads if the server is down.
+In production, one small VM runs Caddy, the API, the page files and PostgreSQL, each in its own container (section 5). The Device keeps its own Punches and re-uploads if the server is down.
 
 ## 2. Layers (hexagonal)
 ```
@@ -81,6 +81,9 @@ apps/web           React UI for the Rector in the Dawn design: login (with
                    Settings (Report Recipients, password, Device and times),
                    the reset password page; a sticky menu bar, and a side menu
                    on phones
+deploy             not code: the Docker Compose project (postgres, api, web),
+                   the edge Caddy, the production .env example and the
+                   nightly backup script
 ```
 Dependencies point inward: adapters know about the core, the core knows nothing about adapters. Reports are put together in the `getReport` use case from core rules; the core holds no Report builder of its own.
 
@@ -129,7 +132,7 @@ Each job writes a row with a `dedupe_key`, so running twice does not send twice.
 
 **Vidyalaya Presence.** Built by the `getVidyalayaPresence` use case from Students, their Active periods and Leaves, never from Punches, so it needs no Finalize and is worked out again each time. The rule is `isAwayOnDay` in the core: Away from the Day of the Out Time up to, but not including, the Day of the Return Time, and Away on every Day from the Out Time while there is no Return Time. Rooms are sorted with numeric text comparison, so 110 comes before 201. `presenceXlsx` writes the Excel file (the Room and Name columns, one column for each Day, then Days In hostel and Days Away). It is downloaded from `GET /api/vidyalaya-presence/xlsx` (a Day or a month, no range) and attached by `reportAttachments` to the Daily Report and Monthly Report emails. The Students page has no state of its own for it: the button builds the link.
 
-**Public Live View.** A second small Fastify server on `PUBLIC_PORT` (3001, this machine only), apart from the Rector's: it registers no login, sets no cookie and has one read-only route, `GET /api/public/live`, which takes no input. Every other address on it is "not found". `getPublicLiveView` works out today's numbers from `getReport`, so they follow the same Pooja rules: Present, and the Students expected (Active, less Not Applicable), plus how many first Punches fell in each 15-minute bar (`poojaSlotOf` in the core). The route keeps its answer for 30 seconds and shares it between viewers who ask at once, allows one address 1200 requests a minute (all the Students on the hostel Wi-Fi share one internet address, and each page asks twice a minute), and sends `X-Robots-Tag: noindex` and `Cache-Control: no-store`. The page at `/live` is shown by `main.tsx` without the login gate, asks again every 30 seconds with `credentials: 'omit'`, and draws the bars with the same `PunchBand` as the Rector's Live view. On the VM, Caddy sends `/api/public/` to `PUBLIC_PORT` and every other `/api/` to `PAGE_PORT`.
+**Public Live View.** A second small Fastify server on `PUBLIC_PORT` (3001; `127.0.0.1` locally, reachable only inside Docker on the VM), apart from the Rector's: it registers no login, sets no cookie and has one read-only route, `GET /api/public/live`, which takes no input. Every other address on it is "not found". `getPublicLiveView` works out today's numbers from `getReport`, so they follow the same Pooja rules: Present, and the Students expected (Active, less Not Applicable), plus how many first Punches fell in each 15-minute bar (`poojaSlotOf` in the core). The route keeps its answer for 30 seconds and shares it between viewers who ask at once, allows one address 1200 requests a minute (all the Students on the hostel Wi-Fi share one internet address, and each page asks twice a minute), and sends `X-Robots-Tag: noindex` and `Cache-Control: no-store`. The page at `/live` is shown by `main.tsx` without the login gate, asks again every 30 seconds with `credentials: 'omit'`, and draws the bars with the same `PunchBand` as the Rector's Live view. On the VM, Caddy sends `/api/public/` to `PUBLIC_PORT` and every other `/api/` to `PAGE_PORT`.
 
 **First load.** `npm run students:load -- <file.csv>` reads the Rector's list (Student IDs, names, rooms, emails), saved from Excel as "CSV UTF-8" with the columns of `sample-roster.csv`. It checks every row like the form and reports problems by line; with `--save` it adds every Student in one transaction, or none. Real data stays out of the repo.
 
@@ -139,7 +142,8 @@ The full steps are in `docs/DEPLOY.md`; running more projects on the VM is in `d
 - An edge Caddy, in its own Compose project, is the only thing on ports 80 and 443. It gets the HTTPS certificate for `evlos.34-55-12-141.sslip.io` and sends `/api/public` to port 3001, `/api` to port 3000 and everything else to `web`. It is separate from EVLOS so that later projects on the same VM join the shared `edge` network and add one block to its Caddyfile. Vercel cannot host the Device endpoint, the schedule loop or PostgreSQL, and a rewrite to the VM would leave that hop unencrypted, so Vercel does one thing only: a redirect page (the separate repository `evlos-redirect`) sends `evlos.vercel.app` and `evlos.vercel.app/live` to the sslip.io address, with Vercel Web Analytics counting those visits. Nothing from EVLOS passes through it.
 - A separate plain-HTTP port (8081) exposes only the Device endpoints. The page server and the Public Live View listen on `PAGE_HOST` and `PUBLIC_HOST` (127.0.0.1 locally, 0.0.0.0 inside the container); Compose publishes neither port.
 - GitHub Actions runs lint, typecheck and tests on every push and pull request. The VM is updated by hand; an automatic deploy on merge was cut.
-- Config in environment variables (`deploy/.env` on the VM, never committed). The uptime check reads `/api/public/live`. A nightly database backup is still to be built: snapshots are off because they are not free.
+- Config in environment variables (`deploy/.env` on the VM, never committed). An uptime monitor, when set up, reads `/api/public/live`.
+- Backup: snapshots are off because they are not free. Instead cron runs `deploy/backup.sh` at 19:00 UTC (00:30 IST): `pg_dump` inside the PostgreSQL container, a check that the file is not empty and that `pg_restore` can read it, then the newest 90 files are kept in `~/evlos-backups` (readable only by the owner). A failed run removes nothing. The restore into a scratch database was tested on 9 Nov. The copies are on the VM's own disk; a copy off the VM is downloaded by hand.
 - Free tier: one e2-micro with 1 GB RAM and 2 GB of swap, a 30 GB standard disk, no snapshots, no Ops Agent, a static IP kept attached, in us-central1. EVLOS uses about 480 MB, leaving about 470 MB available. Run `free -m` before adding a project.
 
 ## 6. Security and privacy
@@ -149,6 +153,7 @@ The full steps are in `docs/DEPLOY.md`; running more projects on the VM is in `d
 - The Public Live View runs on its own server with one read-only route that takes no input, and answers with numbers only.
 - Dependencies are pinned exactly. `npm audit --omit=dev` checks the code the server runs (0 findings on 2026-11-08); `npm audit` also checks the development tools (14 moderate findings on 2026-11-08, all in tools that never run on the server: esbuild through the dev tooling and minimatch through ESLint).
 - Minimal personal data. No fingerprint templates. Real Student emails only after the Rector agrees in writing.
+- Backups hold every Student's data and are not encrypted: they stay in a folder only the VM user can read, and a downloaded copy is kept private and never committed.
 
 ## 7. Extension seam
 New Devices and activities (library footfall, mess meals, gym visits, pathshala) reuse the Punch store. A Device will later carry a purpose, and each activity gets its own rule module that reads Punches and is registered without editing the Pooja rules. This is not built now; the only work today is keeping Pooja rules out of the Device adapter and out of the Punch store.

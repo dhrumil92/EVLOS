@@ -50,6 +50,7 @@ browser ── https://app2.34-55-12-141.sslip.io  ──┤
      ```
    - Do **not** publish ports 80 or 443. Publish a port only when something outside must reach it directly (like the Device on 8081), and then open that port in the GCP firewall (VPC network, Firewall rules, TCP, tag `http-server`).
    - Use its own database and user. Never share EVLOS's Postgres.
+   - Give it its own backup. `deploy/backup.sh` and its cron line cover only EVLOS's database.
 4. **Edge Caddyfile.** Add a block:
    ```
    app2.34-55-12-141.sslip.io {

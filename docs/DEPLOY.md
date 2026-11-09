@@ -250,7 +250,9 @@ Snapshots are off to stay free, so this is the only copy of the data outside the
 
 **How.** `deploy/backup.sh` runs `pg_dump` inside the PostgreSQL container, checks that the file is not empty and that `pg_restore` can read it, and only then names it `~/evlos-backups/evlos-<IST date>_<time>.dump`. It then keeps the newest 90 files and removes older ones. A failed run stops before anything is removed. No password is needed: `pg_dump` runs inside the container. The files are not encrypted, so anyone who has one can read every Student's data: keep them private, never commit or email them.
 
-**Disk.** A file is a few MB at most, so 90 files fit easily on the 30 GB disk.
+**Disk.** A file was 32 KB on 9 Nov (test data only) and stays a few MB at most with 360 Students, so 90 files fit easily on the 30 GB disk.
+
+**Done on 9 Nov:** all four checks below passed, a copy was downloaded to the author's PC, and the cron line was installed.
 
 ### First run and checks
 
@@ -334,3 +336,5 @@ Everything after that backup is lost: at most about a day.
 
 - The Device at the Pooja location, with real Punches.
 - The Rector's real Students.
+- Optional: an uptime monitor (for example UptimeRobot) on `https://evlos.34-55-12-141.sslip.io/api/public/live`, every 5 minutes, emailing when it fails.
+- Optional: a copy of each nightly backup on Google Drive, so a copy survives losing the VM.

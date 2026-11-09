@@ -2,7 +2,7 @@
 
 Technology choices are not listed here. This document says what the product must do; the stack is in `docs/ARCHITECTURE.md` (section Tech stack) and the rules for AI agents are in `AGENTS.md`.
 
-Status: written 2026-10-28, updated to match the code on 2026-11-08. Vocabulary follows `UBIQUITOUS_LANGUAGE.md`. Requirement IDs (FR-n, NFR-n) are stable so tests and `TESTING.md` can cite them. This document also serves as the project's requirements specification; no separate SRS is kept.
+Status: written 2026-10-28, updated to match the code and the deployment on 2026-11-09. Vocabulary follows `UBIQUITOUS_LANGUAGE.md`. Requirement IDs (FR-n, NFR-n) are stable so tests and `TESTING.md` can cite them. This document also serves as the project's requirements specification; no separate SRS is kept.
 
 ## 1. Problem
 Students must attend Pooja during the Pooja Window (05:30 to 18:00 IST). Today the Rector walks every room at 22:00, writes the result on paper, then retypes it into a local Excel file. Leaves are recorded on paper (a Leave Note plus two reception books) and copied by hand. The existing biometric software is paid and run by a vendor, and its records do not always match the Device. The Rector's work is slow and error-prone, and Students are not told when they miss Pooja. The hostel has 360 Students.
@@ -157,7 +157,7 @@ The Record button counts only the ticked lines that have a time. A refused line 
 - **NFR-6 Accessibility.** Colours always come with text.
 - **NFR-7 Testability.** Rules are pure functions with an injected clock. Rules, not screens, carry most tests.
 - **NFR-8 Extensibility.** A new Device purpose or activity is added without rewriting existing rules.
-- **NFR-9 Operability.** A health endpoint, structured logs, nightly database backup (once deployed).
+- **NFR-9 Operability.** A health check, structured logs, and a nightly database backup. Built 9 Nov: the Public Live View route `/api/public/live` reads the database and serves as the health check, and the backup runs at 00:30 IST and keeps the newest 90, with a tested restore.
 
 ## 7. Assumptions
 - A1. The Rector records every Leave and every Return. A missing Return is the Rector's responsibility.
@@ -171,8 +171,9 @@ The Record button counts only the ticked lines that have a time. A refused line 
 | Risk | Response |
 |------|----------|
 | The Rector's list for the first load has errors (wrong Student ID, room or email) | `npm run students:load` checks every row like the form and saves nothing while any row has a problem; each reported line is checked with the Rector. |
-| The 1 GB free VM runs short of memory | Stop other containers or use a separate account; keep the app small. |
-| Deployment starts late and leaves little pilot time | Build locally first, rehearse the VM with a hello-world around 9 Nov, deploy right after Phase 4. |
+| The 1 GB free VM runs short of memory | EVLOS has its own Google Cloud account and VM, 2 GB of swap and a memory limit on every container; about 470 MB stays free. |
+| Deployment starts late and leaves little pilot time | Built locally first; deployed on 9 Nov, a week before the 16 Nov target. |
+| The VM's disk is lost | Nightly backups (the newest 90) with a tested restore; a copy is downloaded off the VM by hand. |
 | Real emails reach Students too early | Local mail catcher until Phase 5; test addresses first; written approval from the Rector. |
 | Time runs out before the 26 Nov end-sem | Fixed cut order in `docs/PHASES.md`. |
 | Device protocol surprises | Parse from captured real payloads; keep it inside the Device adapter. |

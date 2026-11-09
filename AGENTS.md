@@ -3,7 +3,7 @@
 Instructions for AI coding agents working on EVLOS (Claude Code, which built the project, or any other). Read this first.
 
 ## What this project is
-A hostel Pooja attendance system: a fingerprint Device pushes Punches to a server; the Rector records Leaves and Returns, reviews exceptions, Finalizes the Day; Students are emailed only after Finalize; the Rector gets Reports. Requirements: `docs/PRD.md`. Structure and tech stack: `docs/ARCHITECTURE.md`. Schedule: `docs/PHASES.md`.
+A hostel Pooja attendance system: a fingerprint Device pushes Punches to a server; the Rector records Leaves and Returns, reviews exceptions, Finalizes the Day; Students are emailed only after Finalize; the Rector gets Reports. Requirements: `docs/PRD.md`. Structure and tech stack: `docs/ARCHITECTURE.md`. Schedule: `docs/PHASES.md`. Local setup: `docs/SETUP.md`. The server (Google Cloud VM): `docs/DEPLOY.md`.
 
 ## Non-negotiables
 1. **Use the glossary.** Names in code, tests, commits and UI come from `UBIQUITOUS_LANGUAGE.md`. Never invent a synonym (no "attendance", "log", "user", "warden", "biometric ID", and no "absent" for a Leave). If a needed concept is missing, stop and ask; do not name it yourself.
@@ -12,7 +12,7 @@ A hostel Pooja attendance system: a fingerprint Device pushes Punches to a serve
 4. **Time is IST.** A Day is an IST calendar date. Schedules run in Asia/Kolkata. The server runs in UTC, so never rely on the server's local time.
 5. **Test first.** For every rule: write a failing test, run it and confirm it fails for the right reason, then implement. Tests use Arrange / Act / Assert, one behaviour per test, and names that state the rule in glossary words. Do not write tests that only mirror the implementation.
 6. **No secrets in code, prompts or commits.** Config comes from environment variables; keep `.env.example` current. Never touch production or cloud credentials. Never commit real Student data or the Rector's files.
-7. **Databases.** Local development uses the PostgreSQL already installed on the author's machine: database `evlos` for development, `evlos_test` for tests, user `evlos`. Never run tests against `evlos`. Never touch any other database on the machine.
+7. **Databases.** Local development uses the PostgreSQL already installed on the author's machine: database `evlos` for development, `evlos_test` for tests, user `evlos`. Never run tests against `evlos`. Never touch any other database on the machine. On the VM, the real data lives in the `evlos-postgres-1` container: never run tests or experiments there, and restore a backup only into a scratch database.
 
 ## How to work
 - Plan before editing. For any task that touches more than three files, show the plan and wait for approval.
@@ -45,7 +45,9 @@ Run from the repo root.
 | `npm run format` / `npm run format:check` | Apply / check Prettier formatting. |
 | `cd apps/api && npx drizzle-kit generate --name <what_changed>` | Write a new SQL migration after editing `apps/api/src/db/schema.ts`. Never edit or regenerate a migration that has already been applied; add a new one. |
 
-`npm run dev` starts the server (Device endpoints on `DEVICE_PORT`, page API on `PAGE_PORT`, and the Public Live View on `PUBLIC_PORT`, the last two on this machine only). `npm run dev:web` starts the page at http://localhost:5173. CI (`.github/workflows/ci.yml`) runs lint, typecheck, format check, `db:setup` and test on every push to `main` and every pull request.
+`npm run dev` starts the server (Device endpoints on `DEVICE_PORT`, page API on `PAGE_PORT`, and the Public Live View on `PUBLIC_PORT`, the last two on `127.0.0.1` unless `PAGE_HOST` and `PUBLIC_HOST` say otherwise). `npm run dev:web` starts the page at http://localhost:5173. CI (`.github/workflows/ci.yml`) runs lint, typecheck, format check, `db:setup` and test on every push to `main` and every pull request.
+
+On the VM the same scripts run inside the `api` container, for example `docker compose run --rm api node apps/api/dist/db/migrate-cli.js` (migrations for `DATABASE_URL` only, never a test database), and `deploy/backup.sh` backs up the database every night. Every server command is in `docs/DEPLOY.md`.
 
 ## Definition of done
 - A failing test existed first and now passes; the whole suite, lint and typecheck pass.

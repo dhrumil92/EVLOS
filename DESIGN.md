@@ -13,7 +13,7 @@
 | # | Decision | Principle | `file:line` | Before | Why changed |
 |---|----------|-----------|-------------|--------|-------------|
 | D1 | Rules are pure functions that receive a `Clock` instead of reading the system time | Dependency inversion | `packages/core/src/clock.ts:5` | TBD | Tests must be able to say "it is 23:30 IST" without waiting; the server runs in UTC. |
-| D2 | Sending email is a `Notifier` port; delivery goes through an outbox with a unique key | Dependency inversion, single responsibility | `apps/api/src/ports/notifier.ts:17`; outbox key: `apps/api/src/db/schema.ts:104` | TBD | Retries must never send a second Notification; tests use a fake notifier. |
+| D2 | Sending email is a `Notifier` port; delivery goes through an outbox with a unique key | Dependency inversion, single responsibility | `apps/api/src/ports/notifier.ts:20`; outbox key: `apps/api/src/db/schema.ts:106` | TBD | Retries must never send a second Notification; tests use a fake notifier. |
 | D3 | Pooja Status is computed from stored facts (Punches, Leaves) and written only at Finalize | Single source of truth | `packages/core/src/pooja-status.ts:33` | TBD | A stored status can go stale when a Leave or Punch arrives late. |
 
 Replace a row if the real refactors turn out different. A decision counts only when its before and after really happened in this repo's history.
@@ -25,7 +25,7 @@ The Device adapter (`apps/api/src/adapters/device/`, parser at `parse-attlog.ts:
 - Whoever can read the Rector's login inbox can reset the password through "Forgot password?". The login email must be the Rector's own, protected inbox. A reset link is sent once, at the moment it is asked for, and is not retried; if it does not arrive, the Rector asks again.
 - A Student with a short Leave late in the Pooja Window (for example leaving at 17:00 IST) gets Not Applicable even if he was in the hostel most of the window. The Rector accepts this. No Pooja Status can be changed by hand.
 - A Notification cannot be recalled once Send Notifications is clicked. A Punch After Finalize that arrives after the emails were sent is still shown, but the email has already gone.
-- Last Seen only says when the Device last reached EVLOS. While EVLOS itself is down (for example the laptop is off), Last Seen stops too, for that reason alone.
+- Last Seen only says when the Device last reached EVLOS. While EVLOS itself is down (for example the VM is restarting, or the PC is off when running locally), Last Seen stops too, for that reason alone.
 - If the server stops while an email is being sent, that email is never sent and stays "Notification queued" on the Review page. It is not retried, because a retry could send it twice (rule 5).
 - An email the email provider refuses three times, 5 minutes apart, is given up and shown as "Notification not sent". It is not sent again. This includes the server being without internet: on 4 Nov the laptop was offline at 23:00 and the Review Reminder went out only on its third attempt. The VM stays online, so this matters mostly while running locally.
 - A scheduled email (Review Reminder, Daily Report, Monthly Report) missed while the server was off is sent when it starts again, but only on the same IST Day. One missed on an earlier Day is never sent; the Report can still be downloaded.
@@ -35,6 +35,9 @@ The Device adapter (`apps/api/src/adapters/device/`, parser at `parse-attlog.ts:
 
 - Vidyalaya Presence is worked out from the Leaves as they are when it is asked for. A Leave recorded the next morning changes it, so the Daily Report email of that night can show a Student In hostel who had left; the Monthly Report has the final answer.
 - The request limits count addresses. Every Student on the hostel Wi-Fi shares one internet address, so the five login tries are shared by everyone on that Wi-Fi: someone there who keeps trying wrong passwords can stop the Rector logging in from that Wi-Fi for 15 minutes (mobile data still works). The Public Live View allows 1200 requests a minute per address for the same reason.
+- EVLOS runs on one small VM (1 GB of memory, Google Cloud Always Free) with no second server. While it is down, the Device keeps its Punches and sends them when it is back, but the Rector's page is unreachable.
+- The nightly backups (the newest 90) are kept on the VM's own disk. They protect against a mistake or a bad update, not against losing the VM itself; a copy off the VM is made by hand for now.
+- The HTTPS address `evlos.34-55-12-141.sslip.io` depends on the free sslip.io DNS service, and the short address `evlos.vercel.app` on Vercel. If either is down, the IP address still reaches the Device endpoint, but the Rector's page needs the sslip.io name for its certificate.
 - `npm audit` reports 14 moderate findings (2026-11-08), all in development tools (esbuild through the dev tooling, minimatch through ESLint) that never run on the server; the server's own packages have none. Fixing them needs major upgrades of those tools, left for Phase 7.
 
 ## AI use
