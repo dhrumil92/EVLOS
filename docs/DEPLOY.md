@@ -230,7 +230,8 @@ All four containers carry `restart: unless-stopped`, and Docker starts with the 
 | Memory | `free -m` (about 470 MB available with EVLOS running) and `docker stats --no-stream` |
 | The API's log | `cd ~/EVLOS/deploy && docker compose logs --tail 50 api` |
 | The front Caddy's log | `cd ~/EVLOS/deploy/edge && docker compose logs --tail 50 caddy` |
-| Is it serving? | `https://evlos.34-55-12-141.sslip.io/api/public/live` answers with numbers, no login. It reads the database, so it also shows that Caddy, the API and PostgreSQL work. It is the address for an uptime monitor. |
+| Is it serving? | `https://evlos.34-55-12-141.sslip.io/api/public/live` answers with numbers, no login. It reads the database, so it also shows that Caddy, the API and PostgreSQL work. It is the address the uptime monitor watches (section 12). |
+| Uptime monitor | UptimeRobot (free plan), dashboard.uptimerobot.com: it checks the address above every 5 minutes and emails the author when it fails. It shows Up or Down, the uptime percentage and a log of outages. |
 | Cost | Billing, Reports; the ₹10 budget alert emails on any charge |
 
 | Symptom | Cause |
@@ -243,6 +244,8 @@ All four containers carry `restart: unless-stopped`, and Docker starts with the 
 | Bots ask for `/.env`, `/wp-config.php`, `/.git/HEAD` | Every public IP gets this. The images hold only what the Dockerfile copies in, so there is nothing to find. |
 
 ## 12. Backup and restore
+
+(The uptime monitor is in section 11. It reads `/api/public/live`, not the Vercel address, because Vercel answers even when the VM is off. To set it up again: UptimeRobot, new monitor, type HTTP(s), that URL, every 5 minutes, alert by email. Its Test Notification button checks that the email arrives.)
 
 Snapshots are off to stay free, so this is the only copy of the data outside the live database.
 
@@ -336,5 +339,4 @@ Everything after that backup is lost: at most about a day.
 
 - The Device at the Pooja location, with real Punches.
 - The Rector's real Students.
-- Optional: an uptime monitor (for example UptimeRobot) on `https://evlos.34-55-12-141.sslip.io/api/public/live`, every 5 minutes, emailing when it fails.
 - Optional: a copy of each nightly backup on Google Drive, so a copy survives losing the VM.
