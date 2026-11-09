@@ -242,8 +242,95 @@ All four containers carry `restart: unless-stopped`, and Docker starts with the 
 | The page loads but login fails with no error | `COOKIE_SECURE=true` needs the HTTPS address; open the page by the `https://` name, not by the IP. |
 | Bots ask for `/.env`, `/wp-config.php`, `/.git/HEAD` | Every public IP gets this. The images hold only what the Dockerfile copies in, so there is nothing to find. |
 
-## 12. Not done yet
+## 12. Backup and restore
 
-- A nightly database backup. There are no snapshots, so until it exists one disk failure loses the data.
+Snapshots are off to stay free, so this is the only copy of the data outside the live database.
+
+**What is saved.** The whole `evlos` database: every table and every row (Students, Punches, Leaves, Finalized Days, the outbox, Report Recipients, Rector logins as password hashes, the Device, the audit log) and the migrations record. Not saved: the code (it is on GitHub), `deploy/.env` (keep its secrets yourself) and the Docker images (rebuilt from the code).
+
+**How.** `deploy/backup.sh` runs `pg_dump` inside the PostgreSQL container, checks that the file is not empty and that `pg_restore` can read it, and only then names it `~/evlos-backups/evlos-<IST date>_<time>.dump`. It then keeps the newest 90 files and removes older ones. A failed run stops before anything is removed. No password is needed: `pg_dump` runs inside the container. The files are not encrypted, so anyone who has one can read every Student's data: keep them private, never commit or email them.
+
+**Disk.** A file is a few MB at most, so 90 files fit easily on the 30 GB disk.
+
+### First run and checks
+
+```
+cd ~/EVLOS && git pull
+```
+
+1. **It fails loudly.** With a wrong container name it must print `backup FAILED` and leave no `.dump` file:
+
+   ```
+   EVLOS_BACKUP_CONTAINER=wrong-name EVLOS_BACKUP_DIR=~/backup-test bash ~/EVLOS/deploy/backup.sh
+   ls -la ~/backup-test
+   ```
+
+2. **A real backup:**
+
+   ```
+   bash ~/EVLOS/deploy/backup.sh
+   ls -lh ~/evlos-backups
+   ```
+
+3. **Old files are removed.** Five runs keeping 3, in a test folder, must leave 3 files:
+
+   ```
+   for i in 1 2 3 4 5; do EVLOS_BACKUP_DIR=~/backup-test EVLOS_BACKUP_KEEP=3 bash ~/EVLOS/deploy/backup.sh; sleep 1; done
+   ls ~/backup-test
+   rm -r ~/backup-test
+   ```
+
+4. **The restore drill.** Restore the newest file into a scratch database, compare the numbers with the live one, then drop the scratch database. Never restore over `evlos`.
+
+   ```
+   latest=$(ls -1 ~/evlos-backups/evlos-*.dump | tail -n 1)
+   docker exec evlos-postgres-1 createdb -U evlos evlos_restore_test
+   docker exec -i evlos-postgres-1 pg_restore -U evlos -d evlos_restore_test --no-owner < "$latest"
+   for db in evlos evlos_restore_test; do docker exec evlos-postgres-1 psql -U evlos -d $db -c "SELECT '$db' AS db, (SELECT count(*) FROM students) AS students, (SELECT count(*) FROM punches) AS punches, (SELECT count(*) FROM leaves) AS leaves;"; done
+   docker exec evlos-postgres-1 dropdb -U evlos evlos_restore_test
+   ```
+
+   The two rows must show the same numbers.
+
+### Every night
+
+```
+crontab -e
+```
+
+The first time it asks for an editor: choose `nano`. Add this line at the end, save with Ctrl+O, Enter, and exit with Ctrl+X:
+
+```
+0 19 * * * bash /home/doshiname/EVLOS/deploy/backup.sh >> /home/doshiname/evlos-backups/backup.log 2>&1
+```
+
+19:00 UTC is 00:30 IST, after the 23:30 Daily Report. `crontab -l` shows it. The next morning, `ls -lh ~/evlos-backups` shows a new file and `tail ~/evlos-backups/backup.log` a line `saved evlos-...dump`.
+
+### A copy on your PC
+
+In the browser SSH window, open the gear menu, **Download file**, and enter the full path, for example `/home/doshiname/evlos-backups/evlos-2026-11-10_003001.dump`. Keep the copy somewhere private.
+
+### Looking at a backup in pgAdmin
+
+1. In your local PostgreSQL (version 16 or newer, or `pg_restore` refuses the file), create a new database such as `evlos_vm_copy`. Never use `evlos` or `evlos_test`.
+2. Right-click it, **Restore...**, Format **Custom or tar**, choose the file, and tick **No owner**.
+3. Browse Schemas, public, Tables, and right-click a table, **View/Edit Data**.
+4. Delete the database when done. The password pgAdmin asks for is your local server's, never the VM's.
+
+### Recovering everything
+
+After losing the VM or the database: set up the VM again (sections 3 to 5, but skip creating the Rector), copy the newest backup back onto the VM (SSH window, gear menu, **Upload file**), then restore it into the new, empty `evlos` database and start everything:
+
+```
+cd ~/EVLOS/deploy
+docker compose up -d postgres
+docker exec -i evlos-postgres-1 pg_restore -U evlos -d evlos --no-owner < ~/evlos-2026-11-10_003001.dump
+docker compose up -d
+```
+
+Everything after that backup is lost: at most about a day.
+
+## 13. Not done yet
+
 - The Device at the Pooja location, with real Punches.
 - The Rector's real Students.
