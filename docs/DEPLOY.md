@@ -22,7 +22,7 @@ Only ports 80, 443 and 8081 are open to the internet. The page API (3000), the P
 
 | Part | Choice | Why |
 |------|--------|-----|
-| Address | `evlos.34-55-12-141.sslip.io` | Caddy can only get a free HTTPS certificate for a name, not for a bare IP. sslip.io turns any name that contains the IP into that IP and needs no sign-up. DuckDNS and a Vercel redirect were considered and not used (a redirect gives no HTTPS; a Vercel rewrite would leave the last hop to the VM unencrypted). |
+| Address | `evlos.34-55-12-141.sslip.io` | Caddy can only get a free HTTPS certificate for a name, not for a bare IP. sslip.io turns any name that contains the IP into that IP and needs no sign-up. DuckDNS was considered and not used. A Vercel rewrite that fetches the pages from the VM was also not used, because its last hop would be unencrypted; a Vercel redirect to the HTTPS name is used for a short address (section 10). |
 | Images | Built on the VM with `docker compose build` | A first deployment needs no registry. If a build is ever killed for lack of memory, build on the PC or in GitHub Actions instead. |
 | Updates | By hand (section 8) | One small VM and one author; a deploy pipeline was cut from Phase 6. |
 | Versions | Node 22.23.4, PostgreSQL 16.15, Caddy 2.11.9 | Pinned exactly in `Dockerfile` and both `docker-compose.yml` files. |
@@ -140,6 +140,16 @@ docker compose logs --tail 30 api
 
 Open `https://evlos.34-55-12-141.sslip.io`: the login page appears with the padlock. `/live` (the Public Live View) loads without a login.
 
+**More Rector logins, and a forgotten password.** The same two scripts as on the PC (`npm run rector:create` and `npm run rector:password`), run inside the container. Each asks for the password at a hidden prompt, needs at least 12 characters, and never writes it to `.env` or the shell history.
+
+```
+cd ~/EVLOS/deploy
+docker compose run --rm api node apps/api/dist/create-rector.js another.rector@example.com
+docker compose run --rm api node apps/api/dist/set-rector-password.js the.rector@example.com
+```
+
+The first adds a login for another Rector. The second sets a new password for a Rector who is locked out and cannot use the emailed reset link (which needs `PUBLIC_URL` and the Gmail settings in `deploy/.env`); it ends every login of that Rector and closes any open reset link.
+
 ## 6. The Device
 
 1. Register its serial number (from the Device's System Info). EVLOS refuses uploads from any other serial.
@@ -195,7 +205,24 @@ Run the migration only when the update added one (`apps/api/migrations`); it ski
 
 All four containers carry `restart: unless-stopped`, and Docker starts with the VM. Stopping and starting the VM from the console on 9 Nov brought the edge Caddy, the API, the web page and PostgreSQL back with no manual step, with the same static IP and the swap file in place.
 
-## 10. Checking and troubleshooting
+## 10. The short address
+
+`evlos.vercel.app` is easier to remember than `evlos.34-55-12-141.sslip.io`, so a redirect page on Vercel forwards to it:
+
+| Open | Goes to |
+|------|---------|
+| `evlos.vercel.app` | `https://evlos.34-55-12-141.sslip.io/` (the Rector's page) |
+| `evlos.vercel.app/live` | `https://evlos.34-55-12-141.sslip.io/live` (the Public Live View) |
+
+- It is a separate repository, `evlos-redirect` (two files: `index.html` and `vercel.json`), imported into a Vercel project named `evlos`. It is not part of this repository.
+- It is a browser redirect, so nothing from EVLOS passes through Vercel: the login and every page are served by the VM over HTTPS. If Vercel were down, the sslip.io address would still work.
+- sslip.io is still needed. Caddy gets its HTTPS certificate for that name, and the redirect only points to it.
+- Vercel Web Analytics (switched on in the Vercel project, Analytics) counts visits to the short address: visitors, page views, countries and devices. It cannot see what happens on the VM after the redirect.
+- If the VM's IP ever changes, change the `destination` line in `index.html` and the name in `deploy/edge/Caddyfile` and `deploy/.env` (`PUBLIC_URL`).
+- `PUBLIC_URL`, and so the link in a password reset email, stays on the sslip.io address: the short one would only add a redirect.
+- The Rector should bookmark the short address. A bookmark of the long one skips Vercel and is not counted.
+
+## 11. Checking and troubleshooting
 
 | What | Command or place |
 |------|------------------|
@@ -215,7 +242,7 @@ All four containers carry `restart: unless-stopped`, and Docker starts with the 
 | The page loads but login fails with no error | `COOKIE_SECURE=true` needs the HTTPS address; open the page by the `https://` name, not by the IP. |
 | Bots ask for `/.env`, `/wp-config.php`, `/.git/HEAD` | Every public IP gets this. The images hold only what the Dockerfile copies in, so there is nothing to find. |
 
-## 11. Not done yet
+## 12. Not done yet
 
 - A nightly database backup. There are no snapshots, so until it exists one disk failure loses the data.
 - The Device at the Pooja location, with real Punches.
