@@ -311,6 +311,85 @@ The first time it asks for an editor: choose `nano`. Add this line at the end, s
 
 19:00 UTC is 00:30 IST, after the 23:30 Daily Report. `crontab -l` shows it. The next morning, `ls -lh ~/evlos-backups` shows a new file and `tail ~/evlos-backups/backup.log` a line `saved evlos-...dump`.
 
+### Copy to Google Drive (optional)
+
+`backup.sh` can also copy each new backup to Google Drive with **rclone**, a free command-line tool for cloud storage. It uses the `drive.file` permission: rclone sees only the files and folders it created itself, never the rest of the Drive. It never deletes anything on Drive, so Drive keeps every night's file. A failed upload keeps the local backup and ends the run with an error in `backup.log`. Without `EVLOS_BACKUP_DRIVE` the script behaves as before.
+
+The token that rclone gets is a secret: anyone who has it can read and delete the files rclone created (a deleted file stays in Drive's trash for 30 days). It lives only in `~/.config/rclone/rclone.conf` on the VM, readable only by you. A dump holds every Student's data, so turn on 2-step verification for the Google account, and set this up before the real Students are loaded if you can. To cancel the access: Google Account, Security, Third-party access, rclone, Remove access.
+
+The menu wording of `rclone config` differs a little between versions. These steps were written for the version in Ubuntu 24.04 and have not yet been run on the VM.
+
+1. **Install rclone on the VM:**
+
+   ```
+   sudo apt-get install -y rclone
+   rclone version
+   ```
+
+2. **Install rclone on your PC** (it opens the browser for the Google login):
+
+   ```
+   winget install Rclone.Rclone
+   ```
+
+   Close and reopen PowerShell, then run:
+
+   ```
+   rclone authorize "drive" --drive-scope drive.file
+   ```
+
+   A browser opens: sign in to the Google account that should hold the backups and allow access. PowerShell then prints a line of text in curly brackets between `Paste the following into your remote machine --->` and `<---End paste`. Copy that whole `{...}` line. It is the token, so keep it private.
+
+3. **On the VM, create the remote:**
+
+   ```
+   rclone config
+   ```
+
+   Answer: `n` (new remote), name `evlos-drive`, storage `drive` (type the word, or its number in the list), Client ID and Client Secret empty (press Enter), scope `drive.file` (the option "Files created by rclone only"), service account file empty, advanced config `n`, "Use web browser to automatically authenticate" **`n`**, then paste the token from step 2 at `config_token>`, shared drive `n`, keep this remote `y`, and quit with `q`.
+
+   ```
+   chmod 600 ~/.config/rclone/rclone.conf
+   ```
+
+4. **Check it:**
+
+   ```
+   rclone mkdir evlos-drive:evlos-backups
+   rclone lsd evlos-drive:
+   ```
+
+   `lsd` must list `evlos-backups`, and the folder appears in Google Drive.
+
+5. **One real upload:**
+
+   ```
+   cd ~/EVLOS && git pull
+   EVLOS_BACKUP_DRIVE=evlos-drive:evlos-backups bash ~/EVLOS/deploy/backup.sh
+   rclone ls evlos-drive:evlos-backups
+   ```
+
+   The last line of the first command's output says `uploaded ... to evlos-drive:evlos-backups.` and the file is in the Drive folder.
+
+6. **Restore from Drive, once, to prove it:**
+
+   ```
+   mkdir ~/drive-restore && rclone copy evlos-drive:evlos-backups ~/drive-restore
+   ls -lh ~/drive-restore
+   ```
+
+   Then run check 4 of "First run and checks" above on one of those files, and `rm -r ~/drive-restore`.
+
+7. **Every night.** Add the setting to the cron line (`crontab -e`):
+
+   ```
+   0 19 * * * EVLOS_BACKUP_DRIVE=evlos-drive:evlos-backups bash /home/doshiname/EVLOS/deploy/backup.sh >> /home/doshiname/evlos-backups/backup.log 2>&1
+   ```
+
+   The next morning `tail -n 3 ~/evlos-backups/backup.log` shows a `saved` line and an `uploaded` line, and the new file is in Drive.
+
+If the log says `the upload ... failed`, the usual cause is an expired or removed token: repeat steps 2 and 3 (choose `e` to edit the existing remote).
+
 ### A copy on your PC
 
 In the browser SSH window, open the gear menu, **Download file**, and enter the full path, for example `/home/doshiname/evlos-backups/evlos-2026-11-10_003001.dump`. Keep the copy somewhere private.
@@ -339,4 +418,4 @@ Everything after that backup is lost: at most about a day.
 
 - The Device at the Pooja location, with real Punches.
 - The Rector's real Students.
-- Optional: a copy of each nightly backup on Google Drive, so a copy survives losing the VM.
+- Optional: a copy of each nightly backup on Google Drive, so a copy survives losing the VM. The script and the steps are written ("Copy to Google Drive", section 12); not yet enabled on the VM.

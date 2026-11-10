@@ -6,13 +6,19 @@
 # Run by cron at 19:00 UTC (00:30 IST):
 #   0 19 * * * bash /home/doshiname/EVLOS/deploy/backup.sh >> /home/doshiname/evlos-backups/backup.log 2>&1
 #
-# The three settings can be changed for one run, as the checks in docs/DEPLOY.md do:
+# The settings can be changed for one run, as the checks in docs/DEPLOY.md do:
 #   EVLOS_BACKUP_CONTAINER=wrong-name EVLOS_BACKUP_DIR=~/backup-test bash backup.sh
+#
+# Optional copy to Google Drive: set EVLOS_BACKUP_DRIVE to an rclone remote and folder, for example
+#   EVLOS_BACKUP_DRIVE=evlos-drive:evlos-backups
+# The file is uploaded only after it is saved and checked. A failed upload keeps the local backup,
+# removes nothing and ends the run with an error. Nothing is ever deleted on Drive.
 set -euo pipefail
 
 CONTAINER="${EVLOS_BACKUP_CONTAINER:-evlos-postgres-1}"
 BACKUP_DIR="${EVLOS_BACKUP_DIR:-$HOME/evlos-backups}"
 KEEP="${EVLOS_BACKUP_KEEP:-90}"
+DRIVE="${EVLOS_BACKUP_DRIVE:-}"
 
 now_ist() { TZ=Asia/Kolkata date '+%Y-%m-%d %H:%M:%S IST'; }
 fail() {
@@ -57,3 +63,11 @@ fi
 
 size="$(du -h "$final" | cut -f1)"
 echo "$(now_ist) saved $(basename "$final") ($size), removed $removed old, keeping up to $KEEP."
+
+# The local backup is complete here, so whatever happens to the upload cannot lose it.
+if [[ -n "$DRIVE" ]]; then
+  command -v rclone > /dev/null || fail "EVLOS_BACKUP_DRIVE is set but rclone is not installed (the local backup is kept)."
+  rclone copyto "$final" "$DRIVE/$(basename "$final")" --retries 3 \
+    || fail "the upload to $DRIVE failed (the local backup is kept)."
+  echo "$(now_ist) uploaded $(basename "$final") to $DRIVE."
+fi
