@@ -173,7 +173,7 @@ The Record button counts only the ticked lines that have a time. A refused line 
 | The Rector's list for the first load has errors (wrong Student ID, room or email) | `npm run students:load` checks every row like the form and saves nothing while any row has a problem; each reported line is checked with the Rector. |
 | The 1 GB free VM runs short of memory | EVLOS has its own Google Cloud account and VM, 2 GB of swap and a memory limit on every container; about 470 MB stays free. |
 | Deployment starts late and leaves little pilot time | Built locally first; deployed on 9 Nov, a week before the 16 Nov target. |
-| The VM's disk is lost | Nightly backups (the newest 90) with a tested restore; a copy is downloaded off the VM by hand. |
+| The VM's disk is lost | Nightly backups (the newest 90 on the VM) with a tested restore, and every night's file also copied to Google Drive, where none is deleted. |
 | Real emails reach Students too early | Local mail catcher until Phase 5; test addresses first; written approval from the Rector. |
 | Time runs out before the 26 Nov end-sem | Fixed cut order in `docs/PHASES.md`. |
 | Device protocol surprises | Parse from captured real payloads; keep it inside the Device adapter. |

@@ -167,7 +167,7 @@ EVLOS runs on a Google Cloud e2-micro VM inside the Always Free limits. The full
 | HTTPS | An edge Caddy, the only thing on ports 80 and 443, with a Let's Encrypt certificate for `evlos.34-55-12-141.sslip.io` |
 | Short address | [`evlos.vercel.app`](https://evlos.vercel.app), a redirect page on Vercel; nothing from EVLOS passes through it |
 | The Device | Plain HTTP on its own port, 8081, and only for a registered Device Serial |
-| Backup | Nightly at 00:30 IST: a checked `pg_dump`, the newest 90 kept, with a tested restore |
+| Backup | Nightly at 00:30 IST: a checked `pg_dump`, the newest 90 kept on the VM and every one also copied to Google Drive, with a tested restore |
 | Restarts | Every container restarts by itself after a VM restart |
 
 More projects can share the same VM behind the edge Caddy: see [`docs/VM_MULTI_PROJECT.md`](docs/VM_MULTI_PROJECT.md).

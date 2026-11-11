@@ -317,7 +317,7 @@ The first time it asks for an editor: choose `nano`. Add this line at the end, s
 
 The token that rclone gets is a secret: anyone who has it can read and delete the files rclone created (a deleted file stays in Drive's trash for 30 days). It lives only in `~/.config/rclone/rclone.conf` on the VM, readable only by you. A dump holds every Student's data, so turn on 2-step verification for the Google account, and set this up before the real Students are loaded if you can. To cancel the access: Google Account, Security, Third-party access, rclone, Remove access.
 
-The menu wording of `rclone config` differs a little between versions. These steps were written for the version in Ubuntu 24.04 and have not yet been run on the VM.
+The menu wording of `rclone config` differs a little between versions. These steps were run on the VM on 10 and 11 Nov (rclone from Ubuntu 24.04's package source, the token made with a portable rclone on the PC). The first nightly upload by cron arrived at 00:30 IST on 11 Nov, and a restore from the Drive copy into a scratch database gave the same row counts as the live database (step 6, 10 Nov).
 
 1. **Install rclone on the VM:**
 
@@ -418,4 +418,3 @@ Everything after that backup is lost: at most about a day.
 
 - The Device at the Pooja location, with real Punches.
 - The Rector's real Students.
-- Optional: a copy of each nightly backup on Google Drive, so a copy survives losing the VM. The script and the steps are written ("Copy to Google Drive", section 12); not yet enabled on the VM.
