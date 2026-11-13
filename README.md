@@ -254,6 +254,7 @@ The schedule, exit checks and cut order are in [`docs/PHASES.md`](docs/PHASES.md
 | [`docs/SETUP.md`](docs/SETUP.md) | Setting up and running EVLOS locally, step by step. |
 | [`docs/DEPLOY.md`](docs/DEPLOY.md) | Running EVLOS on the Google Cloud VM: setup, Device, backup and restore. |
 | [`docs/VM_MULTI_PROJECT.md`](docs/VM_MULTI_PROJECT.md) | Running more projects on the same VM. |
+| [`docs/PILOT_TEMPLATE.md`](docs/PILOT_TEMPLATE.md) | The blank layout for the pilot's evidence of use: who uses EVLOS, and the feedback log. No personal data is kept in the repository. |
 | [`docs/PHASES.md`](docs/PHASES.md) | Schedule, exit checks and cut order. |
 | [`docs/AI_LOG.md`](docs/AI_LOG.md) | AI suggestions that were rejected or changed, and why. |
 | [`AGENTS.md`](AGENTS.md) | Instructions for AI coding agents working in this repository. |
